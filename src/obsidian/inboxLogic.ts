@@ -11,7 +11,6 @@
  */
 import { statusOf, type TodoRecord } from "../core/types";
 import { buildListGroups, type LabeledGroup } from "./viewData";
-import { DEFAULT_STATUS_LABELS } from "../core/types";
 
 export interface InboxSections {
   loose: LabeledGroup[];
@@ -29,8 +28,8 @@ export function buildInboxSections(
   const loose = open.filter((t) => t.id !== null);
   const unmanaged = opts.showUnmanaged ? open.filter((t) => t.id === null) : [];
   return {
-    loose: buildListGroups(loose, "note", DEFAULT_STATUS_LABELS),
-    unmanaged: buildListGroups(unmanaged, "note", DEFAULT_STATUS_LABELS),
+    loose: buildListGroups(loose, "note"),
+    unmanaged: buildListGroups(unmanaged, "note"),
     looseCount: loose.length,
     unmanagedCount: unmanaged.length,
   };

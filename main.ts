@@ -40,8 +40,7 @@ import {
 } from "./src/obsidian/editorExtensions";
 import { STATUS_ICONS } from "./src/ui/iconMaps";
 import { glyphIconContent } from "./src/ui/statusGlyphs";
-import { DEFAULT_STATUS_LABELS, STATUS_ORDER, migrateStatusLabels } from "./src/core/types";
-import { parseStatusAliases } from "./src/obsidian/labelMigration";
+import { STATUS_ORDER } from "./src/core/types";
 import {
   derivedFolders,
   normalizeFolderRoot,
@@ -442,9 +441,12 @@ export default class MarkTodoPlugin extends Plugin {
     if (action !== "here" && action !== "editor" && action !== "catchall") {
       this.settings.inlineDefaultAction = "here";
     }
-    // Older versions named the default "Doing" label "Progress".
-    this.settings.statusLabels = migrateStatusLabels({ ...DEFAULT_STATUS_LABELS, ...this.settings.statusLabels });
-    this.settings.statusLabelAliases = parseStatusAliases(this.settings.statusLabelAliases);
+    // Status names and their order are MarkTodo's, not a setting: a data.json
+    // that still carries the old fields drops them (a heading left on a custom
+    // label is renamed the next time a todo is placed in that note).
+    Reflect.deleteProperty(this.settings, "statusLabels");
+    Reflect.deleteProperty(this.settings, "statusLabelAliases");
+    Reflect.deleteProperty(this.settings, "statusColumnOrder");
   }
 
   /** A view's remembered filters + filter-bar state; defaults to collapsed, unfiltered. */

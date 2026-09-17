@@ -3,11 +3,10 @@
   import { formatTitle } from "./format";
   import { friendlyDate } from "./dates";
   import { STATUS_ICONS, PRIORITY_ICONS, PROJECT_ICON } from "./iconMaps";
-  import { statusOf, type Status, type TodoRecord } from "../core/types";
+  import { STATUS_LABELS, statusOf, type TodoRecord } from "../core/types";
 
   let {
     todo,
-    labels,
     today,
     showProject = false,
     onStatusClick,
@@ -16,7 +15,6 @@
     onConvert,
   }: {
     todo: TodoRecord;
-    labels: Record<Status, string>;
     /** Local `YYYY-MM-DD`, for the due chip's Today / Overdue tint. */
     today: string;
     showProject?: boolean;
@@ -46,8 +44,8 @@
     role="button"
     tabindex="0"
     use:icon={STATUS_ICONS[status]}
-    title={labels[status]}
-    aria-label={labels[status]}
+    title={STATUS_LABELS[status]}
+    aria-label={STATUS_LABELS[status]}
     onclick={(e) => onStatusClick?.(todo, e)}
     onkeydown={(e) => {
       if (e.key === "Enter" || e.key === " ") {

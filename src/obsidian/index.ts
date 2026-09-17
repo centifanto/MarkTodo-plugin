@@ -18,7 +18,7 @@ import { filterTodos, type QueryScope } from "../core/query";
 import { type MarkTodoSettings } from "./settings";
 import { isProjectFrontmatter } from "./projects";
 import { readNoteMeta } from "../core/noteMeta";
-import { indexFileTodos, indexFormatKey, patchRecordsForRename } from "./indexLogic";
+import { INDEX_FORMAT_KEY, indexFileTodos, patchRecordsForRename } from "./indexLogic";
 import { planSafeHeal } from "./writeLogic";
 import { fnv1a } from "./hash";
 import type MarkTodoPlugin from "../../main";
@@ -32,7 +32,7 @@ export interface IndexStats {
 export class TodoIndex {
   private todosByFile = new Map<string, TodoRecord[]>();
   private hashByFile = new Map<string, string>();
-  /** The `indexFormatKey` each file's records were derived under. */
+  /** The `INDEX_FORMAT_KEY` each file's records were derived under. */
   private formatByFile = new Map<string, string>();
   private byId = new Map<string, TodoRecord>();
   private subscribers = new Set<() => void>();
@@ -146,8 +146,7 @@ export class TodoIndex {
     const text = await this.app.vault.cachedRead(file);
     if (this.readGeneration.get(file.path) !== generation) return;
     const hash = fnv1a(text);
-    const settings = this.getSettings();
-    const format = indexFormatKey(settings.statusLabels, settings.statusLabelAliases);
+    const format = INDEX_FORMAT_KEY;
     if (
       !force &&
       this.hashByFile.get(file.path) === hash &&
@@ -164,8 +163,6 @@ export class TodoIndex {
 
     const records = indexFileTodos(file.path, text, {
       projectName: isProject ? file.basename : null,
-      statusLabels: isProject ? settings.statusLabels : null,
-      statusAliases: settings.statusLabelAliases,
       projectGroup: meta.group,
       archived: meta.archived,
     });

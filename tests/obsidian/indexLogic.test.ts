@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { indexFileTodos, indexFormatKey, patchRecordsForRename } from "../../src/obsidian/indexLogic";
-import { DEFAULT_STATUS_LABELS, statusOf } from "../../src/core/types";
+import { INDEX_FORMAT_KEY, indexFileTodos, patchRecordsForRename } from "../../src/obsidian/indexLogic";
+import { STATUS_LABELS, STATUS_ORDER, statusOf } from "../../src/core/types";
 
 describe("indexFileTodos — project file with subprojects + status sections", () => {
   const text = [
@@ -17,7 +17,6 @@ describe("indexFileTodos — project file with subprojects + status sections", (
 
   const recs = indexFileTodos("Reno.md", text, {
     projectName: "Reno",
-    statusLabels: DEFAULT_STATUS_LABELS,
   });
 
   it("finds all three todos with project name attached", () => {
@@ -52,7 +51,6 @@ describe("indexFileTodos — flat project (status sections, no subprojects)", ()
   );
   const recs = indexFileTodos("Flat.md", text, {
     projectName: "Flat",
-    statusLabels: DEFAULT_STATUS_LABELS,
   });
 
   it("leaves subproject null when only status headings are present", () => {
@@ -69,7 +67,6 @@ describe("indexFileTodos — ambient note (empty status set, headings group)", (
   const text = ["# Groceries", "- [ ] Milk", "## Errands", "- [ ] Bank"].join("\n");
   const recs = indexFileTodos("Notes.md", text, {
     projectName: null,
-    statusLabels: null,
   });
 
   it("uses the nearest heading as subproject and leaves project null", () => {
@@ -89,7 +86,6 @@ describe("indexFileTodos — edge cases", () => {
     const text = ["---", "marktodo: true", "---", "- [ ] real <!-- mt id=c1 -->"].join("\n");
     const recs = indexFileTodos("P.md", text, {
       projectName: "P",
-      statusLabels: DEFAULT_STATUS_LABELS,
     });
     expect(recs).toHaveLength(1);
     expect(recs[0].line).toBe(3);
@@ -100,7 +96,6 @@ describe("indexFileTodos — edge cases", () => {
     const text = ["- [ ] Parent", "  - [/] Child <!-- mt id=d1 -->"].join("\n");
     const recs = indexFileTodos("N.md", text, {
       projectName: null,
-      statusLabels: null,
     });
     expect(recs).toHaveLength(2);
     expect(recs[1].indent).toBe("  ");
@@ -110,7 +105,6 @@ describe("indexFileTodos — edge cases", () => {
   it("returns nothing for a file with no todos", () => {
     const recs = indexFileTodos("Empty.md", "# Just a heading\n\nSome prose.", {
       projectName: null,
-      statusLabels: null,
     });
     expect(recs).toEqual([]);
   });
@@ -119,7 +113,6 @@ describe("indexFileTodos — edge cases", () => {
     const text = ["## Backlog", "- [ ] A <!-- mt id=cr1 -->"].join("\r\n");
     const recs = indexFileTodos("C.md", text, {
       projectName: "C",
-      statusLabels: DEFAULT_STATUS_LABELS,
     });
     expect(recs).toHaveLength(1);
     expect(recs[0].id).toBe("cr1");
@@ -131,7 +124,6 @@ describe("patchRecordsForRename — renamed-project re-labelling", () => {
   it("re-labels a project file's records to the new path + basename", () => {
     const recs = indexFileTodos("Reno.md", "- [/] Demo <!-- mt id=r1 p=high -->", {
       projectName: "Reno",
-      statusLabels: DEFAULT_STATUS_LABELS,
     });
     const out = patchRecordsForRename(recs, "Projects/Home Reno.md", "Home Reno");
     expect(out[0].file).toBe("Projects/Home Reno.md");
@@ -145,7 +137,6 @@ describe("patchRecordsForRename — renamed-project re-labelling", () => {
   it("keeps a non-project (ambient) file's records at project=null", () => {
     const recs = indexFileTodos("notes.md", "- [ ] Buy milk", {
       projectName: null,
-      statusLabels: null,
     });
     const out = patchRecordsForRename(recs, "Archive/notes.md", "notes");
     expect(out[0].file).toBe("Archive/notes.md");
@@ -174,7 +165,6 @@ describe("indexFileTodos — note blocks", () => {
 
   const recs = indexFileTodos("Reno.md", text, {
     projectName: "Reno",
-    statusLabels: DEFAULT_STATUS_LABELS,
   });
   const byId = (id: string) => recs.find((r) => r.id === id)!;
 
@@ -204,17 +194,8 @@ describe("indexFileTodos — note blocks", () => {
   });
 });
 
-describe("indexFormatKey", () => {
-  const base = indexFormatKey(DEFAULT_STATUS_LABELS);
-
-  it("changes when a label is renamed or two are swapped", () => {
-    expect(indexFormatKey({ ...DEFAULT_STATUS_LABELS, PROGRESS: "In progress" })).not.toBe(base);
-    expect(
-      indexFormatKey({ ...DEFAULT_STATUS_LABELS, BLOCKED: "Paused", PAUSED: "Blocked" }),
-    ).not.toBe(base);
-  });
-
-  it("ignores case and surrounding space, as heading matching does", () => {
-    expect(indexFormatKey({ ...DEFAULT_STATUS_LABELS, DONE: "  DONE " })).toBe(base);
+describe("INDEX_FORMAT_KEY", () => {
+  it("names every status label, so a MarkTodo-side rename moves it", () => {
+    for (const st of STATUS_ORDER) expect(INDEX_FORMAT_KEY).toContain(STATUS_LABELS[st]);
   });
 });

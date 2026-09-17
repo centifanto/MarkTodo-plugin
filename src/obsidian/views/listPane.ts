@@ -36,7 +36,6 @@ import {
 } from "../../ui/smartViews";
 import { buildInboxSections } from "../inboxLogic";
 import { buildListGroups } from "../viewData";
-import { DEFAULT_STATUS_LABELS } from "../../core/types";
 import {
   buildFilterBar,
   filterByState,
@@ -321,9 +320,8 @@ export class ListPane {
     this.surface.render([...todos], "list");
   }
 
-  private listProps(): Pick<ComponentProps<typeof TodoList>, "labels" | "onStatusClick" | "onOpenTodo" | "onReveal"> {
+  private listProps(): Pick<ComponentProps<typeof TodoList>, "onStatusClick" | "onOpenTodo" | "onReveal"> {
     return {
-      labels: this.plugin.settings.statusLabels,
       onStatusClick: (todo: TodoRecord, event: MouseEvent) => openTodoMenu(this.plugin, todo, event),
       onOpenTodo: (todo: TodoRecord, anchor?: Element) => openTodoModal(this.plugin, todo, anchor),
       onReveal: (todo: TodoRecord) => void revealTodo(this.plugin, todo),
@@ -342,7 +340,7 @@ export class ListPane {
   /** Search results: every matching todo in the vault, grouped by note. */
   private renderSearch(): void {
     const results = searchTodos(this.plugin.index.getAll(), this.query);
-    const groups = buildListGroups(results, "note", DEFAULT_STATUS_LABELS);
+    const groups = buildListGroups(results, "note");
     const signature = JSON.stringify(["search", this.query, groupsSignature(groups)]);
     this.remount(signature, () => {
       this.bodyEl.createDiv({
@@ -413,8 +411,6 @@ export class ListPane {
     const arrangement = this.arrangement;
     const sections = arrangeSmartTodos(todos, this.segment, arrangement, {
       today,
-      statusLabels: this.plugin.settings.statusLabels,
-      statusOrder: this.plugin.settings.statusColumnOrder,
       priorityLabels: PRIORITY_LABEL,
     });
     const signature = JSON.stringify([

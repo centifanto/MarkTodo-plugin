@@ -2,24 +2,18 @@ import { describe, it, expect } from "vitest";
 import { projectNoteContent, safeProjectBasename,
   noteFolderPrefix,
 } from "../../src/obsidian/projectScaffold";
-import { DEFAULT_STATUS_LABELS, STATUS_ORDER } from "../../src/core/types";
+import { STATUS_LABELS, STATUS_ORDER } from "../../src/core/types";
 
 describe("projectNoteContent — the Create-project scaffold", () => {
   it("writes the project key frontmatter and every status heading in column order", () => {
-    const out = projectNoteContent(DEFAULT_STATUS_LABELS, STATUS_ORDER);
+    const out = projectNoteContent();
     expect(out.startsWith("---\nmarktodo: true\n---\n\n")).toBe(true);
     const headings = [...out.matchAll(/^## (.+)$/gm)].map((m) => m[1]);
-    expect(headings).toEqual(STATUS_ORDER.map((s) => DEFAULT_STATUS_LABELS[s]));
-  });
-
-  it("respects custom labels and a custom column order", () => {
-    const labels = { ...DEFAULT_STATUS_LABELS, DONE: "Shipped" };
-    const out = projectNoteContent(labels, ["DONE", "BACKLOG"]);
-    expect(out).toBe("---\nmarktodo: true\n---\n\n## Shipped\n\n## Backlog\n");
+    expect(headings).toEqual(STATUS_ORDER.map((s) => STATUS_LABELS[s]));
   });
 
   it("ends with a single trailing newline", () => {
-    const out = projectNoteContent(DEFAULT_STATUS_LABELS, STATUS_ORDER);
+    const out = projectNoteContent();
     expect(out.endsWith("\n")).toBe(true);
     expect(out.endsWith("\n\n")).toBe(false);
   });

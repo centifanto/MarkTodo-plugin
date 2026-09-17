@@ -11,7 +11,7 @@
  * `due @ …`) until the user touches those controls.
  */
 import { type Editor, Modal, Notice, Setting, TFile, setIcon } from "obsidian";
-import { STATUS_ORDER, type Priority, type Status, type TodoRecord } from "../core/types";
+import { STATUS_LABELS, STATUS_ORDER, type Priority, type Status, type TodoRecord } from "../core/types";
 import { parseTodoLine } from "../core/parse";
 import { serializeTodoLine } from "../core/serialize";
 import { setStatus } from "../core/status";
@@ -124,7 +124,7 @@ class CaptureModal extends Modal {
     statusSetting.settingEl.addClass("marktodo-chip-setting");
     this.chipRow(statusSetting.controlEl, STATUS_ORDER, this.status, (st) => {
       this.status = st;
-    }, (st) => [STATUS_ICONS[st], settings.statusLabels[st]]);
+    }, (st) => [STATUS_ICONS[st], STATUS_LABELS[st]]);
     statusSetting.settingEl.toggle(isProjectDest()); // loose notes start at Backlog
 
     const prioritySetting = new Setting(contentEl).setName("Priority");

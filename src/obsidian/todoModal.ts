@@ -13,6 +13,7 @@
 import { ButtonComponent, Modal, Platform, Setting, setIcon, type TFile, Notice} from "obsidian";
 import { parseTodoLine } from "../core/parse";
 import {
+  STATUS_LABELS,
   STATUS_ORDER,
   statusOf,
   type Priority,
@@ -241,7 +242,6 @@ class TodoModal extends Modal {
   }
 
   private buildStatusRow(parent: HTMLElement): void {
-    const { settings } = this.plugin;
     const placement = placementOf(this.todo);
     // Projects get every status; loose todos just check off.
     const statuses = STATUS_ORDER.filter((s) => canSetStatus(placement, s));
@@ -254,7 +254,7 @@ class TodoModal extends Modal {
     for (const st of statuses) {
       const chip = wrap.createEl("button", { cls: "marktodo-chip" });
       setIcon(chip.createSpan({ cls: "marktodo-chip-icon" }), STATUS_ICONS[st]);
-      chip.createSpan({ text: settings.statusLabels[st] });
+      chip.createSpan({ text: STATUS_LABELS[st] });
       chip.toggleClass("is-active", st === this.status);
       chip.onclick = (): void => {
         this.status = st;

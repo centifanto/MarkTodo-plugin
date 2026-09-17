@@ -6,13 +6,10 @@
  * No Obsidian imports — unit-tested directly.
  */
 import { PROJECT_FM_KEY } from "../core/noteMeta";
-import { type Status } from "../core/types";
+import { STATUS_LABELS, STATUS_ORDER } from "../core/types";
 
-export function projectNoteContent(
-  statusLabels: Record<Status, string>,
-  statusOrder: readonly Status[],
-): string {
-  const headings = statusOrder.map((s) => `## ${statusLabels[s]}`).join("\n\n");
+export function projectNoteContent(): string {
+  const headings = STATUS_ORDER.map((s) => `## ${STATUS_LABELS[s]}`).join("\n\n");
   return `---\n${PROJECT_FM_KEY}: true\n---\n\n${headings}\n`;
 }
 

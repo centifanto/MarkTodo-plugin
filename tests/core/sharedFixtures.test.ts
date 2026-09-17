@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {parseTodoLine} from '../../src/core/parse';
 import {serializeTodoLine} from '../../src/core/serialize';
-import {DEFAULT_STATUS_LABELS, statusOf} from '../../src/core/types';
+import {statusOf} from '../../src/core/types';
 import {indexFileTodos} from '../../src/obsidian/indexLogic';
 
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'shared');
@@ -54,10 +54,7 @@ describe('shared fixture: line-level round-trip identity', () => {
 });
 
 describe('shared fixture: file-level indexing (indexFileTodos)', () => {
-  const opts = {
-    projectName: 'Home Renovation',
-    statusLabels: DEFAULT_STATUS_LABELS,
-  };
+  const opts = {projectName: 'Home Renovation'};
   const records = indexFileTodos('Home Renovation.md', lfText, opts);
 
   it('indexes 15 todos: 11 managed, 4 unmanaged', () => {

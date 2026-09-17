@@ -7,7 +7,7 @@ import { confirmAction } from "./confirmModal";
 import { formatTitle } from "../ui/format";
 import { Menu } from "obsidian";
 import { openNote } from "./layout";
-import { statusOf, type Priority, type TodoRecord } from "../core/types";
+import { STATUS_LABELS, STATUS_ORDER, statusOf, type Priority, type TodoRecord } from "../core/types";
 import { STATUS_ICONS } from "../ui/iconMaps";
 import { DueModal } from "./dueModal";
 import { MoveToProjectModal } from "./moveModal";
@@ -51,12 +51,12 @@ export function confirmDeleteTodo(plugin: MarkTodoPlugin, todo: TodoRecord, afte
 
 /** One item per status the todo may be set to — projects get every status, loose todos just check off. */
 function addStatusItems(menu: Menu, plugin: MarkTodoPlugin, todo: TodoRecord): void {
-  const { settings, writer } = plugin;
+  const { writer } = plugin;
   const placement = placementOf(todo);
-  for (const st of settings.statusColumnOrder.filter((s) => canSetStatus(placement, s))) {
+  for (const st of STATUS_ORDER.filter((s) => canSetStatus(placement, s))) {
     menu.addItem((i) =>
       i
-        .setTitle(settings.statusLabels[st])
+        .setTitle(STATUS_LABELS[st])
         .setIcon(STATUS_ICONS[st])
         .setChecked(statusOf(todo) === st)
         .onClick(() => void writer.setStatus(todo, st)),

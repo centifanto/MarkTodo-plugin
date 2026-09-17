@@ -10,10 +10,11 @@
  */
 import {
   type Status,
-  type StatusAliases,
   type Todo,
   type TodoRecord,
-  statusLabelLookup,
+  STATUS_LABELS,
+  STATUS_ORDER,
+  statusFromLabel,
   statusOf,
 } from "../core/types";
 import { parseTodoLine } from "../core/parse";
@@ -30,54 +31,40 @@ export interface HeadingInfo {
 }
 
 /**
- * Map a heading's text to a Status if it matches a configured label (or a legacy
- * default such as `Progress`, see `statusLabelLookup`), else null.
+ * Map a heading's text to a Status if it matches a status label (or a legacy one
+ * such as `Progress`, see `statusFromLabel`), else null.
  */
-export function statusOfHeading(
-  text: string,
-  statusLabels: Record<Status, string>,
-  aliases?: StatusAliases,
-): Status | null {
-  return statusLabelLookup(statusLabels, aliases).get(text.trim().toLowerCase()) ?? null;
+export function statusOfHeading(text: string): Status | null {
+  return statusFromLabel(text);
 }
 
 /**
  * Rename status headings still carrying a legacy label (`### Progress` →
- * `### Doing`) or one of your previous labels to the configured one, keeping
- * their level. Frontmatter is skipped; the line count never changes. Returns
- * `lines` itself when nothing did.
+ * `### Doing`) to today's, keeping their level. Frontmatter is skipped; the line
+ * count never changes. Returns `lines` itself when nothing did.
  */
-export function renameLegacyStatusHeadings(
-  lines: string[],
-  statusLabels: Record<Status, string>,
-  aliases?: StatusAliases,
-): string[] {
-  const lookup = statusLabelLookup(statusLabels, aliases);
+export function renameLegacyStatusHeadings(lines: string[]): string[] {
   let out: string[] | null = null;
   for (let i = bodyStart(lines); i < lines.length; i++) {
     const m = HEADING_RE.exec(lines[i]);
     if (!m) continue;
-    const text = m[2].trim().toLowerCase();
-    const st = lookup.get(text);
-    if (st === undefined || text === statusLabels[st].trim().toLowerCase()) continue;
+    const text = m[2].trim();
+    const st = statusFromLabel(text);
+    if (st === null || text === STATUS_LABELS[st]) continue;
     out ??= lines.slice();
-    out[i] = `${m[1]} ${statusLabels[st]}`;
+    out[i] = `${m[1]} ${STATUS_LABELS[st]}`;
   }
   return out ?? lines;
 }
 
 /** Parse all ATX headings into a structured model. */
-export function parseHeadings(
-  lines: string[],
-  statusLabels: Record<Status, string>,
-  aliases?: StatusAliases,
-): HeadingInfo[] {
+export function parseHeadings(lines: string[]): HeadingInfo[] {
   const out: HeadingInfo[] = [];
   for (let i = 0; i < lines.length; i++) {
     const m = HEADING_RE.exec(lines[i]);
     if (!m) continue;
     const text = m[2].trim();
-    const status = statusOfHeading(text, statusLabels, aliases);
+    const status = statusOfHeading(text);
     out.push({ line: i, level: m[1].length, text, isStatus: status !== null, status });
   }
   return out;
@@ -164,19 +151,14 @@ function nearestSubprojectHeading(
  * was computed under non-project semantics, where `### Progress` looked like a
  * subproject). Mirrors indexFileTodos's ancestor walk.
  */
-export function subprojectOf(
-  lines: string[],
-  lineIdx: number,
-  statusLabels: Record<Status, string>,
-  aliases?: StatusAliases,
-): string | null {
+export function subprojectOf(lines: string[], lineIdx: number): string | null {
   const stack: { level: number; isStatus: boolean; text: string }[] = [];
   for (let i = 0; i < lineIdx && i < lines.length; i++) {
     const m = HEADING_RE.exec(lines[i]);
     if (!m) continue;
     const level = m[1].length;
     const text = m[2].trim();
-    const isStatus = statusOfHeading(text, statusLabels, aliases) !== null;
+    const isStatus = statusOfHeading(text) !== null;
     while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop();
     stack.push({ level, isStatus, text });
   }
@@ -187,19 +169,14 @@ export function subprojectOf(
 }
 
 /** Line index of the nearest enclosing STATUS heading for `lineIdx`, or -1. */
-function statusSectionLineOf(
-  lines: string[],
-  lineIdx: number,
-  statusLabels: Record<Status, string>,
-  aliases?: StatusAliases,
-): number {
+function statusSectionLineOf(lines: string[], lineIdx: number): number {
   const stack: { level: number; line: number; isStatus: boolean }[] = [];
   for (let i = 0; i < lineIdx && i < lines.length; i++) {
     const m = HEADING_RE.exec(lines[i]);
     if (!m) continue;
     const level = m[1].length;
     while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop();
-    stack.push({ level, line: i, isStatus: statusOfHeading(m[2].trim(), statusLabels, aliases) !== null });
+    stack.push({ level, line: i, isStatus: statusOfHeading(m[2].trim()) !== null });
   }
   for (let s = stack.length - 1; s >= 0; s--) if (stack[s].isStatus) return stack[s].line;
   return -1;
@@ -222,8 +199,6 @@ export function reorderTodoLine(
   fromIdx: number,
   anchorIdx: number,
   position: "before" | "after",
-  statusLabels: Record<Status, string>,
-  aliases?: StatusAliases,
 ): string[] | null {
   if (fromIdx === anchorIdx) return null;
   const moved = parseTodoLine(lines[fromIdx] ?? "");
@@ -231,9 +206,8 @@ export function reorderTodoLine(
   if (!moved || !anchor) return null;
   if (statusOf(moved) !== statusOf(anchor) || moved.indent !== anchor.indent) return null;
   if (
-    statusSectionLineOf(lines, fromIdx, statusLabels, aliases) !==
-      statusSectionLineOf(lines, anchorIdx, statusLabels, aliases) ||
-    subprojectOf(lines, fromIdx, statusLabels, aliases) !== subprojectOf(lines, anchorIdx, statusLabels, aliases)
+    statusSectionLineOf(lines, fromIdx) !== statusSectionLineOf(lines, anchorIdx) ||
+    subprojectOf(lines, fromIdx) !== subprojectOf(lines, anchorIdx)
   ) {
     return null;
   }
@@ -247,13 +221,6 @@ export function reorderTodoLine(
   return out.join("\n") === lines.join("\n") ? null : out;
 }
 
-export interface PlaceOptions {
-  statusLabels: Record<Status, string>;
-  /** Your previous labels: still status sections, renamed on placement. */
-  statusAliases?: StatusAliases;
-  statusOrder: readonly Status[];
-}
-
 /**
  * Remove the todo line at `fromIndex` and re-insert `newLine` under the status
  * section for `newStatus`, scoped to the todo's `subproject` block. Creates the
@@ -265,11 +232,10 @@ export function placeTodoInProject(
   subproject: string | null,
   newStatus: Status,
   newLine: string,
-  opts: PlaceOptions,
   subLines?: readonly string[],
 ): string[] {
   // A placement also brings the note's status headings up to date (`Progress` → `Doing`).
-  const work = renameLegacyStatusHeadings(lines, opts.statusLabels, opts.statusAliases).slice();
+  const work = renameLegacyStatusHeadings(lines).slice();
   // A todo is its line PLUS what is indented under it — its note and any
   // sub-items. Move the whole span, or the note is stranded under the old
   // heading with nothing to report it. When the caller supplies `subLines` (an
@@ -281,7 +247,7 @@ export function placeTodoInProject(
     work.splice(fromIndex, spanEnd - fromIndex);
   }
 
-  const headings = parseHeadings(work, opts.statusLabels, opts.statusAliases);
+  const headings = parseHeadings(work);
 
   let blockStart: number;
   let blockEnd: number;
@@ -331,15 +297,15 @@ export function placeTodoInProject(
       : subproject
         ? subLevel + 1
         : 2;
-  const headerLine = `${"#".repeat(headerLevel)} ${opts.statusLabels[newStatus]}`;
-  const newOrder = opts.statusOrder.indexOf(newStatus);
+  const headerLine = `${"#".repeat(headerLevel)} ${STATUS_LABELS[newStatus]}`;
+  const newOrder = STATUS_ORDER.indexOf(newStatus);
 
   let insertHeaderAt = blockEnd;
   if (statusHeadsInBlock.length === 0) {
     insertHeaderAt = blockStart;
   } else {
     for (const h of statusHeadsInBlock) {
-      if (h.status && opts.statusOrder.indexOf(h.status) > newOrder) {
+      if (h.status && STATUS_ORDER.indexOf(h.status) > newOrder) {
         insertHeaderAt = h.line;
         break;
       }

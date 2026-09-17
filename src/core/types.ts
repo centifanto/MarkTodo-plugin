@@ -22,7 +22,7 @@ export type Status =
   | "PAUSED"
   | "DONE";
 
-/** Default column / display order. Configurable in settings; this is the default. */
+/** Column / display order. Fixed — MarkTodo's own shape, not a preference. */
 export const STATUS_ORDER: readonly Status[] = [
   "BACKLOG",
   "WARMING",
@@ -52,8 +52,13 @@ export const GLYPH_TO_STATUS: Readonly<Record<string, Status>> = {
   x: "DONE",
 };
 
-/** Default heading labels for status sections in project files. Configurable. */
-export const DEFAULT_STATUS_LABELS: Record<Status, string> = {
+/**
+ * Heading labels for status sections in project files. FIXED: these are
+ * MarkTodo's status names, not a preference — the label in a note and the label
+ * in the UI are always the same string, so a heading means the same thing in
+ * every vault, on every device, in both programs.
+ */
+export const STATUS_LABELS: Record<Status, string> = {
   BACKLOG: "Backlog",
   WARMING: "Warming",
   PROGRESS: "Doing",
@@ -63,63 +68,33 @@ export const DEFAULT_STATUS_LABELS: Record<Status, string> = {
 };
 
 /**
- * Default labels a status went by before a rename (Progress → Doing).
- * Saved settings still holding one are migrated (`migrateStatusLabels`), and a
- * note heading with one still counts as that status's section while the status
- * keeps its default label (`statusLabelLookup`) — MarkTodo renames the heading
- * the next time it places a todo in that note.
+ * Labels a status went by before MarkTodo renamed it (Progress → Doing). A note
+ * heading still on one counts as that status's section, and MarkTodo renames the
+ * heading the next time it places a todo in that note.
  */
 export const LEGACY_STATUS_LABELS: Readonly<Partial<Record<Status, readonly string[]>>> = {
   PROGRESS: ["Progress"],
 };
 
 /**
- * Labels a status went by before YOU renamed it, newest last. A note
- * heading with one still counts as that status's section — in a note the rename
- * missed, or written by a device that hadn't synced the new label yet — and
- * MarkTodo renames it the next time it places a todo in that note. Never holds
- * a currently configured label.
+ * Heading text (trimmed, lowercased) → the Status it denotes: the labels first,
+ * then the legacy ones, which never override a current label.
  */
-export type StatusAliases = Partial<Record<Status, readonly string[]>>;
-
-/** Saved labels with retired defaults replaced by today's (`Progress` → `Doing`). */
-export function migrateStatusLabels(labels: Record<Status, string>): Record<Status, string> {
-  const out = { ...labels };
-  for (const st of STATUS_ORDER) {
-    if (LEGACY_STATUS_LABELS[st]?.includes(out[st])) out[st] = DEFAULT_STATUS_LABELS[st];
-  }
-  return out;
-}
-
-/**
- * Heading text (trimmed, lowercased) → the Status it denotes: every configured
- * label (the first status wins a duplicate), then your previous labels
- * (`aliases`), then the legacy defaults of statuses still on their
- * default label — an alias never overrides anything before it.
- */
-export function statusLabelLookup(
-  labels: Record<Status, string>,
-  aliases: StatusAliases = {},
-): Map<string, Status> {
+export const STATUS_BY_LABEL: ReadonlyMap<string, Status> = (() => {
   const map = new Map<string, Status>();
+  for (const st of STATUS_ORDER) map.set(STATUS_LABELS[st].toLowerCase(), st);
   for (const st of STATUS_ORDER) {
-    const key = labels[st].trim().toLowerCase();
-    if (!map.has(key)) map.set(key, st);
-  }
-  for (const st of STATUS_ORDER) {
-    for (const alias of aliases[st] ?? []) {
-      const key = alias.trim().toLowerCase();
-      if (key !== "" && !map.has(key)) map.set(key, st);
-    }
-  }
-  for (const st of STATUS_ORDER) {
-    if (labels[st] !== DEFAULT_STATUS_LABELS[st]) continue;
     for (const alias of LEGACY_STATUS_LABELS[st] ?? []) {
       const key = alias.toLowerCase();
       if (!map.has(key)) map.set(key, st);
     }
   }
   return map;
+})();
+
+/** The Status a heading denotes (legacy labels included), or null when it denotes none. */
+export function statusFromLabel(text: string): Status | null {
+  return STATUS_BY_LABEL.get(text.trim().toLowerCase()) ?? null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────

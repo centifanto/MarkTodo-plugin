@@ -7,19 +7,13 @@ import {
   smartViewTodos,
   type ArrangeContext,
 } from "../../src/ui/smartViews";
-import {
-  DEFAULT_STATUS_LABELS,
-  STATUS_ORDER,
-  type TodoRecord,
-} from "../../src/core/types";
+import { type TodoRecord } from "../../src/core/types";
 import { PRIORITY_LABEL } from "../../src/ui/iconMaps";
 
 const TODAY = "2026-09-15";
 
 const ctx: ArrangeContext = {
   today: TODAY,
-  statusLabels: { ...DEFAULT_STATUS_LABELS },
-  statusOrder: [...STATUS_ORDER],
   priorityLabels: PRIORITY_LABEL,
 };
 
@@ -202,19 +196,10 @@ describe("arrangeSmartTodos — grouping", () => {
     expect(sections.map((s) => s.title)).toEqual(["Acme", "Zed", "No project"]);
   });
 
-  it("groups by status in the configured column order", () => {
+  it("groups by status in column order", () => {
     const todos = [todo("done", { glyph: "x" }), todo("backlog")];
     const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "status" }, ctx);
     expect(sections.map((s) => s.title)).toEqual(["Backlog", "Done"]);
-  });
-
-  it("honors a reordered status column order", () => {
-    const todos = [todo("done", { glyph: "x" }), todo("backlog")];
-    const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "status" }, {
-      ...ctx,
-      statusOrder: ["DONE", "BACKLOG"],
-    });
-    expect(sections.map((s) => s.title)).toEqual(["Done", "Backlog"]);
   });
 
   it("groups by priority in rank order", () => {

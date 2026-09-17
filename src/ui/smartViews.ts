@@ -12,6 +12,7 @@
  */
 import {
   PRIORITY_ORDER,
+  STATUS_LABELS,
   STATUS_ORDER,
   statusOf,
   type Priority,
@@ -86,8 +87,6 @@ export interface TodaySection {
 
 export interface ArrangeContext {
   today: string;
-  statusLabels: Record<Status, string>;
-  statusOrder: readonly Status[];
   priorityLabels: Record<Priority, string>;
 }
 
@@ -151,12 +150,7 @@ export function arrangeSmartTodos(
     const i = order.indexOf(k);
     return i === -1 ? order.length : i;
   };
-  // An unconfigured status still has to sort somewhere: fall in behind the
-  // configured ones, in the canonical order.
-  const statusRank = (s: Status) => {
-    const i = ctx.statusOrder.indexOf(s);
-    return i === -1 ? ctx.statusOrder.length + STATUS_ORDER.indexOf(s) : i;
-  };
+  const statusRank = (s: Status) => rank(STATUS_ORDER, s);
   // Recent reads newest first; every other segment soonest first. Undated last.
   const newestFirst = view === "recent";
   const byDate = (a: TodoRecord, b: TodoRecord) => {
@@ -224,7 +218,7 @@ export function arrangeSmartTodos(
         const status = statusOf(todo);
         return {
           key: status,
-          title: ctx.statusLabels[status],
+          title: STATUS_LABELS[status],
           bucket: statusRank(status),
           sub: "",
         };

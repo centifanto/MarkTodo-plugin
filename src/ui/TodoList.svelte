@@ -18,7 +18,6 @@
 
   let {
     groups,
-    labels,
     total,
     emptyText = "No todos found.",
     showProject = false,
@@ -35,7 +34,6 @@
     dragDisabled = false,
   }: {
     groups: Group[];
-    labels: Record<Status, string>;
     total: number;
     emptyText?: string;
     /** Name each todo's project under its title (Todos, Today — not a project's own list). */
@@ -182,13 +180,13 @@
         >
           {#each zones[gi] as card (card.id)}
             <div animate:flip={{ duration: flipDurationMs }}>
-              <TodoRow todo={card.todo} {labels} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
+              <TodoRow todo={card.todo} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
             </div>
           {/each}
         </div>
       {:else}
         {#each group.todos as todo (keyOf(todo))}
-          <TodoRow {todo} {labels} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
+          <TodoRow {todo} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
         {/each}
       {/if}
     </div>

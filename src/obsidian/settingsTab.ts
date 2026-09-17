@@ -30,7 +30,6 @@ import { reconcileArchive } from "./archiveReconcile";
 import { dailyNotesEnabled } from "./dailyNote";
 import { confirmAction } from "./confirmModal";
 import { getProjectFiles } from "./projects";
-import { labelTakenBy, nextStatusAliases, normalizeLabel, planRelabel } from "./labelMigration";
 import {
   DEFAULT_MARKTODO_FOLDER,
   normalizeFolderRoot,
@@ -38,7 +37,7 @@ import {
   perFileMoves,
   planFolderMove,
 } from "./folderLogic";
-import { STATUS_ORDER, DEFAULT_STATUS_LABELS, type Status } from "../core/types";
+import { STATUS_ORDER, STATUS_LABELS, type Status } from "../core/types";
 import { DEFAULT_SETTINGS } from "./settings";
 import {
   ACCENTS,
@@ -139,7 +138,7 @@ export class MarkTodoSettingTab extends PluginSettingTab {
       // The dashboard's placement means nothing without a dashboard.
       ...(this.plugin.lightweight ? [] : [this.layoutSection()]),
       this.todosSection(),
-      this.statusLabelsSection(),
+      this.editingSection(),
       this.advancedSection(),
       this.folderSection(),
       this.appNoteSection(),
@@ -212,7 +211,7 @@ export class MarkTodoSettingTab extends PluginSettingTab {
           render: (setting) => {
             setting.addDropdown((dropdown) => {
               for (const status of STATUS_ORDER) {
-                dropdown.addOption(status, settings.statusLabels[status]);
+                dropdown.addOption(status, STATUS_LABELS[status]);
               }
               dropdown.setValue(settings.defaultStatus).onChange((value) => {
                 settings.defaultStatus = value as Status;
@@ -225,23 +224,12 @@ export class MarkTodoSettingTab extends PluginSettingTab {
     };
   }
 
-  /** Status labels (reindex) — section-header labels recognized in project files — then the editing toggles. */
-  private statusLabelsSection(): Section {
+  /** How todos behave in notes and in the editor. */
+  private editingSection(): Section {
     const { settings } = this.plugin;
     return {
-      heading: "Status labels",
+      heading: "Editing",
       rows: [
-        ...STATUS_ORDER.map(
-          (status): Row => ({
-            name: status,
-            render: (setting) => {
-              setting.addText((text) => {
-                text.setPlaceholder(DEFAULT_STATUS_LABELS[status]).setValue(settings.statusLabels[status]);
-                onCommit(text.inputEl, (value) => this.enqueue(() => this.commitStatusLabel(status, value, text)));
-              });
-            },
-          }),
-        ),
         {
           name: "Maintain status headers in project files",
           desc: "Keep status-section headers in sync inside project files.",
@@ -660,89 +648,6 @@ export class MarkTodoSettingTab extends PluginSettingTab {
       confirmText: `Move ${n} note${n === 1 ? "" : "s"}`,
       onConfirm: moveNotes,
       offerNewOnly: true,
-    });
-  }
-
-  /**
-   * A status label change is a MIGRATION. The label names a heading in every
-   * project note, so: plan the rename across them, ask when any note would
-   * change, rename the headings, and only then save the label — the old one
-   * kept as an alias — and rebuild the index.
-   * Resolves once the dialog is answered and any rename has finished.
-   */
-  private async commitStatusLabel(status: Status, value: string, text: TextComponent): Promise<void> {
-    const { settings } = this.plugin;
-    const restore = (): void => {
-      text.setValue(settings.statusLabels[status]);
-    };
-    const label = normalizeLabel(status, value);
-    if (label === settings.statusLabels[status]) return restore();
-    const taken = labelTakenBy(settings.statusLabels, status, label);
-    if (taken) {
-      new Notice(`MarkTodo: "${label}" is already the label for ${settings.statusLabels[taken]}.`);
-      return restore();
-    }
-
-    const oldLabels = { ...settings.statusLabels };
-    const oldAliases = settings.statusLabelAliases;
-    const newLabels = { ...oldLabels, [status]: label };
-    const newAliases = nextStatusAliases(oldLabels, oldAliases, newLabels);
-
-    const toRename: TFile[] = [];
-    const collided: string[] = [];
-    for (const file of getProjectFiles(this.app)) {
-      const lines = (await this.app.vault.cachedRead(file)).split(/\r?\n/);
-      const plan = planRelabel(lines, oldLabels, oldAliases, newLabels, newAliases);
-      if (plan.renamed > 0) toRename.push(file);
-      if (plan.collisions.length > 0) collided.push(file.basename);
-    }
-
-    const apply = async (): Promise<void> => {
-      let renamed = 0;
-      for (const file of toRename) {
-        renamed += await this.plugin.writer.relabelStatusHeadings(file, oldLabels, oldAliases, newLabels, newAliases);
-      }
-      settings.statusLabels = newLabels;
-      settings.statusLabelAliases = newAliases;
-      text.setValue(label);
-      await this.plugin.saveSettings();
-      await this.plugin.index.rebuildAll();
-      if (renamed > 0) {
-        new Notice(`MarkTodo: renamed ${renamed} heading${renamed === 1 ? "" : "s"} to "${label}".`);
-      }
-    };
-
-    if (toRename.length === 0 && collided.length === 0) return apply();
-
-    const notes = (n: number): string => `${n} project note${n === 1 ? "" : "s"}`;
-    const listed = (names: string[]): string[] =>
-      names.length <= 8 ? names : [...names.slice(0, 8), `and ${names.length - 8} more`];
-    const parts: string[] = [];
-    if (toRename.length > 0) {
-      parts.push(
-        `Rename the "${oldLabels[status]}" headings to "${label}" in ${notes(toRename.length)}? ` +
-          "Every todo keeps its status.",
-      );
-    }
-    if (collided.length > 0) {
-      parts.push(
-        `${notes(collided.length)} already ${collided.length === 1 ? "has" : "have"} a heading called ` +
-          `"${label}". It will start counting as the ${label} section:`,
-      );
-    }
-    await new Promise<void>((resolve, reject) => {
-      confirmAction(this.app, {
-        title: "Change status label",
-        message: parts.join(" "),
-        details: collided.length > 0 ? listed(collided) : undefined,
-        confirmText: toRename.length > 0 ? "Rename" : "Change label",
-        destructive: false,
-        onConfirm: () => void apply().then(resolve, reject),
-        onCancel: () => {
-          restore();
-          resolve();
-        },
-      });
     });
   }
 

@@ -2,7 +2,7 @@
  * Plugin settings: shape and defaults. No Obsidian import, just data.
  */
 
-import { type Status, type StatusAliases, DEFAULT_STATUS_LABELS, STATUS_ORDER } from "../core/types";
+import { type Status } from "../core/types";
 import { type FilterState } from "./filterLogic";
 import { DEFAULT_PROJECT_SORT, type ProjectSort } from "../ui/projectNav";
 import { DEFAULT_TODAY_ARRANGEMENT, type TodayArrangement } from "../ui/smartViews";
@@ -58,17 +58,6 @@ export interface MarkTodoSettings {
   captureDestination: "project" | "daily";
   /** The project most recently captured into (preselected when destination = project). */
   lastCaptureProject: string;
-  /** Heading label per status (used to recognize status sections in project files). */
-  statusLabels: Record<Status, string>;
-  /**
-   * Your previous labels per status, newest last. A heading still on
-   * one counts as that status's section and is renamed on the next placement —
-   * for notes a rename missed and devices that hadn't synced it. Shared with the
-   * app through data.json.
-   */
-  statusLabelAliases: StatusAliases;
-  /** Column / display order for statuses. */
-  statusColumnOrder: Status[];
   /** Status applied to new / adopted todos. */
   defaultStatus: Status;
   /** Keep status-section headers in sync inside project files. */
@@ -150,9 +139,6 @@ export const DEFAULT_SETTINGS: MarkTodoSettings = {
   inboxShowUnmanaged: true,
   captureDestination: "project",
   lastCaptureProject: "",
-  statusLabels: { ...DEFAULT_STATUS_LABELS },
-  statusLabelAliases: {},
-  statusColumnOrder: [...STATUS_ORDER],
   defaultStatus: "BACKLOG",
   maintainStatusHeaders: true,
   mobileDragEnabled: true,

@@ -13,15 +13,7 @@
  * EOL, so CRLF (Windows) vaults round-trip without being silently converted.
  */
 import { type App, Notice, TFile, normalizePath } from "obsidian";
-import {
-  type Priority,
-  type Status,
-  type StatusAliases,
-  type Todo,
-  type TodoRecord,
-  statusOf,
-  STATUS_ORDER,
-} from "../core/types";
+import { type Priority, type Status, type Todo, type TodoRecord, statusOf } from "../core/types";
 import { setStatus as coreSetStatus, setPriority as coreSetPriority } from "../core/status";
 import { setDue as coreSetDue, syncDoneDate, localIsoDate } from "../core/dates";
 import { setTitle as coreSetTitle } from "../core/title";
@@ -43,7 +35,6 @@ import { deletesOnComplete, readNoteMeta } from "../core/noteMeta";
 import { buildCaptureLine } from "./inlineLogic";
 import { statusRefusal } from "./placement";
 import { fnv1a } from "./hash";
-import { planRelabel } from "./labelMigration";
 
 /** Split into lines (EOL-agnostic) and remember the file's line ending. */
 function splitEol(data: string): { lines: string[]; eol: string } {
@@ -137,12 +128,8 @@ export class Writer {
       } else if (useSections && move) {
         // Recompute the subproject from CURRENT lines — the snapshot's value can
         // be stale (e.g. the note was converted to a project after its last index).
-        const subproject = subprojectOf(lines, idx, settings.statusLabels, settings.statusLabelAliases);
-        result = placeTodoInProject(lines, idx, subproject, move.toStatus, newLine, {
-          statusLabels: settings.statusLabels,
-          statusAliases: settings.statusLabelAliases,
-          statusOrder: settings.statusColumnOrder ?? STATUS_ORDER,
-        }).join(eol);
+        const subproject = subprojectOf(lines, idx);
+        result = placeTodoInProject(lines, idx, subproject, move.toStatus, newLine).join(eol);
       } else {
         lines[idx] = newLine;
         result = lines.join(eol);
@@ -193,12 +180,6 @@ export class Writer {
     if (ops.length === 0) return;
     const settings = this.getSettings();
     if (!settings.maintainStatusHeaders) return;
-    const place = {
-      statusLabels: settings.statusLabels,
-      statusAliases: settings.statusLabelAliases,
-      statusOrder: settings.statusColumnOrder ?? STATUS_ORDER,
-    };
-
     const today = localIsoDate(new Date());
     await this.app.vault.process(file, (data) => {
       const before = managedIds(data);
@@ -220,7 +201,7 @@ export class Writer {
           // must follow the new glyph (e.g. the box was ticked natively).
           const synced = syncDoneDate(cur, today);
           const line = synced === cur ? lines[idx] : serializeTodoLine(synced);
-          lines = placeTodoInProject(lines, idx, op.subproject, op.toStatus, line, place);
+          lines = placeTodoInProject(lines, idx, op.subproject, op.toStatus, line);
         }
       }
 
@@ -309,19 +290,7 @@ export class Writer {
 
       let result: string;
       if (this.isProjectFile(target) && settings.maintainStatusHeaders && todo) {
-        result = placeTodoInProject(
-          lines,
-          -1,
-          null,
-          statusOf(todo),
-          line,
-          {
-            statusLabels: settings.statusLabels,
-            statusAliases: settings.statusLabelAliases,
-            statusOrder: settings.statusColumnOrder ?? STATUS_ORDER,
-          },
-          subLines,
-        ).join(eol);
+        result = placeTodoInProject(lines, -1, null, statusOf(todo), line, subLines).join(eol);
       } else {
         while (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
         lines.push(line, ...subLines, "");
@@ -410,8 +379,7 @@ export class Writer {
       const from = findTodoLine(lines, todo);
       const at = findTodoLine(lines, anchor);
       if (from === -1 || at === -1) return data;
-      const { statusLabels, statusLabelAliases } = this.getSettings();
-      const out = reorderTodoLine(lines, from, at, position, statusLabels, statusLabelAliases);
+      const out = reorderTodoLine(lines, from, at, position);
       if (out === null) return data;
       const result = out.join(eol);
       const after = managedIds(result);
@@ -526,34 +494,6 @@ export class Writer {
       return result;
     });
     return true;
-  }
-
-  /**
-   * Rename a project note's status headings for a label change: read
-   * with the OLD labels, written with the NEW ones (`planRelabel`). Remembered as
-   * our own write, so the re-index it triggers never heals; a note whose managed
-   * todos would change is left alone. Returns how many headings were renamed.
-   */
-  async relabelStatusHeadings(
-    file: TFile,
-    oldLabels: Record<Status, string>,
-    oldAliases: StatusAliases,
-    newLabels: Record<Status, string>,
-    newAliases: StatusAliases,
-  ): Promise<number> {
-    let renamed = 0;
-    await this.app.vault.process(file, (data) => {
-      const { lines, eol } = splitEol(data);
-      const plan = planRelabel(lines, oldLabels, oldAliases, newLabels, newAliases);
-      if (plan.renamed === 0) return data;
-      const result = plan.lines.join(eol);
-      const after = managedIds(result);
-      for (const id of managedIds(data)) if (!after.has(id)) return data;
-      renamed = plan.renamed;
-      this.remember(file.path, result);
-      return result;
-    });
-    return renamed;
   }
 
   /**

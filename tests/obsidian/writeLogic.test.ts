@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { indexFileTodos, indexFormatKey } from "../../src/obsidian/indexLogic";
+import { INDEX_FORMAT_KEY } from "../../src/obsidian/indexLogic";
 import {
   statusOfHeading,
   parseHeadings,
@@ -13,20 +13,8 @@ import {
   MAX_SECTION_WINS,
   reorderTodoLine,
   renameLegacyStatusHeadings,
-  type PlaceOptions,
 } from "../../src/obsidian/writeLogic";
-import {
-  DEFAULT_STATUS_LABELS,
-  STATUS_ORDER,
-  migrateStatusLabels,
-  type Status,
-  type TodoRecord,
-} from "../../src/core/types";
-
-const opts: PlaceOptions = {
-  statusLabels: DEFAULT_STATUS_LABELS,
-  statusOrder: STATUS_ORDER,
-};
+import { STATUS_LABELS, STATUS_ORDER, type Status, type TodoRecord } from "../../src/core/types";
 
 const RENO = [
   "---",
@@ -43,42 +31,29 @@ const RENO = [
 ];
 
 describe("statusOfHeading", () => {
-  it("matches configured labels case-insensitively", () => {
-    expect(statusOfHeading("Doing", DEFAULT_STATUS_LABELS)).toBe("PROGRESS");
-    expect(statusOfHeading("  done  ", DEFAULT_STATUS_LABELS)).toBe("DONE");
-    expect(statusOfHeading("Kitchen", DEFAULT_STATUS_LABELS)).toBeNull();
+  it("matches the status labels case-insensitively", () => {
+    expect(statusOfHeading("Doing")).toBe("PROGRESS");
+    expect(statusOfHeading("  done  ")).toBe("DONE");
+    expect(statusOfHeading("Kitchen")).toBeNull();
   });
 });
 
 describe("legacy Progress headings (Progress → Doing)", () => {
   const LEGACY = ["---", "marktodo: true", "---", "## Kitchen", "### Progress", "- [/] Demo <!-- mt id=k2 -->"];
 
-  it("still reads `Progress` as the Doing section while the label is the default", () => {
-    expect(statusOfHeading("progress", DEFAULT_STATUS_LABELS)).toBe("PROGRESS");
-  });
-
-  it("does not alias a custom label, nor shadow a status configured as Progress", () => {
-    expect(statusOfHeading("Progress", { ...DEFAULT_STATUS_LABELS, PROGRESS: "Working" })).toBeNull();
-    const custom = { ...DEFAULT_STATUS_LABELS, WARMING: "Progress" };
-    expect(statusOfHeading("Progress", custom)).toBe("WARMING");
-  });
-
-  it("migrates saved labels holding the old default only", () => {
-    expect(migrateStatusLabels({ ...DEFAULT_STATUS_LABELS, PROGRESS: "Progress" }).PROGRESS).toBe("Doing");
-    expect(migrateStatusLabels({ ...DEFAULT_STATUS_LABELS, PROGRESS: "Working" }).PROGRESS).toBe("Working");
+  it("still reads `Progress` as the Doing section", () => {
+    expect(statusOfHeading("progress")).toBe("PROGRESS");
   });
 
   it("renameLegacyStatusHeadings renames body headings, keeps level, returns the same array when clean", () => {
-    const out = renameLegacyStatusHeadings(LEGACY, DEFAULT_STATUS_LABELS);
+    const out = renameLegacyStatusHeadings(LEGACY);
     expect(out).toEqual(["---", "marktodo: true", "---", "## Kitchen", "### Doing", "- [/] Demo <!-- mt id=k2 -->"]);
-    expect(renameLegacyStatusHeadings(out, DEFAULT_STATUS_LABELS)).toBe(out);
-    const custom = { ...DEFAULT_STATUS_LABELS, PROGRESS: "Working" };
-    expect(renameLegacyStatusHeadings(LEGACY, custom)).toBe(LEGACY);
+    expect(renameLegacyStatusHeadings(out)).toBe(out);
   });
 
   it("a placement into a legacy note lands under the renamed section", () => {
     const lines = [...LEGACY, "### Done", "- [x] Tile <!-- mt id=k3 -->"];
-    const result = placeTodoInProject(lines, 7, "Kitchen", "PROGRESS", "- [/] Tile <!-- mt id=k3 -->", opts);
+    const result = placeTodoInProject(lines, 7, "Kitchen", "PROGRESS", "- [/] Tile <!-- mt id=k3 -->");
     expect(result).not.toContain("### Progress");
     expect(result.filter((l) => l === "### Doing")).toHaveLength(1);
     expect(result.indexOf("- [/] Tile <!-- mt id=k3 -->")).toBe(result.indexOf("### Doing") + 2);
@@ -88,7 +63,7 @@ describe("legacy Progress headings (Progress → Doing)", () => {
 
 describe("parseHeadings", () => {
   it("classifies status vs subproject headings", () => {
-    const h = parseHeadings(RENO, DEFAULT_STATUS_LABELS);
+    const h = parseHeadings(RENO);
     const kitchen = h.find((x) => x.text === "Kitchen")!;
     const progress = h.find((x) => x.text === "Doing")!;
     expect(kitchen.isStatus).toBe(false);
@@ -121,7 +96,7 @@ describe("managedIds", () => {
 
 describe("placeTodoInProject — subproject moves", () => {
   it("moves a todo into an existing status section in the same subproject", () => {
-    const result = placeTodoInProject(RENO, 6, "Kitchen", "PROGRESS", "- [/] Pick countertop <!-- mt id=k1 -->", opts);
+    const result = placeTodoInProject(RENO, 6, "Kitchen", "PROGRESS", "- [/] Pick countertop <!-- mt id=k1 -->");
     const progress = result.indexOf("### Doing");
     const done = result.indexOf("### Done");
     const k1 = result.findIndex((l) => l.includes("id=k1"));
@@ -131,7 +106,7 @@ describe("placeTodoInProject — subproject moves", () => {
   });
 
   it("creates a missing status section in column order (Paused before Done)", () => {
-    const result = placeTodoInProject(RENO, 6, "Kitchen", "PAUSED", "- [-] Pick countertop <!-- mt id=k1 -->", opts);
+    const result = placeTodoInProject(RENO, 6, "Kitchen", "PAUSED", "- [-] Pick countertop <!-- mt id=k1 -->");
     const progress = result.indexOf("### Doing");
     const paused = result.indexOf("### Paused");
     const done = result.indexOf("### Done");
@@ -143,7 +118,7 @@ describe("placeTodoInProject — subproject moves", () => {
 
   it("stays within its own subproject block (does not leak into Bathroom)", () => {
     const lines = [...RENO, "", "## Bathroom", "### Backlog", "- [ ] Tub <!-- mt id=bt -->"];
-    const result = placeTodoInProject(lines, 6, "Kitchen", "BLOCKED", "- [!] Pick countertop <!-- mt id=k1 -->", opts);
+    const result = placeTodoInProject(lines, 6, "Kitchen", "BLOCKED", "- [!] Pick countertop <!-- mt id=k1 -->");
     // The new Blocked header must be inside Kitchen, before ## Bathroom.
     const blocked = result.indexOf("### Blocked");
     const bathroom = result.indexOf("## Bathroom");
@@ -157,7 +132,7 @@ describe("placeTodoInProject — flat project (no subprojects)", () => {
   const FLAT = ["---", "marktodo: true", "---", "## Backlog", "- [ ] A <!-- mt id=a -->", "## Done", "- [x] B <!-- mt id=b -->"];
 
   it("moves into an existing top-level section", () => {
-    const result = placeTodoInProject(FLAT, 4, null, "DONE", "- [x] A <!-- mt id=a -->", opts);
+    const result = placeTodoInProject(FLAT, 4, null, "DONE", "- [x] A <!-- mt id=a -->");
     const done = result.indexOf("## Done");
     const a = result.findIndex((l) => l.includes("id=a"));
     expect(a).toBeGreaterThan(done);
@@ -166,7 +141,7 @@ describe("placeTodoInProject — flat project (no subprojects)", () => {
 
   it("creates a missing section AFTER the frontmatter (never at line 0)", () => {
     const small = ["---", "marktodo: true", "---", "## Backlog", "- [ ] A <!-- mt id=a -->"];
-    const result = placeTodoInProject(small, 4, null, "PROGRESS", "- [/] A <!-- mt id=a -->", opts);
+    const result = placeTodoInProject(small, 4, null, "PROGRESS", "- [/] A <!-- mt id=a -->");
     expect(result[0]).toBe("---");
     const prog = result.indexOf("## Doing");
     expect(prog).toBeGreaterThan(2);
@@ -184,7 +159,6 @@ describe("placeTodoInProject — header level matches sibling status sections", 
       "Feature A",
       "PROGRESS",
       "- [/] X <!-- mt id=x1 -->",
-      opts,
     );
     expect(result).toContain("### Doing"); // not "## Doing"
     expect(result).not.toContain("## Doing");
@@ -210,7 +184,7 @@ describe("placeTodoInProject — inserts snug under the section (regression: a m
   ];
 
   it("places the moved todo directly after the section's last todo, not after a trailing blank", () => {
-    const result = placeTodoInProject(REAL, 4, "Kitchen", "DONE", "- [x] Demo <!-- mt id=k2 -->", opts);
+    const result = placeTodoInProject(REAL, 4, "Kitchen", "DONE", "- [x] Demo <!-- mt id=k2 -->");
     const order = result.findIndex((l) => l.includes("id=k3"));
     const demo = result.findIndex((l) => l.includes("id=k2"));
     expect(demo).toBe(order + 1); // snug — no blank between Order and Demo
@@ -250,7 +224,6 @@ function tr(
 }
 
 describe("subprojectOf — nearest non-status ancestor (fresh placement context)", () => {
-  const L = DEFAULT_STATUS_LABELS;
   const lines = [
     "## Kitchen", // 0  subproject
     "### Doing", // 1  status
@@ -260,13 +233,13 @@ describe("subprojectOf — nearest non-status ancestor (fresh placement context)
   ];
 
   it("returns the nearest non-status ancestor heading", () => {
-    expect(subprojectOf(lines, 2, L)).toBe("Kitchen");
+    expect(subprojectOf(lines, 2)).toBe("Kitchen");
   });
   it("returns null under a top-level status section", () => {
-    expect(subprojectOf(lines, 4, L)).toBeNull();
+    expect(subprojectOf(lines, 4)).toBeNull();
   });
   it("returns null when there are no headings above the line", () => {
-    expect(subprojectOf(["- [ ] x"], 0, L)).toBeNull();
+    expect(subprojectOf(["- [ ] x"], 0)).toBeNull();
   });
 });
 
@@ -307,41 +280,24 @@ describe("planHeal — reconcile manual edits", () => {
 });
 
 describe("planSafeHeal — the guards", () => {
-  const F = indexFormatKey(DEFAULT_STATUS_LABELS);
+  const F = INDEX_FORMAT_KEY;
+
+  it("the format key covers every status label", () => {
+    for (const st of STATUS_ORDER) expect(F).toContain(STATUS_LABELS[st]);
+  });
 
   // The probe that found the bug: headings that change MEANING under unchanged
-  // text must never rewrite a glyph.
-  const note = [
-    "---",
-    "marktodo: true",
-    "---",
-    "## Blocked",
-    "- [!] waiting on vendor <!-- mt id=a1 -->",
-    "## Paused",
-    "- [-] shelved idea <!-- mt id=a2 -->",
-    "## Ideas",
-    "- [x] shipped thing <!-- mt id=a3 -->",
-  ].join("\n");
-  const indexWith = (labels: Record<Status, string>): TodoRecord[] =>
-    indexFileTodos("P.md", note, { projectName: "P", statusLabels: labels });
-
-  it("swapping two labels: unguarded, both statuses would flip; guarded, nothing", () => {
-    const swapped = { ...DEFAULT_STATUS_LABELS, BLOCKED: "Paused", PAUSED: "Blocked" };
-    const before = indexWith(DEFAULT_STATUS_LABELS);
-    const after = indexWith(swapped);
+  // text must never rewrite a glyph. Labels are fixed now, so the only way the
+  // meaning moves is a MarkTodo version that renames one — which moves the
+  // format key, and a snapshot from before it is never diffed against one after.
+  it("a snapshot from another format is never diffed", () => {
+    const before = [tr("a1", "!", "BLOCKED"), tr("a2", "-", "PAUSED")];
+    const after = [tr("a1", "!", "PAUSED"), tr("a2", "-", "BLOCKED")];
     expect(planHeal(before, after).map((op) => [op.id, op.toStatus])).toEqual([
       ["a1", "PAUSED"],
       ["a2", "BLOCKED"],
     ]);
-    expect(planSafeHeal(before, after, F, indexFormatKey(swapped))).toEqual({ ops: [], heldBack: 0 });
-  });
-
-  it("renaming a label onto an ordinary heading: a done todo is not sent to Backlog", () => {
-    const renamed = { ...DEFAULT_STATUS_LABELS, BACKLOG: "Ideas" };
-    const before = indexWith(DEFAULT_STATUS_LABELS);
-    const after = indexWith(renamed);
-    expect(planHeal(before, after)).toHaveLength(1);
-    expect(planSafeHeal(before, after, F, indexFormatKey(renamed)).ops).toEqual([]);
+    expect(planSafeHeal(before, after, "an older format", F)).toEqual({ ops: [], heldBack: 0 });
   });
 
   it("a first index (no prior format) plans nothing", () => {
@@ -399,7 +355,6 @@ describe("healDecision", () => {
 });
 
 describe("reorderTodoLine — within-column reorder", () => {
-  const L = DEFAULT_STATUS_LABELS;
   const doc = [
     "## Kitchen",
     "### Backlog",
@@ -415,7 +370,7 @@ describe("reorderTodoLine — within-column reorder", () => {
   ];
 
   it("moves a todo before another in the same section", () => {
-    expect(reorderTodoLine(doc, 5, 2, "before", L)!.slice(1, 6)).toEqual([
+    expect(reorderTodoLine(doc, 5, 2, "before")!.slice(1, 6)).toEqual([
       "### Backlog",
       "- [ ] C <!-- mt id=c -->",
       "- [ ] A <!-- mt id=a -->",
@@ -425,13 +380,13 @@ describe("reorderTodoLine — within-column reorder", () => {
   });
 
   it("carries sub-lines and never splits the anchor from its own", () => {
-    expect(reorderTodoLine(doc, 3, 5, "after", L)!.slice(2, 6)).toEqual([
+    expect(reorderTodoLine(doc, 3, 5, "after")!.slice(2, 6)).toEqual([
       "- [ ] A <!-- mt id=a -->",
       "- [ ] C <!-- mt id=c -->",
       "- [ ] B <!-- mt id=b -->",
       "  - sub of B",
     ]);
-    expect(reorderTodoLine(doc, 2, 3, "after", L)!.slice(2, 6)).toEqual([
+    expect(reorderTodoLine(doc, 2, 3, "after")!.slice(2, 6)).toEqual([
       "- [ ] B <!-- mt id=b -->",
       "  - sub of B",
       "- [ ] A <!-- mt id=a -->",
@@ -440,15 +395,15 @@ describe("reorderTodoLine — within-column reorder", () => {
   });
 
   it("refuses anything that is not a pure reorder", () => {
-    expect(reorderTodoLine(doc, 2, 7, "before", L)).toBeNull(); // other status
-    expect(reorderTodoLine(doc, 2, 10, "before", L)).toBeNull(); // other subproject block
-    expect(reorderTodoLine(doc, 2, 2, "before", L)).toBeNull(); // itself
-    expect(reorderTodoLine(doc, 2, 3, "before", L)).toBeNull(); // already there → no change
-    expect(reorderTodoLine(doc, 0, 2, "before", L)).toBeNull(); // not a todo
+    expect(reorderTodoLine(doc, 2, 7, "before")).toBeNull(); // other status
+    expect(reorderTodoLine(doc, 2, 10, "before")).toBeNull(); // other subproject block
+    expect(reorderTodoLine(doc, 2, 2, "before")).toBeNull(); // itself
+    expect(reorderTodoLine(doc, 2, 3, "before")).toBeNull(); // already there → no change
+    expect(reorderTodoLine(doc, 0, 2, "before")).toBeNull(); // not a todo
   });
 
   it("keeps every managed id", () => {
-    const out = reorderTodoLine(doc, 10 - 5, 2, "before", L)!;
+    const out = reorderTodoLine(doc, 10 - 5, 2, "before")!;
     expect(managedIds(out.join("\n"))).toEqual(managedIds(doc.join("\n")));
   });
 });
@@ -475,7 +430,6 @@ describe("placeTodoInProject — carries the todo's note block", () => {
       null,
       "DONE",
       "- [x] Demo floor <!-- mt id=a1 -->",
-      opts,
     );
     const done = result.indexOf("## Done");
     const a1 = result.findIndex((l) => l.includes("id=a1"));
@@ -491,7 +445,6 @@ describe("placeTodoInProject — carries the todo's note block", () => {
       null,
       "DONE",
       "- [x] Demo floor <!-- mt id=a1 -->",
-      opts,
     );
     const backlog = result.indexOf("## Backlog");
     const done = result.indexOf("## Done");
@@ -507,7 +460,6 @@ describe("placeTodoInProject — carries the todo's note block", () => {
       null,
       "DONE",
       "- [x] Demo floor <!-- mt id=a1 -->",
-      opts,
     );
     expect(managedIds(result.join("\n"))).toEqual(new Set(["a1", "a2"]));
   });
@@ -520,7 +472,7 @@ describe("placeTodoInProject — carries the todo's note block", () => {
       "    - [ ] Child <!-- mt id=c1 -->",
       "## Done",
     ];
-    const result = placeTodoInProject(lines, 1, null, "DONE", "- [x] Parent <!-- mt id=p1 -->", opts);
+    const result = placeTodoInProject(lines, 1, null, "DONE", "- [x] Parent <!-- mt id=p1 -->");
     const p1 = result.findIndex((l) => l.includes("id=p1"));
     expect(result[p1 + 1]).toBe("    the note");
     expect(result[p1 + 2]).toBe("    - [ ] Child <!-- mt id=c1 -->");
@@ -529,7 +481,7 @@ describe("placeTodoInProject — carries the todo's note block", () => {
 
   it("carries the note when it has to create the status section", () => {
     const lines = ["## Backlog", "- [ ] A <!-- mt id=a -->", "    a note"];
-    const result = placeTodoInProject(lines, 1, null, "DONE", "- [x] A <!-- mt id=a -->", opts);
+    const result = placeTodoInProject(lines, 1, null, "DONE", "- [x] A <!-- mt id=a -->");
     const a = result.findIndex((l) => l.includes("id=a"));
     expect(result[a - 1]).toBe("## Done");
     expect(result[a + 1]).toBe("    a note");
@@ -543,7 +495,6 @@ describe("placeTodoInProject — carries the todo's note block", () => {
       null,
       "BACKLOG",
       "- [ ] Arrived <!-- mt id=n -->",
-      opts,
       ["    carried note"],
     );
     const n = result.findIndex((l) => l.includes("id=n"));
@@ -553,7 +504,7 @@ describe("placeTodoInProject — carries the todo's note block", () => {
 
   it("is unchanged for a todo with no note — single-line move, as before", () => {
     const lines = ["## Backlog", "- [ ] A <!-- mt id=a -->", "## Done"];
-    const result = placeTodoInProject(lines, 1, null, "DONE", "- [x] A <!-- mt id=a -->", opts);
+    const result = placeTodoInProject(lines, 1, null, "DONE", "- [x] A <!-- mt id=a -->");
     expect(result).toEqual(["## Backlog", "## Done", "- [x] A <!-- mt id=a -->"]);
   });
 });

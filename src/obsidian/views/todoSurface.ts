@@ -52,11 +52,10 @@ export class TodoSurface {
 
   /** Draw `todos` in `mode`; a no-op when the result would be identical. */
   render(todos: TodoRecord[], mode: SurfaceMode): void {
-    const { settings } = this.opts.plugin;
     this.opts.el.toggleClass("is-kanban", mode === "kanban");
 
     if (mode === "kanban") {
-      const columns = buildColumns(todos, settings.statusColumnOrder, settings.statusLabels);
+      const columns = buildColumns(todos);
       const signature = JSON.stringify([
         mode,
         groupsSignature(columns.map((c) => ({ label: c.label, todos: c.cards.map((card) => card.todo) }))),
@@ -68,7 +67,7 @@ export class TodoSurface {
       return;
     }
 
-    const groups = buildStatusSections(todos, settings.statusColumnOrder, settings.statusLabels);
+    const groups = buildStatusSections(todos);
     const signature = JSON.stringify([mode, this.opts.emptyText(), groupsSignature(groups)]);
     if (signature === this.signature) return;
     this.destroy();
@@ -78,7 +77,6 @@ export class TodoSurface {
       target: this.opts.el,
       props: {
         groups,
-        labels: settings.statusLabels,
         total: todos.length,
         emptyText: this.opts.emptyText(),
         showProject: this.opts.showProject,

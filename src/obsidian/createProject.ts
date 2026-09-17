@@ -91,10 +91,7 @@ export function createProject(plugin: MarkTodoPlugin): void {
           await app.vault.createFolder(dir).catch(() => {});
         }
       }
-      const file = await app.vault.create(
-        path,
-        projectNoteContent(settings.statusLabels, settings.statusColumnOrder),
-      );
+      const file = await app.vault.create(path, projectNoteContent());
       // Straight into the new project's view — its empty status
       // sections, each with a "+", are the quickest way to start filling it.
       // Lightweight mode has no dashboard: the note itself.

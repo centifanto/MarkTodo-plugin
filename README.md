@@ -14,16 +14,17 @@ files and agree on one grammar.
 
 The checkbox glyph is the canonical status:
 
-| Glyph | Status (default label) |
-|-------|------------------------|
-| `[ ]` | Backlog |
-| `[>]` | Warming |
-| `[/]` | Doing |
-| `[!]` | Blocked |
-| `[-]` | Paused |
-| `[x]` | Done |
+| Glyph | Status | Section heading |
+|-------|--------|-----------------|
+| `[ ]` | Backlog | `## Backlog` |
+| `[>]` | Warming | `## Warming` |
+| `[/]` | Doing | `## Doing` |
+| `[!]` | Blocked | `## Blocked` |
+| `[-]` | Paused | `## Paused` |
+| `[x]` | Done | `## Done` |
 
-The labels can be renamed in Settings.
+The six statuses and their names are fixed: a heading means the same thing in
+every vault, on every device, in the plugin and in the app.
 
 Everything else is optional, inline text appended to the todo:
 
