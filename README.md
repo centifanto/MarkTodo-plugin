@@ -10,6 +10,29 @@ to the todos that use it. The `.md` files are always the source of truth.
 It pairs with a companion MarkTodo mobile app; both read and write the same
 files and agree on one grammar.
 
+## What's different
+
+Three things here exist nowhere else.
+
+**A real standalone Android app.** Almost every todo plugin for Obsidian is a
+plugin and nothing else. The handful with a mobile story are just the desktop
+plugin shrunk onto a phone — all sidebars, dense panels and hover menus.
+MarkTodo's app is a real app in its own right, built for the phone it runs on,
+reading and writing the same `.md` files under the same grammar.
+
+**Three panes that slide instead of stacking.** Your projects, your list, and
+the todo you're in sit side by side and slide. The list never disappears, and
+you never press Back to work out where you are.
+
+**A vocabulary that keeps the distinctions that matter.** Backlog, Warming,
+Doing, Blocked, Paused, Done — the six names, their order, and the split
+between the three you plan with and the three that mean work is live.
+**Warming** doesn't exist in any other tool: it's the decision that something
+is next, made once and written into the file instead of faked with a tag or a
+due date. **Blocked** and **Paused** stay separate, because "someone else
+stopped this" and "I stopped this" are not the same thing, and every tool that
+collapses them into one "on hold" loses the only distinction that matters.
+
 ## The format
 
 The checkbox glyph is the canonical status:
@@ -24,7 +47,9 @@ The checkbox glyph is the canonical status:
 | `[x]` | Done | `## Done` |
 
 The six statuses and their names are fixed: a heading means the same thing in
-every vault, on every device, in the plugin and in the app.
+every vault, on every device, in the plugin and in the app. They are not a
+preference to rename, because the set of six is the point — `Warming` records
+that a todo is next, and `Blocked` and `Paused` say who stopped the work.
 
 Everything else is optional, inline text appended to the todo:
 
@@ -75,6 +100,11 @@ opening the dashboard shows that pop-up instead. Settings also has "Get it on
 Google Play" buttons. To use the full plugin on a device, go to Settings →
 MarkTodo → On this device.
 
+The app is not this plugin on a smaller screen. It puts your projects, your
+list, and the todo you're in in three panes side by side, and slides between
+them rather than stacking full-screen views you have to press Back out of — so
+the list you were reading is still there when you finish with a todo.
+
 ## Privacy
 
 - **It reads your notes.** To find todos and projects, MarkTodo goes through
@@ -83,14 +113,14 @@ MarkTodo → On this device.
 - **It edits notes in response to you**: the todos you change, the projects
   you create, and the upkeep you turn on in Settings (keeping a project's
   status sections in step with its checkboxes, filing archived projects into
-  the Archive folder). Changes that touch many notes, like renaming a status
-  label, ask first.
+  the Archive folder). Changes that touch many notes, like moving the MarkTodo
+  folder, ask first.
 - **No network.** No accounts, telemetry or network requests. The Contact and
   Google Play buttons open links in your browser.
 
 ## Status
 
-Early beta (0.0.1), not yet published to Community Plugins.
+Early beta (0.0.3), not yet published to Community Plugins.
 
 ## Development
 
