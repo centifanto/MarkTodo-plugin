@@ -1,0 +1,48 @@
+# Publishes a release when a version tag is pushed: builds main.js from this
+# commit, attests main.js / manifest.json / styles.css (verify with
+# `gh attestation verify <file> --repo centifanto/MarkTodo-plugin`), and uploads them.
+# Tag with the bare version in manifest.json (e.g. 0.0.2), as Obsidian expects.
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: write # create the release
+  id-token: write # sign the attestation
+  attestations: write # store it
+  artifact-metadata: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # No dependency cache: this job can publish, so it never restores one.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile
+
+      - name: Tag matches manifest.json
+        run: test "$(node -p 'require("./manifest.json").version')" = "$GITHUB_REF_NAME"
+
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+      - uses: actions/attest@v4
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css --title "$GITHUB_REF_NAME" --generate-notes

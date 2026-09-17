@@ -1,0 +1,7 @@
+# pnpm 11 reads build-script approvals from here (the package.json "pnpm" field
+# is no longer honored). esbuild and svelte-preprocess ship benign postinstall
+# scripts; allow-listing them lets a fresh `pnpm install` exit 0 instead of
+# raising ERR_PNPM_IGNORED_BUILDS (which would break CI).
+allowBuilds:
+  esbuild: true
+  svelte-preprocess: true

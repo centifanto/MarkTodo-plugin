@@ -1,0 +1,17 @@
+# build output
+main.js
+*.js.map
+
+# deps
+node_modules/
+
+# test/coverage
+coverage/
+
+# editor / os
+.DS_Store
+.idea/
+*.log
+
+# obsidian plugin runtime data (never committed)
+data.json

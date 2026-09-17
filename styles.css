@@ -1,0 +1,1629 @@
+/*
+ * MarkTodo plugin styles.
+ * Themed via Obsidian CSS variables so light/dark and user themes are honored.
+ * Lucide icons and pills are render-only; never persisted.
+ */
+
+/* ── Status colors ──────────────────────────────────────────────────── */
+/* The app's `statusColor()`, in Obsidian's own palette so themes carry over:
+   Backlog neutral, Warming amber, Doing the accent, Blocked red, Paused blue,
+   Done the accent (filled). The glyph SHAPE still says the status on its own —
+   color is the at-a-glance layer on top, never the only signal. */
+body {
+  /* The MarkTodo theme's layered surfaces. These are the fallbacks —
+     plain Obsidian variables — used when Settings → Appearance → Theme is
+     "Obsidian theme"; `obsidian/themeStyles.ts` redefines every one of them on
+     `.marktodo-theme` otherwise. Components only ever read the --mt-* names. */
+  --mt-screen: var(--background-primary);
+  --mt-drawer: var(--background-secondary);
+  --mt-raised: var(--background-secondary);
+  --mt-card: var(--background-primary);
+  --mt-hairline: var(--background-modifier-border);
+  --mt-primary-light: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.14);
+  --mt-selection: var(--background-modifier-active-hover);
+  --mt-chip-today: rgba(var(--color-yellow-rgb), 0.16);
+  --mt-chip-today-text: var(--color-yellow);
+  --mt-chip-overdue: rgba(var(--color-red-rgb), 0.16);
+  --mt-chip-overdue-text: var(--color-red);
+  --mt-chip-upcoming: var(--background-modifier-hover);
+  --mt-chip-upcoming-text: var(--text-muted);
+
+  --marktodo-backlog: var(--text-muted);
+  --marktodo-warming: var(--color-yellow);
+  --marktodo-progress: var(--interactive-accent);
+  --marktodo-blocked: var(--color-red);
+  --marktodo-paused: var(--color-blue);
+  --marktodo-done: var(--interactive-accent);
+}
+.marktodo-st-backlog,
+.is-backlog { --marktodo-status: var(--marktodo-backlog); }
+.marktodo-st-warming,
+.is-warming { --marktodo-status: var(--marktodo-warming); }
+.marktodo-st-progress,
+.is-progress { --marktodo-status: var(--marktodo-progress); }
+.marktodo-st-blocked,
+.is-blocked { --marktodo-status: var(--marktodo-blocked); }
+.marktodo-st-paused,
+.is-paused { --marktodo-status: var(--marktodo-paused); }
+.marktodo-st-done,
+.is-done { --marktodo-status: var(--marktodo-done); }
+
+/* ── List views ─────────────────────────────────────────────────────── */
+/* Rows are sized from the NOTE text size (Settings → Appearance), not the UI
+   size — a todo list is reading material, and it should match your notes. */
+.marktodo-view {
+  --marktodo-row-font: var(--font-text-size, 16px);
+  --marktodo-row-line: calc(var(--marktodo-row-font) * 1.45);
+  padding: 0 var(--size-4-2) var(--size-4-8);
+}
+
+.marktodo-empty {
+  padding: var(--size-4-4) var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  text-align: center;
+}
+
+.marktodo-group {
+  margin-bottom: var(--size-4-1);
+}
+
+/* Status section heading — the app's StatusSectionHeader: a slim status-colored
+   bar, a large label, a count pill, a fold chevron, and a "+". */
+.marktodo-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  margin: var(--size-4-4) 0 var(--size-4-1);
+}
+.marktodo-section-toggle {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-m);
+  color: var(--text-normal);
+}
+.marktodo-section-head button.marktodo-section-toggle {
+  justify-content: flex-start;
+  height: auto;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.marktodo-section-head button.marktodo-section-toggle:hover:not(:disabled) {
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-section-head button.marktodo-section-toggle:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.marktodo-section-bar {
+  flex: 0 0 auto;
+  width: 4px;
+  height: 1.15em;
+  border-radius: 2px;
+  background-color: var(--marktodo-status, var(--text-faint));
+}
+.marktodo-section-label {
+  min-width: 0;
+  overflow: hidden;
+  font-size: calc(var(--marktodo-row-font) * 1.25);
+  font-weight: var(--font-bold);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marktodo-section-count {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.35rem;
+  padding: 0 var(--size-4-2);
+  border-radius: 999px;
+  background-color: var(--background-modifier-hover);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.marktodo-section-chevron {
+  display: inline-flex;
+  color: var(--text-faint);
+  transition: transform 120ms ease-in-out;
+}
+.marktodo-section-chevron .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.marktodo-group.is-folded .marktodo-section-chevron {
+  transform: rotate(-90deg);
+}
+.marktodo-section-head button.marktodo-section-add {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border-radius: var(--radius-m);
+  background-color: var(--mt-primary-light);
+  color: var(--interactive-accent);
+}
+.marktodo-section-head button.marktodo-section-add:hover {
+  background-color: var(--mt-primary-light);
+  filter: brightness(1.3);
+}
+.marktodo-section-add .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+/* Plain group heading (Today's date/priority groups, the Inbox's notes). */
+.marktodo-group-heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--size-4-2);
+  margin: var(--size-4-4) var(--size-4-2) var(--size-4-1);
+  color: var(--text-normal);
+  font-size: calc(var(--marktodo-row-font) * 1.05);
+  font-weight: var(--font-semibold);
+}
+.marktodo-group-count {
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-normal);
+  font-variant-numeric: tabular-nums;
+}
+/* Note group heading (group by note): a link to the source note, path as-is. */
+.marktodo-group-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  color: var(--text-accent);
+  cursor: pointer;
+}
+.marktodo-group-link:hover {
+  text-decoration: underline;
+}
+.marktodo-group-link-icon {
+  display: inline-flex;
+}
+.marktodo-group-link-icon .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+
+/* ── Todo row ───────────────────────────────────────────────────────── */
+/* Every icon on a row sits in a box exactly one title line tall, centered —
+   so the glyph, the note mark, the priority and the reveal button all line up
+   with the FIRST line of the title however far it wraps. */
+.marktodo-todo {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2);
+  border-radius: var(--radius-m);
+}
+.marktodo-todo:hover {
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-todo-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.marktodo-todo-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-1);
+}
+.marktodo-line-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: var(--marktodo-row-line);
+}
+.marktodo-line-icon .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+/* The status glyph — a span[role=button], not a <button>, so theme button
+   chrome can never bleed through (same approach as Obsidian's .clickable-icon). */
+.marktodo-status-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  height: var(--marktodo-row-line);
+  border-radius: var(--radius-s);
+  color: var(--marktodo-status, var(--text-muted));
+  cursor: pointer;
+}
+.marktodo-status-icon:hover {
+  filter: brightness(1.25);
+}
+.marktodo-status-icon:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+.marktodo-status-icon .svg-icon {
+  width: calc(var(--marktodo-row-font) * 1.2);
+  height: calc(var(--marktodo-row-font) * 1.2);
+}
+
+.marktodo-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text-normal);
+  font-size: var(--marktodo-row-font);
+  line-height: var(--marktodo-row-line);
+  cursor: pointer;
+}
+/* The title opens the todo editor — signal it subtly. */
+.marktodo-title:hover,
+.marktodo-card-title:hover {
+  text-decoration: underline;
+}
+.marktodo-title:focus-visible,
+.marktodo-card-title:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-s);
+}
+/* DONE → strikethrough (render-only). */
+.marktodo-todo.is-done .marktodo-title,
+.marktodo-card.is-done .marktodo-card-title {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.marktodo-note-icon {
+  color: var(--text-faint);
+}
+.marktodo-note-preview {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Meta line: due chip, project. */
+.marktodo-todo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-1) var(--size-4-3);
+  margin-top: var(--size-2-2);
+}
+.marktodo-due-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  padding: 1px var(--size-4-2) 1px var(--size-4-1);
+  border-radius: var(--radius-s);
+  background-color: var(--mt-chip-upcoming);
+  color: var(--mt-chip-upcoming-text);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.marktodo-due-chip.is-today {
+  background-color: var(--mt-chip-today);
+  color: var(--mt-chip-today-text);
+}
+.marktodo-due-chip.is-overdue {
+  background-color: var(--mt-chip-overdue);
+  color: var(--mt-chip-overdue-text);
+}
+.marktodo-todo-project {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+.marktodo-meta-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+.marktodo-meta-icon .svg-icon {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+/* ── Priority icon ──────────────────────────────────────────────────── */
+.marktodo-priority.is-urgent { color: var(--color-red); }
+.marktodo-priority.is-high   { color: var(--color-orange); }
+.marktodo-priority.is-low    { color: var(--text-faint); }
+
+/* ── Reveal-in-note affordance (list rows + board cards) ─────────────── */
+/* Hidden until the row/card is hovered (or the control is focused) to keep the
+ * rows uncluttered; clicking jumps to the todo's line in its source note. */
+.marktodo-reveal {
+  border-radius: var(--radius-s);
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 80ms ease-in-out;
+}
+.marktodo-todo:hover .marktodo-reveal,
+.marktodo-card:hover .marktodo-reveal,
+.marktodo-reveal:focus-visible {
+  opacity: 1;
+}
+.marktodo-reveal:hover {
+  color: var(--text-normal);
+}
+.marktodo-reveal:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+.marktodo-reveal .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+/* One-click Convert on unmanaged rows (Inbox view). */
+.marktodo-todo .marktodo-convert {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-2-2);
+  flex: 0 0 auto;
+  height: auto;
+  padding: var(--size-2-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+}
+.marktodo-convert-icon {
+  display: inline-flex;
+}
+.marktodo-convert-icon .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+/* ── Board / kanban ─────────────────────────────────────────────────── */
+.marktodo-board {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-3);
+  height: 100%;
+  padding: var(--size-4-3) var(--size-4-1);
+  overflow-x: auto;
+}
+.marktodo-column {
+  --marktodo-row-font: var(--font-ui-medium);
+  --marktodo-row-line: calc(var(--marktodo-row-font) * 1.4);
+  display: flex;
+  flex: 0 0 280px;
+  flex-direction: column;
+  max-height: 100%;
+  border: 1px solid var(--mt-hairline);
+  border-radius: var(--radius-l);
+  background-color: var(--mt-raised);
+}
+.marktodo-section-head.marktodo-column-head {
+  margin: 0;
+  padding: var(--size-4-2) var(--size-4-2) var(--size-4-1) var(--size-4-1);
+}
+.marktodo-column-head .marktodo-section-label {
+  font-size: calc(var(--marktodo-row-font) * 1.1);
+}
+.marktodo-column-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  min-height: 48px;
+  padding: var(--size-4-1) var(--size-4-2) var(--size-4-2);
+  overflow-y: auto;
+}
+.marktodo-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-2) var(--size-4-2) var(--size-4-3);
+  border: 1px solid var(--mt-hairline);
+  border-radius: var(--radius-m);
+  background-color: var(--mt-card);
+  box-shadow: var(--shadow-s);
+  cursor: grab;
+}
+.marktodo-card:active {
+  cursor: grabbing;
+}
+.marktodo-card-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--marktodo-row-font);
+  line-height: var(--marktodo-row-line);
+  cursor: pointer;
+}
+
+/* ── Todo detail modal ──────────────────────────────────────────────── */
+.marktodo-modal-title {
+  display: block;
+  width: 100%;
+  margin: 0 0 var(--size-4-3);
+  padding: var(--size-2-2) var(--size-4-2);
+  font-size: var(--font-ui-large);
+  font-weight: var(--font-semibold);
+  line-height: var(--line-height-tight);
+  resize: none;
+  overflow: hidden;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-s);
+}
+.marktodo-modal-title:hover {
+  border-color: var(--background-modifier-border);
+}
+.marktodo-modal-title:focus {
+  border-color: var(--interactive-accent);
+  box-shadow: none;
+}
+.marktodo-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-1);
+  justify-content: flex-end;
+}
+/* Todo editor rows holding chips stack the label above a left-aligned chip row,
+   so neither the label nor the chips get squeezed. */
+.marktodo-todo-modal .marktodo-chip-setting {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--size-4-2);
+}
+.marktodo-todo-modal .marktodo-chip-setting .setting-item-info {
+  margin-inline-end: 0;
+}
+.marktodo-todo-modal .marktodo-chip-setting .setting-item-control,
+.marktodo-todo-modal .marktodo-chip-setting .marktodo-chip-row {
+  justify-content: flex-start;
+}
+.marktodo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: var(--size-4-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  border-radius: var(--radius-s);
+  background: var(--background-modifier-form-field);
+  border: 1px solid var(--background-modifier-border);
+  color: var(--text-muted);
+  cursor: pointer;
+  box-shadow: none;
+}
+.marktodo-chip:hover {
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border-hover);
+}
+.marktodo-chip.is-active {
+  background: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.marktodo-chip-icon {
+  display: inline-flex;
+}
+.marktodo-chip-icon .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+
+/* Action footer: Open note / Move / Delete in one row. */
+.marktodo-modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+  justify-content: flex-end;
+  padding-top: var(--size-4-3);
+  border-top: 1px solid var(--background-modifier-border);
+}
+.marktodo-modal-actions button {
+  gap: var(--size-4-1);
+}
+
+/* Opened from a row / card / icon: float over it instead of centring.
+   The script sets left/top inside the window-sized container; the height cap
+   keeps the margin it clamps to, so a tall dialog scrolls rather than spills. */
+.modal-container .modal.marktodo-anchored {
+  position: absolute;
+  margin: 0;
+  max-height: min(var(--dialog-max-height), calc(100% - 2 * var(--size-4-3)));
+}
+
+/* Phone: Obsidian stacks every settings row and stretches its buttons to 100%
+   width / 44px. Keep the editor dense instead — chips in a grid, Due on one line,
+   actions as an even footer row. Selectors carry `.modal` so they
+   out-rank `.is-phone .modal .setting-item-control button:not(.clickable-icon)`. */
+.is-phone .modal .marktodo-todo-modal .setting-item {
+  gap: var(--size-4-2);
+  padding-block: var(--size-4-2);
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-modal-title {
+  margin-bottom: var(--size-4-1);
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-chip-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--size-4-1);
+  width: 100%;
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-chip-row.mod-priority {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-chip-row button.marktodo-chip {
+  width: auto;
+  height: 34px;
+  padding: 0 var(--size-4-1);
+  justify-content: center;
+  font-size: var(--font-ui-smaller);
+}
+.is-phone .modal .marktodo-todo-modal .setting-item.marktodo-inline-setting {
+  flex-direction: row;
+  align-items: center;
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-inline-setting .setting-item-control {
+  flex: 1 1 auto;
+  width: auto;
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-inline-setting .setting-item-control input {
+  height: 36px;
+}
+.is-phone .modal .marktodo-todo-modal .marktodo-modal-actions button {
+  flex: 1 1 0;
+  height: 38px;
+  padding: 0 var(--size-4-2);
+}
+
+/* ── Filter bar (standalone List & Board) ───────────────────────────── */
+.marktodo-filterbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding: var(--size-4-1) var(--size-4-2);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+.marktodo-filterbar-head {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+.marktodo-filterbar-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2) var(--size-4-3);
+  padding-bottom: var(--size-4-1);
+}
+.marktodo-filterbar.is-collapsed .marktodo-filterbar-body {
+  display: none;
+}
+.marktodo-filterbar .marktodo-filter-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  width: auto;
+  padding: var(--size-2-1) var(--size-4-1);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.marktodo-filter-toggle-icon {
+  display: inline-flex;
+}
+.marktodo-filter-toggle-icon .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+.marktodo-filter-count {
+  min-width: 1.4em;
+  padding: 0 var(--size-2-2);
+  border-radius: var(--radius-l);
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: var(--font-ui-smaller);
+  text-align: center;
+}
+.marktodo-filter-count.is-hidden {
+  display: none;
+}
+.marktodo-filter {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+}
+.marktodo-filter-label {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+.marktodo-filterbar select {
+  font-size: var(--font-ui-smaller);
+}
+/* Searchable picker (project / tag): an input dressed as a select. */
+.marktodo-picker {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 9rem;
+  max-width: 14rem;
+}
+.marktodo-filterbar .marktodo-picker-input {
+  width: 100%;
+  height: auto;
+  padding: var(--size-4-1) calc(var(--size-4-2) + var(--icon-xs) + var(--size-4-1)) var(--size-4-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+  border-radius: var(--radius-s);
+  border: 1px solid var(--background-modifier-border);
+  background: var(--interactive-normal);
+  box-shadow: var(--input-shadow);
+  cursor: pointer;
+  text-overflow: ellipsis;
+}
+.marktodo-filterbar .marktodo-picker-input:focus {
+  cursor: text;
+  background: var(--background-primary);
+  border-color: var(--interactive-accent);
+}
+.marktodo-filterbar .marktodo-picker-input::placeholder {
+  color: var(--text-normal);
+}
+.marktodo-picker.is-set .marktodo-picker-input {
+  border-color: var(--interactive-accent);
+  color: var(--text-accent);
+}
+.marktodo-picker-chevron {
+  position: absolute;
+  right: var(--size-4-2);
+  display: inline-flex;
+  pointer-events: none;
+  color: var(--text-muted);
+}
+.marktodo-picker-chevron .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+.marktodo-picker-all {
+  color: var(--text-muted);
+}
+.marktodo-filter-clear {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  font-size: var(--font-ui-smaller);
+}
+.marktodo-filter-clear.is-hidden {
+  display: none;
+}
+/* ── Todos + project views: chrome, then a list or a board ──────────── */
+/* Kanban = chrome (auto height) + the board filling the rest; a list scrolls. */
+.marktodo-surface-view.is-kanban {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.marktodo-surface-view.is-kanban .marktodo-surface {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.marktodo-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-2);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+/* List / Kanban / Source — the app's ViewModeSwitch pill. */
+.marktodo-mode-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius-m);
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-mode-switch button.marktodo-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  height: auto;
+  padding: var(--size-2-2) var(--size-4-2);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+.marktodo-mode-switch button.marktodo-mode:hover {
+  color: var(--text-normal);
+}
+.marktodo-mode-switch button.marktodo-mode.is-active {
+  background-color: var(--background-primary);
+  box-shadow: var(--shadow-s);
+  color: var(--text-normal);
+}
+.marktodo-mode-switch button.marktodo-mode.is-active .marktodo-mode-icon {
+  color: var(--interactive-accent);
+}
+.marktodo-mode-icon {
+  display: inline-flex;
+}
+.marktodo-mode-icon .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.marktodo-filterbar-head.has-lead > .marktodo-mode-switch {
+  margin-right: auto;
+}
+.marktodo-filterbar-head.has-lead > .marktodo-filter-clear {
+  margin-left: 0;
+}
+
+
+/* ── Inline todo suggest ────────────────────────────────────────────── */
+.marktodo-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+.marktodo-suggest-icon {
+  display: inline-flex;
+}
+.marktodo-suggest-icon .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+/* Edit-todo icon where the hidden capsule sits (Live Preview) / after the item text
+   (Reading view). Quiet until hovered. */
+.marktodo-inline-edit {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--size-4-1);
+  vertical-align: middle;
+  color: var(--text-faint);
+  cursor: pointer;
+  border-radius: var(--radius-s);
+}
+.marktodo-inline-edit:hover,
+.marktodo-inline-edit:focus-visible {
+  color: var(--text-accent);
+  background: var(--background-modifier-hover);
+}
+.marktodo-inline-edit .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+.marktodo-suggest-note {
+  margin-left: auto;
+  padding-left: var(--size-4-3);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+/* Todo editor (create mode): the title input takes the row's full width. */
+.marktodo-capture-title .setting-item-control {
+  flex: 1 1 auto;
+}
+.marktodo-capture-title .marktodo-quickadd-input {
+  width: 100%;
+}
+
+/* ── Live-Preview managed todo checkboxes ───────────────────────────── */
+/* The CM6 line decoration adds .marktodo-managed + .marktodo-st-<status>; the
+   per-status mask-image is a `--marktodo-mask-<status>` url() set on <body> at
+   load from the shared glyph geometry (editorExtensions.managedCheckboxMasks). Colored per status like the
+   views and the app — `--marktodo-status` comes from the line's
+   `.marktodo-st-<status>` class; the SHAPE still conveys the status alone. */
+.cm-line.marktodo-managed input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-managed > input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  background-color: var(--marktodo-status, var(--text-muted));
+  /* Explicit SQUARE box sized in em — the theme's native checkbox can be short or
+     non-square, which clipped the masked glyph. `contain` then fits the whole icon
+     with no crop. Larger than Obsidian's native 1.15 so the interior marks (dot,
+     bars, !) read at a glance. `inherit` so em is the NOTE's text size:
+     Android WebView gives inputs a 13.33px UA font, which shrank the box on mobile. */
+  font-size: inherit;
+  width: 1.4em;
+  height: 1.4em;
+  vertical-align: -0.3em;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+/* Obsidian treats ANY non-space status char as :checked and paints its check mark
+   in ::after (--checkbox-marker-color, usually white) — our mask then clipped that
+   onto the dot/bars/!, washing them out. The glyph carries the whole shape. */
+.cm-line.marktodo-managed input[type="checkbox"]::after,
+.markdown-rendered li.task-list-item.marktodo-managed > input[type="checkbox"]::after {
+  display: none;
+}
+.cm-line.marktodo-managed:hover input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-managed:hover > input[type="checkbox"] {
+  filter: brightness(1.25);
+}
+.cm-line.marktodo-st-backlog input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-st-backlog > input[type="checkbox"] {
+  -webkit-mask-image: var(--marktodo-mask-backlog);
+  mask-image: var(--marktodo-mask-backlog);
+}
+.cm-line.marktodo-st-warming input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-st-warming > input[type="checkbox"] {
+  -webkit-mask-image: var(--marktodo-mask-warming);
+  mask-image: var(--marktodo-mask-warming);
+}
+.cm-line.marktodo-st-progress input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-st-progress > input[type="checkbox"] {
+  -webkit-mask-image: var(--marktodo-mask-progress);
+  mask-image: var(--marktodo-mask-progress);
+}
+.cm-line.marktodo-st-blocked input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-st-blocked > input[type="checkbox"] {
+  -webkit-mask-image: var(--marktodo-mask-blocked);
+  mask-image: var(--marktodo-mask-blocked);
+}
+.cm-line.marktodo-st-paused input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-st-paused > input[type="checkbox"] {
+  -webkit-mask-image: var(--marktodo-mask-paused);
+  mask-image: var(--marktodo-mask-paused);
+}
+.cm-line.marktodo-st-done input[type="checkbox"],
+.markdown-rendered li.task-list-item.marktodo-st-done > input[type="checkbox"] {
+  -webkit-mask-image: var(--marktodo-mask-done);
+  mask-image: var(--marktodo-mask-done);
+}
+
+/* List view drop zones: keep a drop target even when short. */
+.marktodo-group-zone {
+  min-height: var(--size-4-6);
+}
+
+/* The todo's note block, edited as plain text in the todo modal. */
+.marktodo-modal-note {
+  width: 100%;
+  min-height: 4.5em;
+  margin-top: var(--size-4-2);
+  resize: vertical;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+.marktodo-modal-note:focus {
+  color: var(--text-normal);
+}
+
+/* ── The dashboard: two columns, Notebook Navigator's shape ─────────── */
+/* Flat columns on the sidebar surface, a toolbar of icon buttons at the top of
+   each, a tree with guide lines on the left, a list with a search pill and
+   separated rows on the right. Color comes from the theme variables; the shape
+   is the same under "Obsidian theme". */
+.workspace-leaf-content[data-type="marktodo-nav"] {
+  background: var(--mt-drawer);
+}
+/* Its toolbars are its title; the generic view header would only repeat it. */
+.workspace-leaf-content[data-type="marktodo-nav"] > .view-header {
+  display: none;
+}
+.workspace-leaf-content[data-type="marktodo-nav"] > .view-content.marktodo-dash {
+  padding: 0;
+  overflow: hidden;
+  background: transparent;
+}
+.marktodo-dash {
+  position: relative;
+  display: flex;
+  height: 100%;
+}
+.marktodo-dash-nav,
+.marktodo-dash-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+.marktodo-dash-nav {
+  flex: 0 0 auto;
+}
+.marktodo-dash-list {
+  flex: 1 1 auto;
+}
+/* The navigation on the right: the same columns, mirrored. */
+.marktodo-dash.is-nav-right {
+  flex-direction: row-reverse;
+}
+.marktodo-dash-divider {
+  position: relative;
+  flex: 0 0 1px;
+  background-color: var(--mt-hairline);
+  cursor: col-resize;
+}
+/* A wider grab area than the 1px line it draws. */
+.marktodo-dash-divider::after {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+.marktodo-dash-divider:hover,
+.marktodo-dash.is-resizing .marktodo-dash-divider {
+  background-color: var(--interactive-accent);
+}
+.marktodo-dash.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+/* One column: the two columns stacked in the same place, the list sliding in
+   over the navigation from the right. */
+.marktodo-dash.is-single .marktodo-dash-divider {
+  display: none;
+}
+.marktodo-dash.is-single .marktodo-dash-nav,
+.marktodo-dash.is-single .marktodo-dash-list {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: var(--mt-drawer);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.marktodo-dash.is-single .marktodo-dash-list {
+  transform: translateX(100%);
+  opacity: 0;
+  pointer-events: none;
+}
+.marktodo-dash.is-single.is-showing-list .marktodo-dash-list {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}
+.marktodo-dash.is-single.is-showing-list .marktodo-dash-nav {
+  transform: translateX(-25%);
+  opacity: 0;
+  pointer-events: none;
+}
+/* Navigation on the right: the list slides in from the left instead. */
+.marktodo-dash.is-single.is-nav-right .marktodo-dash-list {
+  transform: translateX(-100%);
+}
+.marktodo-dash.is-single.is-nav-right.is-showing-list .marktodo-dash-list {
+  transform: none;
+}
+.marktodo-dash.is-single.is-nav-right.is-showing-list .marktodo-dash-nav {
+  transform: translateX(25%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .marktodo-dash.is-single .marktodo-dash-nav,
+  .marktodo-dash.is-single .marktodo-dash-list {
+    transition: none;
+  }
+}
+
+/* The toolbar row at the top of each column. */
+.marktodo-pane-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  min-height: 46px;
+  padding: var(--size-4-2) var(--size-4-2);
+}
+.marktodo-pane-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+.marktodo-pane-actions.is-start {
+  margin-left: 0;
+}
+.marktodo-pane-button {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  border-radius: var(--radius-m);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.marktodo-pane-button:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.marktodo-pane-button.is-active {
+  background-color: var(--mt-selection);
+  color: var(--text-normal);
+}
+.marktodo-pane-button .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+.marktodo-pane-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border-radius: 7px;
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  font-size: 10px;
+  font-weight: var(--font-bold);
+  line-height: 14px;
+  text-align: center;
+}
+.marktodo-pane-title {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+  padding: 0 var(--size-4-2);
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.marktodo-pane-title-icon {
+  display: flex;
+  color: var(--text-muted);
+}
+.marktodo-pane-title-icon .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+.marktodo-pane-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Navigation column: a tree ───────────────────────────────────────── */
+.marktodo-nav {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 var(--size-4-2) var(--size-4-8);
+  overflow-y: auto;
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+}
+.marktodo-nav-row {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-height: 34px;
+  padding: 0 var(--size-4-2) 0 var(--size-2-2);
+  border-radius: var(--radius-m);
+  cursor: pointer;
+}
+.marktodo-nav-row:hover {
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-nav-row.is-active {
+  background-color: var(--mt-selection);
+}
+.marktodo-nav-row:focus-visible {
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+  outline: none;
+}
+.marktodo-nav > .marktodo-nav-row.is-node {
+  margin-top: var(--size-4-3);
+}
+.marktodo-nav-row.is-muted .marktodo-nav-label {
+  color: var(--text-muted);
+}
+.marktodo-nav-children {
+  margin-left: 14px;
+  padding-left: var(--size-2-3);
+  border-left: 1px solid var(--mt-hairline);
+}
+.marktodo-nav-chevron {
+  display: flex;
+  flex: 0 0 16px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-faint);
+  transition: transform 120ms ease-in-out;
+}
+.marktodo-nav-chevron .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+.marktodo-nav-chevron.is-open {
+  transform: rotate(90deg);
+}
+.marktodo-nav-icon {
+  display: flex;
+  align-items: center;
+  color: var(--text-muted);
+}
+.marktodo-nav-icon .svg-icon {
+  width: 18px;
+  height: 18px;
+}
+.marktodo-nav-row.is-active .marktodo-nav-icon {
+  color: var(--interactive-accent);
+}
+.marktodo-nav-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marktodo-nav-count {
+  min-width: 1.5em;
+  color: var(--text-faint);
+  font-size: var(--font-ui-small);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+/* Overdue: a dot, not a red number — the count still reads as "how much is open". */
+.marktodo-nav-alert {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--marktodo-blocked);
+}
+/* "…" on projects and groups: hidden until hover, where it takes the count's place. */
+.marktodo-nav-more {
+  display: none;
+  align-items: center;
+  margin: -2px 0;
+  padding: 3px;
+  border-radius: var(--radius-s);
+  color: var(--text-muted);
+}
+.marktodo-nav-more:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.marktodo-nav-more .svg-icon {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+.marktodo-nav-row:hover .marktodo-nav-more {
+  display: flex;
+}
+.marktodo-nav-row.has-more:hover .marktodo-nav-count {
+  display: none;
+}
+.marktodo-nav-hint {
+  padding: var(--size-4-2) var(--size-4-3);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  line-height: var(--line-height-tight);
+}
+
+/* The search pill (at the top of the navigation column). */
+.marktodo-search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--size-4-2);
+  height: 34px;
+  margin: 0 var(--size-4-2) var(--size-4-2);
+  padding: 0 var(--size-4-3);
+  border: 1px solid var(--mt-hairline);
+  border-radius: 999px;
+  background-color: var(--background-modifier-form-field);
+  color: var(--text-muted);
+}
+.marktodo-search-icon {
+  display: flex;
+}
+.marktodo-search-icon .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+.marktodo-search input.marktodo-search-input {
+  flex: 1;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--font-ui-medium);
+}
+/* ── List column ─────────────────────────────────────────────────────── */
+.marktodo-list-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+.marktodo-list-filters .marktodo-filterbar {
+  margin: 0 var(--size-4-3) var(--size-4-2);
+  padding: var(--size-4-2) 0;
+  border-top: 1px solid var(--mt-hairline);
+  border-bottom: 1px solid var(--mt-hairline);
+}
+/* The header's filter button opens and closes the bar; its own toggle is redundant here. */
+.marktodo-list-filters .marktodo-filter-toggle {
+  display: none;
+}
+.marktodo-list-filters .marktodo-filterbar-head:not(.has-active) {
+  display: none;
+}
+.marktodo-dash-list .marktodo-list-body {
+  padding: 0 var(--size-4-2) var(--size-4-8);
+}
+.marktodo-list-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--size-4-2);
+  margin: var(--size-4-4) var(--size-4-2) var(--size-4-1);
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Rows as Notebook Navigator draws files: a bold title, a two-line preview,
+   meta underneath, a hairline between each. */
+.marktodo-dash-list .marktodo-todo {
+  padding: var(--size-4-3) var(--size-4-2);
+  border-bottom: 1px solid var(--mt-hairline);
+  border-radius: 0;
+}
+.marktodo-dash-list .marktodo-todo:hover {
+  border-radius: var(--radius-m);
+}
+.marktodo-dash-list .marktodo-title {
+  font-weight: var(--font-semibold);
+}
+.marktodo-dash-list .marktodo-note-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: var(--font-ui-medium);
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+/* Section headings sized for a column: medium, the chevron at the far right. */
+.marktodo-dash-list .marktodo-section-head {
+  margin: var(--size-4-3) 0 0;
+}
+.marktodo-dash-list .marktodo-section-label {
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+}
+.marktodo-dash-list .marktodo-section-count {
+  height: 1.2rem;
+  min-width: 1.4rem;
+  background: transparent;
+  color: var(--text-faint);
+}
+.marktodo-dash-list .marktodo-section-chevron {
+  margin-left: auto;
+}
+.marktodo-dash-list .marktodo-section-head button.marktodo-section-add {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  color: var(--text-faint);
+  opacity: 0;
+}
+.marktodo-dash-list .marktodo-section-head:hover button.marktodo-section-add,
+.marktodo-dash-list .marktodo-section-head button.marktodo-section-add:focus-visible {
+  opacity: 1;
+}
+.marktodo-dash-list .marktodo-section-head button.marktodo-section-add:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  filter: none;
+}
+.marktodo-dash-list .marktodo-group-heading {
+  margin: var(--size-4-3) var(--size-4-2) 0;
+  font-size: var(--font-ui-medium);
+}
+
+/* ── Today's segments (in the dashboard's list column) ──────────────── */
+.marktodo-segments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-1);
+  padding: 0 var(--size-4-3) var(--size-4-2);
+}
+.marktodo-segments:empty {
+  display: none;
+}
+.marktodo-segment {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding: var(--size-2-2) var(--size-4-3);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.marktodo-segment:hover {
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-segment.is-active {
+  background-color: var(--mt-selection);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+}
+.marktodo-segment-count {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Group editor ───────────────────────────────────────────────────── */
+.marktodo-group-modal .marktodo-group-name {
+  width: 100%;
+  margin-bottom: var(--size-4-3);
+  font-size: var(--font-ui-medium);
+}
+.marktodo-group-hint {
+  margin-bottom: var(--size-4-1);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.marktodo-group-members {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  padding: var(--size-4-1);
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+}
+.marktodo-group-member {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-1) var(--size-4-2);
+  border-radius: var(--radius-s);
+  cursor: pointer;
+}
+.marktodo-group-member:hover {
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-group-member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marktodo-group-member-note {
+  color: var(--text-faint);
+  font-size: var(--font-ui-smaller);
+}
+.marktodo-group-member.is-muted .marktodo-group-member-name {
+  color: var(--text-muted);
+}
+.marktodo-group-buttons {
+  padding-top: var(--size-4-3);
+  border-top: none;
+}
+.marktodo-group-buttons .setting-item-control {
+  flex-wrap: wrap;
+}
+
+/* ── MarkTodo theme surfaces ────────────────────────────────────────── */
+/* The theme's values arrive on <body> as `--mtt-*` custom properties
+   (obsidian/themeStyles.ts, from ui/theme.ts `themeVariables`); here they take
+   their real names inside every MarkTodo pane and dialog, so Obsidian's own
+   controls there match. Inert unless Settings → Appearance → Theme is MarkTodo.
+   One line per theme variable — tests/ui/theme.test.ts keeps this list complete. */
+body.marktodo-themed .marktodo-theme {
+  color-scheme: var(--mtt-color-scheme);
+  color: var(--mtt-color);
+  --background-primary: var(--mtt-background-primary);
+  --background-primary-alt: var(--mtt-background-primary-alt);
+  --background-secondary: var(--mtt-background-secondary);
+  --background-secondary-alt: var(--mtt-background-secondary-alt);
+  --background-modifier-hover: var(--mtt-background-modifier-hover);
+  --background-modifier-active-hover: var(--mtt-background-modifier-active-hover);
+  --background-modifier-border: var(--mtt-background-modifier-border);
+  --background-modifier-border-hover: var(--mtt-background-modifier-border-hover);
+  --background-modifier-border-focus: var(--mtt-background-modifier-border-focus);
+  --background-modifier-form-field: var(--mtt-background-modifier-form-field);
+  --background-modifier-form-field-highlighted: var(--mtt-background-modifier-form-field-highlighted);
+  --interactive-normal: var(--mtt-interactive-normal);
+  --interactive-hover: var(--mtt-interactive-hover);
+  --interactive-accent: var(--mtt-interactive-accent);
+  --interactive-accent-hover: var(--mtt-interactive-accent-hover);
+  --interactive-accent-hsl: var(--mtt-interactive-accent-hsl);
+  --accent-h: var(--mtt-accent-h);
+  --accent-s: var(--mtt-accent-s);
+  --accent-l: var(--mtt-accent-l);
+  --color-accent: var(--mtt-color-accent);
+  --text-normal: var(--mtt-text-normal);
+  --text-muted: var(--mtt-text-muted);
+  --text-faint: var(--mtt-text-faint);
+  --text-accent: var(--mtt-text-accent);
+  --text-accent-hover: var(--mtt-text-accent-hover);
+  --text-on-accent: var(--mtt-text-on-accent);
+  --text-error: var(--mtt-text-error);
+  --icon-color: var(--mtt-icon-color);
+  --icon-color-hover: var(--mtt-icon-color-hover);
+  --icon-color-active: var(--mtt-icon-color-active);
+  --icon-color-focused: var(--mtt-icon-color-focused);
+  --nav-item-color: var(--mtt-nav-item-color);
+  --nav-item-color-hover: var(--mtt-nav-item-color-hover);
+  --nav-item-color-active: var(--mtt-nav-item-color-active);
+  --checkbox-color: var(--mtt-checkbox-color);
+  --checkbox-color-hover: var(--mtt-checkbox-color-hover);
+  --dropdown-background: var(--mtt-dropdown-background);
+  --dropdown-background-hover: var(--mtt-dropdown-background-hover);
+  --dropdown-icon-background: var(--mtt-dropdown-icon-background);
+  --background-modifier-form-field-hover: var(--mtt-background-modifier-form-field-hover);
+  --background-modifier-error: var(--mtt-background-modifier-error);
+  --input-placeholder-color: var(--mtt-input-placeholder-color);
+  --modal-background: var(--mtt-modal-background);
+  --modal-border-color: var(--mtt-modal-border-color);
+  --prompt-background: var(--mtt-prompt-background);
+  --prompt-border-color: var(--mtt-prompt-border-color);
+  --suggestion-background: var(--mtt-suggestion-background);
+  --divider-color: var(--mtt-divider-color);
+  --text-selection: var(--mtt-text-selection);
+  --checkbox-border-color: var(--mtt-checkbox-border-color);
+  --checkbox-border-color-hover: var(--mtt-checkbox-border-color-hover);
+  --checkbox-marker-color: var(--mtt-checkbox-marker-color);
+  --collapse-icon-color: var(--mtt-collapse-icon-color);
+  --nav-item-background-hover: var(--mtt-nav-item-background-hover);
+  --nav-item-background-active: var(--mtt-nav-item-background-active);
+  --pill-color: var(--mtt-pill-color);
+  --pill-border-color: var(--mtt-pill-border-color);
+  --toggle-thumb-color: var(--mtt-toggle-thumb-color);
+  --setting-item-name-color: var(--mtt-setting-item-name-color);
+  --setting-group-heading-color: var(--mtt-setting-group-heading-color);
+  --setting-items-border-color: var(--mtt-setting-items-border-color);
+  --setting-items-divider-color: var(--mtt-setting-items-divider-color);
+  --caret-color: var(--mtt-caret-color);
+  --pill-color-hover: var(--mtt-pill-color-hover);
+  --pill-color-remove: var(--mtt-pill-color-remove);
+  --pill-color-remove-hover: var(--mtt-pill-color-remove-hover);
+  --input-date-separator: var(--mtt-input-date-separator);
+  --search-icon-color: var(--mtt-search-icon-color);
+  --search-clear-button-color: var(--mtt-search-clear-button-color);
+  --collapse-icon-color-collapsed: var(--mtt-collapse-icon-color-collapsed);
+  --nav-collapse-icon-color: var(--mtt-nav-collapse-icon-color);
+  --nav-collapse-icon-color-collapsed: var(--mtt-nav-collapse-icon-color-collapsed);
+  --nav-heading-color: var(--mtt-nav-heading-color);
+  --nav-heading-color-hover: var(--mtt-nav-heading-color-hover);
+  --nav-item-color-selected: var(--mtt-nav-item-color-selected);
+  --tag-color: var(--mtt-tag-color);
+  --tag-color-hover: var(--mtt-tag-color-hover);
+  --link-color: var(--mtt-link-color);
+  --divider-color-hover: var(--mtt-divider-color-hover);
+  --color-red: var(--mtt-color-red);
+  --color-red-rgb: var(--mtt-color-red-rgb);
+  --color-yellow: var(--mtt-color-yellow);
+  --color-yellow-rgb: var(--mtt-color-yellow-rgb);
+  --color-orange: var(--mtt-color-orange);
+  --color-orange-rgb: var(--mtt-color-orange-rgb);
+  --shadow-s: var(--mtt-shadow-s);
+  --shadow-l: var(--mtt-shadow-l);
+  --marktodo-backlog: var(--mtt-marktodo-backlog);
+  --marktodo-warming: var(--mtt-marktodo-warming);
+  --marktodo-progress: var(--mtt-marktodo-progress);
+  --marktodo-blocked: var(--mtt-marktodo-blocked);
+  --marktodo-paused: var(--mtt-marktodo-paused);
+  --marktodo-done: var(--mtt-marktodo-done);
+  --mt-screen: var(--mtt-mt-screen);
+  --mt-drawer: var(--mtt-mt-drawer);
+  --mt-raised: var(--mtt-mt-raised);
+  --mt-hairline: var(--mtt-mt-hairline);
+  --mt-primary-light: var(--mtt-mt-primary-light);
+  --mt-selection: var(--mtt-mt-selection);
+  --mt-card: var(--mtt-mt-card);
+  --mt-chip-today: var(--mtt-mt-chip-today);
+  --mt-chip-today-text: var(--mtt-mt-chip-today-text);
+  --mt-chip-overdue: var(--mtt-mt-chip-overdue);
+  --mt-chip-overdue-text: var(--mtt-mt-chip-overdue-text);
+  --mt-chip-upcoming: var(--mtt-mt-chip-upcoming);
+  --mt-chip-upcoming-text: var(--mtt-mt-chip-upcoming-text);
+}
+/* Todo views sit on the theme's background, flat (no gradients).
+   (The dashboard sets its own drawer surface above.) */
+.marktodo-theme.workspace-leaf-content:not([data-type="marktodo-nav"]) > .view-content {
+  background: var(--mt-screen);
+}
+.modal.marktodo-theme {
+  border: 1px solid var(--mt-hairline);
+  box-shadow: var(--shadow-l);
+}
+
+/* Accent swatches in Settings → Appearance (the app's picker). */
+.marktodo-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+}
+.marktodo-swatches button.marktodo-swatch {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--swatch);
+  box-shadow: none;
+  cursor: pointer;
+}
+.marktodo-swatches button.marktodo-swatch.is-obsidian {
+  position: relative;
+}
+.marktodo-swatches button.marktodo-swatch.is-obsidian::after {
+  content: "O";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.marktodo-swatches button.marktodo-swatch.is-active {
+  box-shadow: 0 0 0 2px var(--background-primary), 0 0 0 4px var(--text-normal);
+}
+
+/* ── Lightweight mode's app popup and stand-in view ─────────────────── */
+.marktodo-app-offer-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+  margin: var(--size-4-4) 0;
+}
+.marktodo-app-offer-ios {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.workspace-leaf-content .marktodo-app-offer {
+  max-width: 32rem;
+}
+
+/* ── Settings → Contact: the Discord and X logos, a globe for the website ── */
+.setting-item > .marktodo-contact-icon {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-inline-end: var(--size-4-3);
+  color: var(--text-muted);
+  --icon-size: 22px;
+}
+.setting-item > .marktodo-contact-icon.is-discord {
+  color: #5865f2; /* Discord Blurple; X's logo is only ever black or white */
+}
+.setting-item > .marktodo-contact-icon.is-x {
+  color: var(--text-normal);
+}
