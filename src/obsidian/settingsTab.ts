@@ -158,7 +158,7 @@ export class MarkTodoSettingTab extends PluginSettingTab {
           render: (setting) => {
             if (!dailyNotesEnabled(this.app)) {
               setting.setDesc(
-                "Where new todos from the todo editor go by default. ⚠ Today's daily note needs the Daily Notes core plugin, which is off.",
+                "Where new todos from the todo editor go by default. ⚠ Today's daily note needs the Daily notes core plugin, which is off.",
               );
             }
             setting.addDropdown((dropdown) =>
@@ -170,7 +170,7 @@ export class MarkTodoSettingTab extends PluginSettingTab {
                   settings.captureDestination = value === "daily" ? "daily" : "project";
                   void this.plugin.saveSettings();
                   if (value === "daily" && !dailyNotesEnabled(this.app)) {
-                    new Notice("MarkTodo: enable the Daily Notes core plugin to capture to today's note.");
+                    new Notice("MarkTodo: enable the Daily notes core plugin to capture to today's note.");
                   }
                 }),
             );

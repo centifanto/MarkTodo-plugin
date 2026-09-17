@@ -5,7 +5,7 @@
  * "+ Add" buttons on Kanban columns / List groups.
  *
  * Destinations: any project (preselected: the last one captured into), today's
- * daily note (when the Daily Notes core plugin is on), and the catch-all note
+ * daily note (when the Daily notes core plugin is on), and the catch-all note
  * (when set). The `captureDestination` setting picks project vs daily note as
  * the starting choice. Priority and due follow the title's tokens (`@ph`,
  * `due @ …`) until the user touches those controls.
@@ -109,7 +109,7 @@ class CaptureModal extends Modal {
     const destSetting = new Setting(contentEl).setName("Destination");
     contentEl.insertBefore(destSetting.settingEl, statusSetting.settingEl);
     if (choices.length === 0) {
-      destSetting.setDesc("Create a project first (or turn on Daily Notes / set a catch-all note).");
+      destSetting.setDesc("Create a project first (or turn on Daily notes / set a catch-all note).");
     } else {
       destSetting.addDropdown((d) => {
         for (const [value, label] of choices) d.addOption(value, label);
@@ -236,7 +236,7 @@ class CaptureModal extends Modal {
     const { app, writer, settings } = this.plugin;
     if (this.destination === DAILY) {
       const note = await ensureTodaysDailyNote(app);
-      if (!note) new Notice("MarkTodo: turn on the Daily Notes core plugin to capture there.");
+      if (!note) new Notice("MarkTodo: turn on the Daily notes core plugin to capture there.");
       return note;
     }
     if (this.destination === CATCH_ALL) return writer.ensureNote(settings.catchAllPath);

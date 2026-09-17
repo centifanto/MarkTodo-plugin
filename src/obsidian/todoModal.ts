@@ -329,7 +329,7 @@ class TodoModal extends Modal {
       new ButtonComponent(bar)
         .setButtonText("Convert")
         .setIcon("badge-check")
-        .setTooltip("Convert to MarkTodo — no id yet, so this todo isn't tracked")
+        .setTooltip("Convert to MarkTodo — no ID yet, so this todo isn't tracked")
         .onClick(() => {
           void this.plugin.writer.adopt(this.todo);
           this.close();

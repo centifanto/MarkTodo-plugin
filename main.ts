@@ -166,7 +166,7 @@ export default class MarkTodoPlugin extends Plugin {
 
     this.addCommand({
       id: "open-list",
-      name: "Show Todos",
+      name: "Show todos",
       callback: () => {
         void showInDashboard(this, { kind: "todos" });
       },
@@ -174,7 +174,7 @@ export default class MarkTodoPlugin extends Plugin {
 
     this.addCommand({
       id: "open-board",
-      name: "Open Todos as a Kanban board",
+      name: "Open todos as a Kanban board",
       callback: () => {
         void openBoard(this, { kind: "todos" });
       },
@@ -182,7 +182,7 @@ export default class MarkTodoPlugin extends Plugin {
 
     this.addCommand({
       id: "open-today",
-      name: "Show Today",
+      name: "Show today",
       callback: () => {
         void showInDashboard(this, { kind: "today" });
       },
@@ -190,7 +190,7 @@ export default class MarkTodoPlugin extends Plugin {
 
     this.addCommand({
       id: "open-inbox",
-      name: "Show Inbox",
+      name: "Show inbox",
       callback: () => {
         void showInDashboard(this, { kind: "inbox" });
       },
