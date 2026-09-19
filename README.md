@@ -1,4 +1,4 @@
-# MarkTodo
+![MarkTodo — Markdown todos, designed for mobile. Three panes, six statuses, your own files](docs/marktodo-banner.png)
 
 [marktodo.com](https://marktodo.com)
 
