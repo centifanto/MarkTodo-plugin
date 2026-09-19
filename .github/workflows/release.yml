@@ -42,7 +42,21 @@ jobs:
             manifest.json
             styles.css
 
+      # The body comes from docs/release-notes/<version>.md when that file exists,
+      # so a release reads the way it was written in the commit and never has to
+      # be edited on GitHub afterwards. gh PREPENDS it to the generated notes, so
+      # the commit list and the Full Changelog link still sit underneath it.
+      # No file (a release that needs no prose) falls back to generated notes
+      # alone — a missing file must not fail a run whose tag is already pushed.
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          notes="docs/release-notes/$GITHUB_REF_NAME.md"
+          if [ -f "$notes" ]; then
+            gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
+              --title "$GITHUB_REF_NAME" --notes-file "$notes" --generate-notes
+          else
+            gh release create "$GITHUB_REF_NAME" main.js manifest.json styles.css \
+              --title "$GITHUB_REF_NAME" --generate-notes
+          fi
