@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { INDEX_FORMAT_KEY, indexFileTodos, patchRecordsForRename } from "../../src/obsidian/indexLogic";
-import { STATUS_LABELS, STATUS_ORDER, statusOf } from "../../src/core/types";
+import { LEGACY_STATUS_LABELS, STATUS_LABELS, STATUS_ORDER, statusOf } from "../../src/core/types";
 
 describe("indexFileTodos — project file with subprojects + status sections", () => {
   const text = [
@@ -196,6 +196,23 @@ describe("indexFileTodos — note blocks", () => {
 
 describe("INDEX_FORMAT_KEY", () => {
   it("names every status label, so a MarkTodo-side rename moves it", () => {
-    for (const st of STATUS_ORDER) expect(INDEX_FORMAT_KEY).toContain(STATUS_LABELS[st]);
+    for (const st of STATUS_ORDER) {
+      expect(INDEX_FORMAT_KEY).toContain(`${STATUS_LABELS[st].toLowerCase()}=${st}`);
+    }
+  });
+
+  it("names the legacy labels too — a heading on one is a status section", () => {
+    for (const st of STATUS_ORDER) {
+      for (const alias of LEGACY_STATUS_LABELS[st] ?? []) {
+        expect(INDEX_FORMAT_KEY).toContain(`${alias.toLowerCase()}=${st}`);
+      }
+    }
+  });
+
+  // STATUS_ORDER is columns and display, never what a heading MEANS: a reorder
+  // (0.0.7 moved Paused) must not invalidate a snapshot that is still correct.
+  it("is sorted, so reordering STATUS_ORDER cannot move it", () => {
+    const parts = INDEX_FORMAT_KEY.split("\u0000");
+    expect(parts).toEqual([...parts].sort());
   });
 });

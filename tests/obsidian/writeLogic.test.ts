@@ -285,7 +285,7 @@ describe("planSafeHeal — the guards", () => {
   const F = INDEX_FORMAT_KEY;
 
   it("the format key covers every status label", () => {
-    for (const st of STATUS_ORDER) expect(F).toContain(STATUS_LABELS[st]);
+    for (const st of STATUS_ORDER) expect(F).toContain(`${STATUS_LABELS[st].toLowerCase()}=${st}`);
   });
 
   // The probe that found the bug: headings that change MEANING under unchanged

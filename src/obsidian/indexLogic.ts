@@ -11,7 +11,7 @@
  * ambient note every heading is a plain grouping.
  */
 
-import { type Status, type TodoRecord, STATUS_LABELS, STATUS_ORDER, statusFromLabel } from "../core/types";
+import { type Status, type TodoRecord, STATUS_BY_LABEL, statusFromLabel } from "../core/types";
 import { parseTodoLine } from "../core/parse";
 import { noteOf } from "../core/span";
 
@@ -48,13 +48,21 @@ function bodyStartLine(lines: string[]): number {
 }
 
 /**
- * What a file's records were derived WITH, beyond its text: the status labels
- * decide which headings are status sections. Two snapshots built under different
- * keys disagree for reasons that have nothing to do with an edit — so the index
- * re-derives when this changes, and the heal rule never diffs across it. The
- * labels are fixed now, so this only moves when a MarkTodo version changes them.
+ * What a file's records were derived WITH, beyond its text: `STATUS_BY_LABEL`,
+ * the heading-text → Status table `statusFromLabel` consults, is the whole of
+ * it. Two snapshots built under different keys disagree for reasons that have
+ * nothing to do with an edit — so the index re-derives when this changes, and
+ * the heal rule never diffs across it. The labels are fixed now, so this only
+ * moves when a MarkTodo version renames one or adds a legacy alias.
+ *
+ * Sorted on purpose, so the key is the table's CONTENT and not its iteration
+ * order: `STATUS_ORDER` decides columns and display, never what a heading
+ * means, and reordering it must not churn this.
  */
-export const INDEX_FORMAT_KEY: string = STATUS_ORDER.map((st) => STATUS_LABELS[st]).join("\u0000");
+export const INDEX_FORMAT_KEY: string = [...STATUS_BY_LABEL]
+  .map(([label, status]) => `${label}=${status}`)
+  .sort()
+  .join("\u0000");
 
 /** Parse a file's text into TodoRecords with project/subproject context. */
 export function indexFileTodos(
