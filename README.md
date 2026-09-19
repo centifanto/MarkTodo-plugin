@@ -2,6 +2,8 @@
 
 > Plain text that levels up only when you ask it to.
 
+[marktodo.com](https://marktodo.com) · [Documentation](https://marktodo.com/docs)
+
 An Obsidian plugin for todo and project management on top of plain Markdown. A
 todo is a normal checkbox — `- [ ] Buy milk` — and reads like you typed it.
 Power (status, priority, due dates, reminders, stable identity) attaches only
@@ -9,6 +11,8 @@ to the todos that use it. The `.md` files are always the source of truth.
 
 It pairs with a companion MarkTodo mobile app; both read and write the same
 files and agree on one grammar.
+
+![The MarkTodo dashboard in Obsidian: projects listed down the left, todos grouped under their status headings in the main pane](docs/screenshots/plugin-dashboard.png)
 
 ## What's different
 
@@ -69,6 +73,8 @@ the Inbox, which is a view, not a note — there's nothing to create or clean
 up. Projects, in-progress work, priorities and due dates are all just
 different views over the same Markdown.
 
+![A project as a Kanban board: one column per status, from Backlog through Done, with todo cards in each](docs/screenshots/plugin-kanban.png)
+
 ## Making todos
 
 A plain checkbox is already a todo. A **managed** todo also carries a hidden
@@ -90,6 +96,8 @@ give it any of the six statuses.
 MarkTodo sets no default hotkeys, so it never clashes with yours. Assign any of
 these in Settings → Hotkeys.
 
+![The todo editor: a todo's text, status, project, priority, due date and reminder on one panel](docs/screenshots/plugin-todo-editor.png)
+
 ## Phones, tablets and the companion app
 
 On phones and tablets MarkTodo starts in **Lightweight mode**: managed
@@ -104,6 +112,16 @@ The app is not this plugin on a smaller screen. It puts your projects, your
 list, and the todo you're in in three panes side by side, and slides between
 them rather than stacking full-screen views you have to press Back out of — so
 the list you were reading is still there when you finish with a todo.
+
+The full plugin on a phone, with On this device switched on:
+
+<p align="center">
+  <img src="docs/screenshots/plugin-mobile-dashboard.png" width="150" alt="The dashboard on a phone, with todos grouped under their status headings">
+  <img src="docs/screenshots/plugin-mobile-list.png" width="150" alt="A project's todo list on a phone">
+  <img src="docs/screenshots/plugin-mobile-todo-editor.png" width="150" alt="The todo editor on a phone, showing status, priority and due date">
+  <img src="docs/screenshots/plugin-mobile-kanban.png" width="150" alt="A Kanban board on a phone, one status column at a time">
+  <img src="docs/screenshots/plugin-mobile-note.png" width="150" alt="The underlying Markdown note on a phone, with its status headings and checkboxes">
+</p>
 
 ## Privacy
 
