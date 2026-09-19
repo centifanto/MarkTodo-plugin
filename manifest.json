@@ -3,7 +3,7 @@
   "name": "MarkTodo",
   "version": "0.0.5",
   "minAppVersion": "1.8.7",
-  "description": "Manage todos and projects in plain Markdown, minimal by default and powerful on demand.",
+  "description": "Todos and projects in your Markdown notes: six statuses in the checkbox itself, boards, due dates and reminders, plus a standalone Android app over the same files.",
   "author": "Isaiah Centifanto",
   "authorUrl": "https://marktodo.com",
   "isDesktopOnly": false
