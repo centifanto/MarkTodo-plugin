@@ -1,26 +1,14 @@
 # MarkTodo
 
-> Plain text that levels up only when you ask it to.
-
 [marktodo.com](https://marktodo.com) · [Documentation](https://marktodo.com/docs)
 
-An Obsidian plugin for todo and project management on top of plain Markdown. A
-todo is a normal checkbox — `- [ ] Buy milk` — and reads like you typed it.
-Power (status, priority, due dates, reminders, stable identity) attaches only
-to the todos that use it. The `.md` files are always the source of truth.
-
-It pairs with a companion MarkTodo mobile app; both read and write the same
-files and agree on one grammar.
+A standalone Android app and Obsidian plugin, over the notes you already keep.
+Both were born out of long hours wanting more from every other productivity
+system, and all of it is stored as checkboxes in your own `.md` files.
 
 The plugin itself, running in full on a phone:
 
-<p align="center">
-  <img src="docs/screenshots/plugin-mobile-dashboard.png" width="150" alt="The dashboard on a phone, with todos grouped under their status headings">
-  <img src="docs/screenshots/plugin-mobile-list.png" width="150" alt="A project's todo list on a phone">
-  <img src="docs/screenshots/plugin-mobile-todo-editor.png" width="150" alt="The todo editor on a phone, showing status, priority and due date">
-  <img src="docs/screenshots/plugin-mobile-kanban.png" width="150" alt="A Kanban board on a phone, one status column at a time">
-  <img src="docs/screenshots/plugin-mobile-note.png" width="150" alt="The underlying Markdown note on a phone, with its status headings and checkboxes">
-</p>
+![Five phone screens side by side: the dashboard with todos under their status headings, a project's todo list, the todo editor showing status and priority and due date, a Kanban board one column at a time, and the underlying Markdown note](docs/screenshots/plugin-mobile-row.png)
 
 ## What's different
 
@@ -60,7 +48,8 @@ Enable kanban drag on mobile to move cards between columns with a thumb.
 The app is not this plugin on a smaller screen. It puts your projects, your
 list, and the todo you're in in three panes side by side, and slides between
 them rather than stacking full-screen views you have to press Back out of — so
-the list you were reading is still there when you finish with a todo.
+the list you were reading is still there when you finish with a todo. The app
+is pending review on Google Play.
 
 ## The format
 
