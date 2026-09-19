@@ -12,7 +12,15 @@ to the todos that use it. The `.md` files are always the source of truth.
 It pairs with a companion MarkTodo mobile app; both read and write the same
 files and agree on one grammar.
 
-![The MarkTodo dashboard in Obsidian: projects listed down the left, todos grouped under their status headings in the main pane](docs/screenshots/plugin-dashboard.png)
+The plugin itself, running in full on a phone:
+
+<p align="center">
+  <img src="docs/screenshots/plugin-mobile-dashboard.png" width="150" alt="The dashboard on a phone, with todos grouped under their status headings">
+  <img src="docs/screenshots/plugin-mobile-list.png" width="150" alt="A project's todo list on a phone">
+  <img src="docs/screenshots/plugin-mobile-todo-editor.png" width="150" alt="The todo editor on a phone, showing status, priority and due date">
+  <img src="docs/screenshots/plugin-mobile-kanban.png" width="150" alt="A Kanban board on a phone, one status column at a time">
+  <img src="docs/screenshots/plugin-mobile-note.png" width="150" alt="The underlying Markdown note on a phone, with its status headings and checkboxes">
+</p>
 
 ## What's different
 
@@ -30,12 +38,29 @@ you never press Back to work out where you are.
 
 **A vocabulary that keeps the distinctions that matter.** Backlog, Warming,
 Doing, Blocked, Paused, Done — the six names, their order, and the split
-between the three you plan with and the three that mean work is live.
+between the three you plan with (Backlog, Warming and Paused) and the three
+that mean work is live (Doing, Blocked and Done).
 **Warming** doesn't exist in any other tool: it's the decision that something
 is next, made once and written into the file instead of faked with a tag or a
 due date. **Blocked** and **Paused** stay separate, because "someone else
 stopped this" and "I stopped this" are not the same thing, and every tool that
 collapses them into one "on hold" loses the only distinction that matters.
+
+## Phones, tablets and the companion app
+
+On phones and tablets MarkTodo starts in **Lightweight mode**: managed
+checkboxes, the todo trigger and archive filing keep working, while the
+dashboard and boards are off so Obsidian stays quick. The first time, a pop-up
+offers the MarkTodo app for Android on Google Play. In Lightweight mode,
+opening the dashboard shows that pop-up instead. Settings also has "Get it on
+Google Play" buttons. To use the full plugin on a device, go to Settings →
+MarkTodo → On this device. Boards stay usable there: turn on Settings →
+Enable kanban drag on mobile to move cards between columns with a thumb.
+
+The app is not this plugin on a smaller screen. It puts your projects, your
+list, and the todo you're in in three panes side by side, and slides between
+them rather than stacking full-screen views you have to press Back out of — so
+the list you were reading is still there when you finish with a todo.
 
 ## The format
 
@@ -60,7 +85,8 @@ Everything else is optional, inline text appended to the todo:
 - `due @ 2026-09-20` — a due date
 - `done @ 2026-09-17` — set automatically when a todo is marked done
 - `notify @ 2026-09-19 09:00` — a reminder
-- `@high` (or `@ph`) — inline priority
+- `@urgent`, `@high`, `@low` — inline priority, one of three (aliases
+  `@pu`, `@ph`, `@pl`)
 
 Dates are normalized on save (`due @ 2026-9-1` becomes `due @ 2026-09-01`),
 and every write is round-trip safe — a todo's surrounding text is never
@@ -73,12 +99,14 @@ the Inbox, which is a view, not a note — there's nothing to create or clean
 up. Projects, in-progress work, priorities and due dates are all just
 different views over the same Markdown.
 
+![The MarkTodo dashboard in Obsidian: projects listed down the left, todos grouped under their status headings in the main pane](docs/screenshots/plugin-dashboard.png)
+
 ![A project as a Kanban board: one column per status, from Backlog through Done, with todo cards in each](docs/screenshots/plugin-kanban.png)
 
 ## Making todos
 
 A plain checkbox is already a todo. A **managed** todo also carries a hidden
-`<!-- mt id=… -->` tag, so MarkTodo can track it through edits and moves and
+`<!-- mt id=… -->` comment — the **capsule** — so MarkTodo can track it through edits and moves and
 give it any of the six statuses.
 
 - **Type `mtodo`** at the end of any line, after a space (`Buy milk mtodo`).
@@ -92,36 +120,16 @@ give it any of the six statuses.
   - **Insert managed todo at cursor**
   - **Edit todo at cursor**, also in the editor's right-click menu
   - **Add todo…** opens the todo editor
+  - **Send current line to catch-all note**
+  - **Create project…** and **Convert note to project**
+  - **Open dashboard**, **Show today**, **Show todos**, **Show inbox**
+  - **Open todos as a Kanban board**, **Toggle one or two dashboard columns**
+  - **Move completed todos to bottom (current note)**
 
 MarkTodo sets no default hotkeys, so it never clashes with yours. Assign any of
 these in Settings → Hotkeys.
 
 ![The todo editor: a todo's text, status, project, priority, due date and reminder on one panel](docs/screenshots/plugin-todo-editor.png)
-
-## Phones, tablets and the companion app
-
-On phones and tablets MarkTodo starts in **Lightweight mode**: managed
-checkboxes, the todo trigger and archive filing keep working, while the
-dashboard and boards are off so Obsidian stays quick. The first time, a pop-up
-offers the MarkTodo app for Android on Google Play. In Lightweight mode,
-opening the dashboard shows that pop-up instead. Settings also has "Get it on
-Google Play" buttons. To use the full plugin on a device, go to Settings →
-MarkTodo → On this device.
-
-The app is not this plugin on a smaller screen. It puts your projects, your
-list, and the todo you're in in three panes side by side, and slides between
-them rather than stacking full-screen views you have to press Back out of — so
-the list you were reading is still there when you finish with a todo.
-
-The full plugin on a phone, with On this device switched on:
-
-<p align="center">
-  <img src="docs/screenshots/plugin-mobile-dashboard.png" width="150" alt="The dashboard on a phone, with todos grouped under their status headings">
-  <img src="docs/screenshots/plugin-mobile-list.png" width="150" alt="A project's todo list on a phone">
-  <img src="docs/screenshots/plugin-mobile-todo-editor.png" width="150" alt="The todo editor on a phone, showing status, priority and due date">
-  <img src="docs/screenshots/plugin-mobile-kanban.png" width="150" alt="A Kanban board on a phone, one status column at a time">
-  <img src="docs/screenshots/plugin-mobile-note.png" width="150" alt="The underlying Markdown note on a phone, with its status headings and checkboxes">
-</p>
 
 ## Privacy
 
@@ -138,7 +146,8 @@ The full plugin on a phone, with On this device switched on:
 
 ## Status
 
-Early beta (0.0.4), not yet published to Community Plugins.
+Early beta (0.0.5), available in
+[Community Plugins](https://community.obsidian.md/plugins/marktodo).
 
 ## Development
 
@@ -152,7 +161,7 @@ pnpm lint    # Obsidian's community-plugin review rules
 ```
 
 To release, bump the version in `manifest.json`, `package.json` and
-`versions.json`, then push a tag with the bare version (`0.0.2`). The Release
+`versions.json`, then push a tag with the bare version (`0.0.5`). The Release
 workflow builds, attests and publishes `main.js`, `manifest.json` and
 `styles.css`.
 
