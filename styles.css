@@ -38,7 +38,6 @@ body {
   --mt-font-small: var(--font-ui-small);
   --mt-font-medium: var(--font-ui-medium);
   --mt-font-large: var(--font-ui-large);
-  --mt-font-text: var(--font-text-size, 16px);
 
   --marktodo-backlog: var(--text-muted);
   --marktodo-warming: var(--color-yellow);
@@ -61,10 +60,18 @@ body {
 .is-done { --marktodo-status: var(--marktodo-done); }
 
 /* ── List views ─────────────────────────────────────────────────────── */
-/* Rows are sized from the NOTE text size (Settings → Appearance), not the UI
-   size — a todo list is reading material, and it should match your notes. */
+/* Rows take the same base as every other piece of MarkTodo chrome — and the
+   same one the board's cards already used — so a list, a board and the
+   navigator are one size, and Settings → Appearance → Text size moves all of
+   them together.
+
+   They used to be sized from the NOTE text size instead, on the reasoning that
+   a todo list is reading material. In practice that made the rows tower over
+   the headings, counts and chips around them on any vault with a large note
+   font, and no single Text size multiplier could close a gap between two
+   different bases. */
 .marktodo-view {
-  --marktodo-row-font: var(--mt-font-text);
+  --marktodo-row-font: var(--mt-font-medium);
   --marktodo-row-line: calc(var(--marktodo-row-font) * 1.45);
   padding: 0 var(--size-4-2) var(--size-4-8);
 }
@@ -1681,7 +1688,6 @@ body {
   --mt-font-small: calc(var(--font-ui-small) * var(--mt-font-scale, 1));
   --mt-font-medium: calc(var(--font-ui-medium) * var(--mt-font-scale, 1));
   --mt-font-large: calc(var(--font-ui-large) * var(--mt-font-scale, 1));
-  --mt-font-text: calc(var(--font-text-size, 16px) * var(--mt-font-scale, 1));
 }
 
 /* ── MarkTodo theme surfaces ────────────────────────────────────────── */
