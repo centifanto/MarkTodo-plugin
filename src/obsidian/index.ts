@@ -40,6 +40,16 @@ export class TodoIndex {
   private readGeneration = new Map<string, number>();
   private notify: () => void;
   private resolvedOnce = false;
+  /**
+   * Files whose metadata cache was not there yet when we looked.
+   *
+   * "No cache" and "cached, and it holds no todos" are NOT the same thing, and
+   * treating them the same is how a cold-start rebuild indexed an entire vault
+   * as empty: `initialize()` runs before the cache is populated, every file
+   * looked todo-less, every file was dropped, and only notes edited afterwards
+   * ever made it in. These are retried, not dropped.
+   */
+  private awaitingCache = new Set<string>();
 
   constructor(
     private plugin: MarkTodoPlugin,
@@ -70,14 +80,26 @@ export class TodoIndex {
     );
     // 'resolved' fires once the initial cache is fully populated; rebuild then in
     // case some frontmatter/listItems weren't ready during the first pass.
+    //
+    // The full rebuild stays one-shot (it re-derives every file), but the
+    // catch-up runs on EVERY firing: the first 'resolved' is not guaranteed to
+    // be the one where every file is cached, and when the plugin is enabled or
+    // updated mid-session the event may have fired before this handler existed.
     this.plugin.registerEvent(
       metadataCache.on("resolved", () => {
         if (!this.resolvedOnce) {
           this.resolvedOnce = true;
           void this.rebuildAll();
+        } else {
+          void this.indexAwaitingCache();
         }
       }),
     );
+    // Last net: a plugin enabled after startup may never see 'resolved' again
+    // until someone edits a note, and until then its index would hold nothing.
+    this.plugin.app.workspace.onLayoutReady(() => {
+      void this.indexAwaitingCache();
+    });
     this.plugin.registerEvent(
       vault.on("rename", (file, oldPath) => {
         if (file instanceof TFile) this.renameFile(oldPath, file);
@@ -104,9 +126,37 @@ export class TodoIndex {
    * become the baseline.
    */
   async rebuildAll(): Promise<void> {
-    await Promise.all(
+    // allSettled, not all: `Promise.all` rejects on the first failure, and the
+    // caller on the 'resolved' path is a bare `void` — so one unreadable note
+    // out of a thousand discarded the whole rebuild, silently.
+    const results = await Promise.allSettled(
       this.app.vault.getMarkdownFiles().map((f) => this.reindexFile(f, true, true)),
     );
+    const failed = results.filter((r) => r.status === "rejected");
+    if (failed.length > 0) {
+      console.error(
+        `MarkTodo: ${failed.length} note(s) could not be indexed`,
+        failed.map((r) => (r as PromiseRejectedResult).reason),
+      );
+    }
+    this.rebuildById();
+    this.notify();
+  }
+
+  /**
+   * Re-try the files whose cache was missing last time. Cheap: it touches only
+   * those, and a file leaves the set as soon as it has been looked at properly.
+   */
+  private async indexAwaitingCache(): Promise<void> {
+    if (this.awaitingCache.size === 0) return;
+    const files = [...this.awaitingCache]
+      .map((path) => this.app.vault.getAbstractFileByPath(path))
+      .filter((f): f is TFile => f instanceof TFile);
+    if (files.length === 0) {
+      this.awaitingCache.clear();
+      return;
+    }
+    await Promise.allSettled(files.map((f) => this.reindexFile(f, true, true)));
     this.rebuildById();
     this.notify();
   }
@@ -130,7 +180,15 @@ export class TodoIndex {
     }
 
     const cache = this.app.metadataCache.getFileCache(file);
-    const hasTodo = cache?.listItems?.some((li) => li.task !== undefined) ?? false;
+    if (!cache) {
+      // Not "this note has no todos" — "Obsidian has not read this note yet".
+      // Dropping it here is indistinguishable from the real thing, and leaves
+      // the note invisible until it happens to be edited.
+      this.awaitingCache.add(file.path);
+      return;
+    }
+    this.awaitingCache.delete(file.path);
+    const hasTodo = cache.listItems?.some((li) => li.task !== undefined) ?? false;
     if (!hasTodo) {
       this.dropAndMaybeNotify(file.path, silent);
       return;
