@@ -29,8 +29,11 @@
     /** `anchor` is the clicked row / card, so the editor can open over it. */
     onOpenTodo?: (todo: TodoRecord, anchor?: Element) => void;
     onReveal?: (todo: TodoRecord) => void;
-    /** When set, each column head gets a "+" that adds a todo with its status. */
-    onAdd?: (status: Status) => void;
+    /**
+     * When set, each column head gets a "+" that adds a todo with its status.
+     * `anchor` is the "+" itself, so the capture dialog opens over it.
+     */
+    onAdd?: (status: Status, anchor?: Element) => void;
   } = $props();
 
   // Seeded imperatively by the host via setData() right after mount, then
@@ -89,7 +92,7 @@
 
 <div class="marktodo-board">
   {#each columns as column, ci (column.status)}
-    <div class="marktodo-column">
+    <div class="marktodo-column" class:is-phase-start={column.phase !== columns[ci - 1]?.phase}>
       <div class="marktodo-section-head marktodo-column-head is-{column.status.toLowerCase()}">
         <div class="marktodo-section-toggle">
           <span class="marktodo-section-bar"></span>
@@ -101,7 +104,7 @@
             class="marktodo-section-add clickable-icon"
             aria-label={`Add todo to ${column.label}`}
             title={`Add todo to ${column.label}`}
-            onclick={() => onAdd?.(column.status)}
+            onclick={(e) => onAdd?.(column.status, e.currentTarget)}
           ><span use:icon={"plus"}></span></button>
         {/if}
       </div>

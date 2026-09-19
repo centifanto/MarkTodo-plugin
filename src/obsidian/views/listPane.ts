@@ -35,6 +35,9 @@ import {
   type TodayArrangement,
 } from "../../ui/smartViews";
 import { buildInboxSections } from "../inboxLogic";
+import { buildFocusBar } from "../focusBar";
+import { type ModalAnchor } from "../modalAnchor";
+import { FOCUS_SEGMENTS, type Focus } from "../../ui/focus";
 import { buildListGroups } from "../viewData";
 import {
   buildFilterBar,
@@ -70,6 +73,7 @@ export class ListPane {
   private selection: Selection;
   private headerEl: HTMLElement;
   private barEl: HTMLElement;
+  private focusEl: HTMLElement;
   private segmentsEl: HTMLElement;
   private bodyEl: HTMLElement;
   private components: Array<ReturnType<typeof mount>> = [];
@@ -92,6 +96,7 @@ export class ListPane {
     this.headerEl = el.createDiv({ cls: "marktodo-pane-header" });
     const scroller = el.createDiv({ cls: "marktodo-list-scroll" });
     this.segmentsEl = scroller.createDiv({ cls: "marktodo-segments" });
+    this.focusEl = scroller.createDiv({ cls: "marktodo-focus-bar" });
     this.barEl = scroller.createDiv({ cls: "marktodo-list-filters" });
     this.bodyEl = scroller.createDiv({ cls: "marktodo-list-body marktodo-view" });
     this.show(selection, true);
@@ -150,6 +155,7 @@ export class ListPane {
     }
     if (this.searching()) return this.renderSearch();
     this.renderFilterBar();
+    this.renderFocusBar();
     switch (this.selection.kind) {
       case "inbox":
         return this.renderInbox();
@@ -233,7 +239,7 @@ export class ListPane {
       });
       out.push({ icon: "file-text", label: "Open the note", onClick: () => void openNote(this.plugin, path) });
     }
-    out.push({ icon: "plus", label: "Add todo", onClick: () => this.addTodo() });
+    out.push({ icon: "plus", label: "Add todo", onClick: (evt) => this.addTodo(undefined, evt) });
     return out;
   }
 
@@ -285,6 +291,34 @@ export class ListPane {
     });
   }
 
+  /**
+   * The focus row, on the surfaces that draw status sections. Inbox is left out
+   * on purpose: a loose todo can only be Backlog or Done, so Plan / Active /
+   * Doing there would be three controls, two of which can never match anything.
+   */
+  private renderFocusBar(): void {
+    const kind = this.selection.kind;
+    if (kind !== "todos" && kind !== "project") {
+      this.focusEl.empty();
+      return;
+    }
+    const todos =
+      kind === "project"
+        ? this.plugin.index.getByFile(this.selection.path)
+        : filterByState(this.plugin.index.getAll(), this.filterState, "projects");
+    buildFocusBar(this.focusEl, {
+      todos,
+      focus: this.plugin.settings.focus,
+      onPick: (focus) => this.setFocus(focus),
+    });
+  }
+
+  private setFocus(focus: Focus): void {
+    this.plugin.settings.focus = focus;
+    void this.plugin.saveSettings();
+    this.refresh(true);
+  }
+
   // ── bodies ────────────────────────────────────────────────────────────────
 
   private teardownBody(): void {
@@ -295,6 +329,7 @@ export class ListPane {
     this.signature = null;
     this.bodyEl.empty();
     this.segmentsEl.empty();
+    this.focusEl.empty();
     this.barEl.empty();
   }
 
@@ -306,13 +341,20 @@ export class ListPane {
       this.surface = new TodoSurface({
         plugin: this.plugin,
         el: this.bodyEl.createDiv({ cls: "marktodo-surface" }),
-        emptyText: () =>
-          isFilterActive(this.filterState)
-              ? "No todos match the current filters."
-              : project
-                ? "No todos in this project yet. Add one with +."
-                : "No project todos yet. Add one with +.",
-        onAdd: (status) => this.addTodo(status),
+        emptyText: () => {
+          // Focus first: it is the narrowing the user most recently chose, and
+          // "nothing here" reads as wrong when three whole sections are hidden.
+          const focus = this.plugin.settings.focus;
+          if (focus !== "all") {
+            const label = FOCUS_SEGMENTS.find((f) => f.key === focus)?.label ?? focus;
+            return `Nothing in ${label}. Switch to All above to see the rest.`;
+          }
+          if (isFilterActive(this.filterState)) return "No todos match the current filters.";
+          return project
+            ? "No todos in this project yet. Add one with +."
+            : "No project todos yet. Add one with +.";
+        },
+        onAdd: (status, anchor) => this.addTodo(status, anchor),
         showProject,
         memoryKey: project ? "project" : "todos",
       });
@@ -488,7 +530,7 @@ export class ListPane {
   }
 
   /** The todo editor, preset to what is on screen: the project, or the filtered one. */
-  private addTodo(status?: Status): void {
+  private addTodo(status?: Status, anchor?: ModalAnchor): void {
     const { app } = this.plugin;
     const projectPath =
       this.selection.kind === "project"
@@ -496,6 +538,6 @@ export class ListPane {
         : this.selection.kind === "todos"
           ? projectPathByName(app, this.filterState.project)
           : undefined;
-    openCaptureEditor(this.plugin, { status, projectPath });
+    openCaptureEditor(this.plugin, { status, projectPath, anchor });
   }
 }

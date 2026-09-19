@@ -15,7 +15,8 @@ import {
   type Selection,
   type SingleView,
 } from "../ui/dashboardNav";
-import { DEFAULT_APPEARANCE, type Appearance } from "../ui/theme";
+import { DEFAULT_APPEARANCE, DEFAULT_FONT_SCALE, type Appearance, type FontScale } from "../ui/theme";
+import { DEFAULT_FOCUS, type Focus } from "../ui/focus";
 
 /**
  * What the navigator pane remembers. Not a user-facing
@@ -132,6 +133,21 @@ export interface MarkTodoSettings {
   paneMode: PaneMode;
   /** Which side the navigation column sits on in two columns. */
   navSide: NavSide;
+  /**
+   * Which slice of the board every status-sectioned surface draws — everything,
+   * one phase, or just Doing. Not a user-facing setting in the tab: the segment
+   * row above each list writes it, and always shows what it is.
+   *
+   * Held across views on purpose. "Only what I'm working on" is a stance you
+   * take for a stretch of work, not a per-view preference you would set six times.
+   */
+  focus: Focus;
+  /**
+   * How big MarkTodo's own text draws, as a multiplier on Obsidian's sizes.
+   * Applies inside MarkTodo panes and dialogs only; the rest of Obsidian keeps
+   * whatever your theme and Appearance settings give it.
+   */
+  fontScale: FontScale;
 }
 
 export const DEFAULT_SETTINGS: MarkTodoSettings = {
@@ -170,4 +186,6 @@ export const DEFAULT_SETTINGS: MarkTodoSettings = {
   dashboardWidth: 600,
   paneMode: "dual",
   navSide: "left",
+  focus: DEFAULT_FOCUS,
+  fontScale: DEFAULT_FONT_SCALE,
 };

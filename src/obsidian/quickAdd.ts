@@ -10,8 +10,16 @@
  * the starting choice. Priority and due follow the title's tokens (`@ph`,
  * `due @ …`) until the user touches those controls.
  */
-import { type Editor, Modal, Notice, Setting, TFile, setIcon } from "obsidian";
-import { STATUS_LABELS, STATUS_ORDER, type Priority, type Status, type TodoRecord } from "../core/types";
+import { ButtonComponent, type Editor, Modal, Notice, TFile, setIcon } from "obsidian";
+import {
+  PHASE_LABELS,
+  PHASE_ORDER,
+  STATUS_LABELS,
+  statusesInPhase,
+  type Priority,
+  type Status,
+  type TodoRecord,
+} from "../core/types";
 import { parseTodoLine } from "../core/parse";
 import { serializeTodoLine } from "../core/serialize";
 import { setStatus } from "../core/status";
@@ -24,6 +32,8 @@ import { deleteEditorLine } from "./inlineTodo";
 import { dailyNotesEnabled, ensureTodaysDailyNote } from "./dailyNote";
 import type MarkTodoPlugin from "../../main";
 import { THEME_CLASS } from "./themeStyles";
+import { anchorBox, anchorModal, type ModalAnchor } from "./modalAnchor";
+import { type Box } from "./modalAnchorLogic";
 
 const PRIORITY_CHIPS: readonly Priority[] = ["URGENT", "HIGH", "LOW", "NONE"];
 const PRIORITY_LABEL: Record<Priority, string> = {
@@ -46,6 +56,11 @@ export interface CaptureEditorOptions {
   status?: Status;
   /** Preselect this project note (vault path). */
   projectPath?: string;
+  /**
+   * What opened it — the "+" that was clicked, or the pointer. The dialog floats
+   * over it instead of landing in the middle of the screen.
+   */
+  anchor?: ModalAnchor;
   onCaptured?: OnCaptured;
 }
 
@@ -63,6 +78,8 @@ class CaptureModal extends Modal {
   private due: string | null;
   private dueTouched = false;
   private submitted = false;
+  private anchor: Box | null;
+  private stopAnchoring: (() => void) | null = null;
 
   constructor(
     private plugin: MarkTodoPlugin,
@@ -70,6 +87,7 @@ class CaptureModal extends Modal {
   ) {
     super(plugin.app);
     this.modalEl.addClass(THEME_CLASS);
+    this.anchor = anchorBox(opts.anchor);
     this.title = opts.title ?? "";
     this.status = opts.status ?? plugin.settings.defaultStatus;
     const parsed = parseTodoLine(`- [ ] ${this.title}`);
@@ -83,9 +101,7 @@ class CaptureModal extends Modal {
     contentEl.addClass("marktodo-todo-modal");
     contentEl.createEl("h3", { cls: "marktodo-modal-title", text: "New todo" });
 
-    const titleSetting = new Setting(contentEl).setName("Todo");
-    titleSetting.settingEl.addClass("marktodo-capture-title");
-    const input = titleSetting.controlEl.createEl("input", {
+    const input = contentEl.createEl("input", {
       cls: "marktodo-quickadd-input",
       attr: { type: "text", placeholder: "What needs doing?  (@ph, due @ 2026-10-01 work too)" },
     });
@@ -102,35 +118,41 @@ class CaptureModal extends Modal {
     if (catchAll) choices.push([CATCH_ALL, `${noteName(catchAll)} (catch-all)`]);
     this.destination = this.initialDestination(projects, daily, catchAll);
 
-    const statusSetting = new Setting(contentEl).setName("Status");
+    const fields = contentEl.createDiv({ cls: "marktodo-fields" });
     const isProjectDest = (): boolean =>
       this.destination !== DAILY && this.destination !== CATCH_ALL && this.destination !== "";
 
-    const destSetting = new Setting(contentEl).setName("Destination");
-    contentEl.insertBefore(destSetting.settingEl, statusSetting.settingEl);
+    const destControl = this.field(fields, "Destination");
+    let destSelect: HTMLSelectElement | null = null;
     if (choices.length === 0) {
-      destSetting.setDesc("Create a project first (or turn on Daily notes / set a catch-all note).");
-    } else {
-      destSetting.addDropdown((d) => {
-        for (const [value, label] of choices) d.addOption(value, label);
-        d.setValue(this.destination);
-        d.onChange((v) => {
-          this.destination = v;
-          statusSetting.settingEl.toggle(isProjectDest());
-        });
+      destControl.createDiv({
+        cls: "marktodo-field-hint",
+        text: "Create a project first (or turn on Daily notes / set a catch-all note).",
       });
+    } else {
+      destSelect = destControl.createEl("select", { cls: "dropdown", attr: { "aria-label": "Destination" } });
+      for (const [value, label] of choices) destSelect.createEl("option", { value, text: label });
+      destSelect.value = this.destination;
     }
 
-    statusSetting.settingEl.addClass("marktodo-chip-setting");
-    this.chipRow(statusSetting.controlEl, STATUS_ORDER, this.status, (st) => {
-      this.status = st;
-    }, (st) => [STATUS_ICONS[st], STATUS_LABELS[st]]);
-    statusSetting.settingEl.toggle(isProjectDest()); // loose notes start at Backlog
+    // Status only means something in a project note: a loose todo starts at
+    // Backlog and can only ever be checked off (see `placement.ts`), so the row
+    // goes away for the daily note and the catch-all rather than lying.
+    const statusControl = this.field(fields, "Status");
+    const statusRow = statusControl.parentElement as HTMLElement;
+    this.statusChips(statusControl);
+    statusRow.toggle(isProjectDest());
+    if (destSelect) {
+      const select = destSelect;
+      select.onchange = (): void => {
+        this.destination = select.value;
+        statusRow.toggle(isProjectDest());
+      };
+    }
 
-    const prioritySetting = new Setting(contentEl).setName("Priority");
-    prioritySetting.settingEl.addClass("marktodo-chip-setting");
+    const priorityControl = this.field(fields, "Priority");
     const syncPriority = this.chipRow(
-      prioritySetting.controlEl,
+      priorityControl.createDiv({ cls: "marktodo-chip-row mod-priority" }),
       PRIORITY_CHIPS,
       this.priority,
       (p) => {
@@ -140,25 +162,22 @@ class CaptureModal extends Modal {
       (p) => [p === "NONE" ? null : PRIORITY_ICONS[p], PRIORITY_LABEL[p]],
     );
 
-    const dueSetting = new Setting(contentEl).setName("Due");
-    const dueInput = dueSetting.controlEl.createEl("input", {
-      type: "date",
-      value: this.due ?? "",
-    });
+    const dueControl = this.field(fields, "Due");
+    const dueInput = dueControl.createEl("input", { type: "date", value: this.due ?? "" });
     dueInput.onchange = (): void => {
       this.due = dueInput.value || null;
       this.dueTouched = true;
     };
-    dueSetting.addExtraButton((b) =>
-      b
-        .setIcon("x")
-        .setTooltip("Clear due date")
-        .onClick(() => {
-          dueInput.value = "";
-          this.due = null;
-          this.dueTouched = true;
-        }),
-    );
+    const clearDue = dueControl.createEl("button", {
+      cls: "marktodo-field-clear clickable-icon",
+      attr: { "aria-label": "Clear due date", title: "Clear due date" },
+    });
+    setIcon(clearDue, "x");
+    clearDue.onclick = (): void => {
+      dueInput.value = "";
+      this.due = null;
+      this.dueTouched = true;
+    };
 
     // The title leads until a control is touched: typing `@pu` or a due token
     // updates the chips/date live.
@@ -181,14 +200,48 @@ class CaptureModal extends Modal {
       }
     });
 
-    new Setting(contentEl).addButton((b) =>
-      b
-        .setButtonText("Add todo")
-        .setCta()
-        .onClick(() => void this.submit()),
-    );
+    const actions = contentEl.createDiv({ cls: "marktodo-modal-actions" });
+    new ButtonComponent(actions)
+      .setButtonText("Add todo")
+      .setCta()
+      .onClick(() => void this.submit());
+
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
+    // Over the "+" that opened it — the title on the button, so the dialog grows
+    // downward from where you were looking.
+    this.stopAnchoring = anchorModal(this, this.anchor, ".marktodo-modal-title");
+  }
+
+  /** One label-and-control row of the field grid (the todo editor's shape). */
+  private field(parent: HTMLElement, label: string): HTMLElement {
+    const row = parent.createDiv({ cls: "marktodo-field" });
+    row.createSpan({ cls: "marktodo-field-label", text: label });
+    return row.createDiv({ cls: "marktodo-field-control" });
+  }
+
+  /** Status chips under their Plan / Active captions — the todo editor's shape. */
+  private statusChips(control: HTMLElement): void {
+    const all: HTMLElement[] = [];
+    const values: Status[] = [];
+    for (const phase of PHASE_ORDER) {
+      const statuses = statusesInPhase(phase);
+      const group = control.createDiv({ cls: "marktodo-chip-group" });
+      group.createSpan({ cls: "marktodo-chip-phase", text: PHASE_LABELS[phase] });
+      const row = group.createDiv({ cls: "marktodo-chip-row mod-status" });
+      for (const st of statuses) {
+        const chip = row.createEl("button", { cls: "marktodo-chip" });
+        setIcon(chip.createSpan({ cls: "marktodo-chip-icon" }), STATUS_ICONS[st]);
+        chip.createSpan({ text: STATUS_LABELS[st] });
+        chip.toggleClass("is-active", st === this.status);
+        chip.onclick = (): void => {
+          this.status = st;
+          all.forEach((c, i) => c.toggleClass("is-active", values[i] === st));
+        };
+        all.push(chip);
+        values.push(st);
+      }
+    }
   }
 
   /** Preset project → daily note (if that's the setting) → last-used project → first choice. */
@@ -292,6 +345,8 @@ class CaptureModal extends Modal {
   }
 
   onClose(): void {
+    this.stopAnchoring?.();
+    this.stopAnchoring = null;
     this.contentEl.empty();
   }
 }

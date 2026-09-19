@@ -28,8 +28,8 @@ export interface SurfaceOptions {
   el: HTMLElement;
   /** Empty-state copy for the list. */
   emptyText: () => string;
-  /** "+" on a status section or column. */
-  onAdd: (status: Status) => void;
+  /** "+" on a status section or column; `anchor` is the button that was clicked. */
+  onAdd: (status: Status, anchor?: Element) => void;
   /** Name each todo's project (Todos: yes; a project's own view: no). */
   showProject: boolean;
   /** `viewMemory` key the list's folded sections are remembered under. */
@@ -50,14 +50,22 @@ export class TodoSurface {
 
   constructor(private opts: SurfaceOptions) {}
 
-  /** Draw `todos` in `mode`; a no-op when the result would be identical. */
+  /**
+   * Draw `todos` in `mode`; a no-op when the result would be identical.
+   *
+   * The focus is read here rather than passed in, so every surface narrows the
+   * same way from the one setting, and it joins the signature so changing it
+   * redraws (the todos themselves are unchanged — only which sections exist).
+   */
   render(todos: TodoRecord[], mode: SurfaceMode): void {
     this.opts.el.toggleClass("is-kanban", mode === "kanban");
+    const focus = this.opts.plugin.settings.focus;
 
     if (mode === "kanban") {
-      const columns = buildColumns(todos);
+      const columns = buildColumns(todos, focus);
       const signature = JSON.stringify([
         mode,
+        focus,
         groupsSignature(columns.map((c) => ({ label: c.label, todos: c.cards.map((card) => card.todo) }))),
       ]);
       if (signature === this.signature) return;
@@ -67,8 +75,8 @@ export class TodoSurface {
       return;
     }
 
-    const groups = buildStatusSections(todos);
-    const signature = JSON.stringify([mode, this.opts.emptyText(), groupsSignature(groups)]);
+    const groups = buildStatusSections(todos, focus);
+    const signature = JSON.stringify([mode, focus, this.opts.emptyText(), groupsSignature(groups)]);
     if (signature === this.signature) return;
     this.destroy();
     this.signature = signature;
@@ -87,7 +95,7 @@ export class TodoSurface {
         onStatusClick: (todo: TodoRecord, event: MouseEvent) => openTodoMenu(this.opts.plugin, todo, event),
         onOpenTodo: (todo: TodoRecord, anchor?: Element) => openTodoModal(this.opts.plugin, todo, anchor),
         onReveal: (todo: TodoRecord) => void revealTodo(this.opts.plugin, todo),
-        onAdd: (status: Status) => this.opts.onAdd(status),
+        onAdd: (status: Status, anchor?: Element) => this.opts.onAdd(status, anchor),
         dragDisabled: this.dragDisabled(),
         onMove: (todo: TodoRecord, toStatus: Status) => void this.opts.plugin.writer.setStatus(todo, toStatus),
         onReorder: (todo: TodoRecord, anchor: TodoRecord, position: "before" | "after") =>
@@ -126,7 +134,7 @@ export class TodoSurface {
         onCardMenu: (card: Card, event: MouseEvent) => openTodoMenu(plugin, card.todo, event),
         onOpenTodo: (todo: TodoRecord, anchor?: Element) => openTodoModal(plugin, todo, anchor),
         onReveal: (todo: TodoRecord) => void revealTodo(plugin, todo),
-        onAdd: (status: Status) => this.opts.onAdd(status),
+        onAdd: (status: Status, anchor?: Element) => this.opts.onAdd(status, anchor),
       },
     });
     this.board = this.boardComponent as unknown as BoardInstance;

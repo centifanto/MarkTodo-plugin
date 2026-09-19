@@ -67,6 +67,51 @@ export const THEME_MODES: ReadonlyArray<{ key: ThemeMode; label: string }> = [
 
 export const OBSIDIAN_PURPLE: AccentHsl = { h: 258, s: 88, l: 66 };
 
+// ────────────────────────────────────────────────────────────────────────────
+// Text size — a multiplier, not a set of pixel sizes
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * How big MarkTodo's own text draws. A MULTIPLIER on the sizes Obsidian already
+ * resolved, never a pixel value: your theme, your font-size setting and your
+ * zoom all still decide the baseline, and this moves the whole MarkTodo pane
+ * with it. Scaling a resolved size is also the only way to do this without
+ * re-declaring Obsidian's `--font-ui-*` variables in terms of themselves, which
+ * CSS treats as a cycle and drops.
+ *
+ * Independent of the theme style on purpose: text size is legibility, and it has
+ * to work whether you use MarkTodo's colors or your Obsidian theme's.
+ */
+export type FontScale = "smaller" | "small" | "default" | "large" | "larger";
+
+export const FONT_SCALES: ReadonlyArray<{ key: FontScale; label: string; scale: number }> = [
+  { key: "smaller", label: "Smaller", scale: 0.85 },
+  { key: "small", label: "Small", scale: 0.92 },
+  { key: "default", label: "Default", scale: 1 },
+  { key: "large", label: "Large", scale: 1.12 },
+  { key: "larger", label: "Larger", scale: 1.25 },
+];
+
+export const DEFAULT_FONT_SCALE: FontScale = "default";
+
+/** The multiplier for a scale. */
+export function fontScaleValue(scale: FontScale): number {
+  return FONT_SCALES.find((f) => f.key === scale)?.scale ?? 1;
+}
+
+/**
+ * The `<body>` property carrying the text size down to `.marktodo-theme`. Not a
+ * theme variable: those are inert under "Obsidian theme", and this must not be.
+ */
+export function fontProperties(scale: FontScale): Record<string, string> {
+  return { "--mt-font-scale": String(fontScaleValue(scale)) };
+}
+
+/** A stored text size, with anything unknown replaced by the default. */
+export function parseFontScale(raw: unknown): FontScale {
+  return FONT_SCALES.some((f) => f.key === raw) ? (raw as FontScale) : DEFAULT_FONT_SCALE;
+}
+
 export interface ThemeColors {
   background: string;
   surface: string;

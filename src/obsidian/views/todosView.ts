@@ -13,6 +13,8 @@ import {
   type FilterState,
 } from "../filterBar";
 import { openCaptureEditor } from "../quickAdd";
+import { buildFocusBar } from "../focusBar";
+import { type ModalAnchor } from "../modalAnchor";
 import { projectPathByName } from "../projects";
 import { showInDashboard } from "../layout";
 import { TodoSurface, TODOS_MODES, buildModeSwitch } from "./todoSurface";
@@ -27,6 +29,7 @@ export class TodosView extends ItemView {
   private unsubscribe?: () => void;
   private filterState: FilterState = {};
   private barEl: HTMLElement | null = null;
+  private focusEl: HTMLElement | null = null;
   private barSig: string | null = null;
   private surface: TodoSurface | null = null;
   /** An index change arrived while hidden — rebuild when this view is shown. */
@@ -60,23 +63,26 @@ export class TodosView extends ItemView {
   async onOpen(): Promise<void> {
     this.containerEl.addClass(THEME_CLASS);
     this.filterState = this.plugin.viewMemory(MEMORY_KEY).filters;
-    this.addAction("plus", "Add todo", () => this.addTodo());
+    this.addAction("plus", "Add todo", (evt) => this.addTodo(undefined, evt));
     this.contentEl.empty();
     this.contentEl.addClass("marktodo-view", "marktodo-surface-view", "is-kanban");
     this.barEl = this.contentEl.createDiv();
+    this.focusEl = this.contentEl.createDiv({ cls: "marktodo-focus-bar" });
     this.surface = new TodoSurface({
       plugin: this.plugin,
       el: this.contentEl.createDiv({ cls: "marktodo-surface" }),
       emptyText: () => "",
-      onAdd: (status) => this.addTodo(status),
+      onAdd: (status, anchor) => this.addTodo(status, anchor),
       showProject: true,
       memoryKey: MEMORY_KEY,
     });
     this.renderFilterBar();
+    this.renderFocusBar();
     this.renderContent();
     // An index change can add or rename projects → the bar's options too.
     this.unsubscribe = this.plugin.index.onChange(() => {
       this.renderFilterBar();
+      this.renderFocusBar();
       this.renderContent();
     });
     // A background tab draws nothing; this is when it comes back to the front.
@@ -122,10 +128,26 @@ export class TodosView extends ItemView {
       collapsed: this.plugin.viewMemory(MEMORY_KEY).collapsed,
       lead: lead.firstElementChild as HTMLElement,
       onChange: () => {
+        this.renderFocusBar();
         this.renderContent();
         this.plugin.rememberView(MEMORY_KEY, { filters: this.filterState });
       },
       onToggleCollapsed: (collapsed) => this.plugin.rememberView(MEMORY_KEY, { collapsed }),
+    });
+  }
+
+  private renderFocusBar(): void {
+    if (!this.focusEl) return;
+    buildFocusBar(this.focusEl, {
+      todos: filterByState(this.plugin.index.getAll(), this.filterState, "projects"),
+      focus: this.plugin.settings.focus,
+      onPick: (focus) => {
+        this.plugin.settings.focus = focus;
+        void this.plugin.saveSettings();
+        this.renderFocusBar();
+        this.surface?.invalidate();
+        this.renderContent();
+      },
     });
   }
 
@@ -141,11 +163,12 @@ export class TodosView extends ItemView {
   }
 
   /** The todo editor, preset to a column's status and the filtered project. */
-  private addTodo(status?: Status): void {
+  private addTodo(status?: Status, anchor?: ModalAnchor): void {
     const { app } = this.plugin;
     openCaptureEditor(this.plugin, {
       status,
       projectPath: projectPathByName(app, this.filterState.project),
+      anchor,
     });
   }
 }

@@ -22,13 +22,17 @@ export type Status =
   | "PAUSED"
   | "DONE";
 
-/** Column / display order. Fixed — MarkTodo's own shape, not a preference. */
+/**
+ * Column / display order. Fixed — MarkTodo's own shape, not a preference.
+ * It runs through the two PHASES below: the three you plan with, then the three
+ * the work is actually in.
+ */
 export const STATUS_ORDER: readonly Status[] = [
   "BACKLOG",
   "WARMING",
+  "PAUSED",
   "PROGRESS",
   "BLOCKED",
-  "PAUSED",
   "DONE",
 ];
 
@@ -95,6 +99,43 @@ export const STATUS_BY_LABEL: ReadonlyMap<string, Status> = (() => {
 /** The Status a heading denotes (legacy labels included), or null when it denotes none. */
 export function statusFromLabel(text: string): Status | null {
   return STATUS_BY_LABEL.get(text.trim().toLowerCase()) ?? null;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Phase — the two halves of STATUS_ORDER
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A status belongs to one of two phases:
+ *  - PLAN:   work you have decided on but are not doing — Backlog, Warming, Paused.
+ *  - ACTIVE: work that is underway or finished — Doing, Blocked, Done.
+ *
+ * Phase is DERIVED from status, never stored: nothing about it reaches a note.
+ * It exists so a list can say which half of the board you are looking at, and so
+ * "show me only what's live" is one control instead of three checkboxes.
+ */
+export type Phase = "PLAN" | "ACTIVE";
+
+export const PHASE_ORDER: readonly Phase[] = ["PLAN", "ACTIVE"];
+
+export const PHASE_LABELS: Record<Phase, string> = {
+  PLAN: "Plan",
+  ACTIVE: "Active",
+};
+
+/** Status → its phase. The split follows STATUS_ORDER: the first three, then the rest. */
+export const STATUS_PHASE: Record<Status, Phase> = {
+  BACKLOG: "PLAN",
+  WARMING: "PLAN",
+  PAUSED: "PLAN",
+  PROGRESS: "ACTIVE",
+  BLOCKED: "ACTIVE",
+  DONE: "ACTIVE",
+};
+
+/** The statuses in a phase, in STATUS_ORDER. */
+export function statusesInPhase(phase: Phase): Status[] {
+  return STATUS_ORDER.filter((s) => STATUS_PHASE[s] === phase);
 }
 
 // ────────────────────────────────────────────────────────────────────────────

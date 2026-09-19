@@ -28,6 +28,18 @@ body {
   --mt-chip-upcoming: var(--background-modifier-hover);
   --mt-chip-upcoming-text: var(--text-muted);
 
+  /* MarkTodo's text sizes. Here they are Obsidian's own, unscaled: rules that
+     land outside a MarkTodo pane (our rows in Obsidian's settings dialog) must
+     not move when you change MarkTodo's text size. `.marktodo-theme` below
+     redefines them scaled — the scale is a multiplier on the size Obsidian
+     already resolved, because restating `--font-ui-small` in terms of itself
+     would be a cycle and CSS would drop it. */
+  --mt-font-smaller: var(--font-ui-smaller);
+  --mt-font-small: var(--font-ui-small);
+  --mt-font-medium: var(--font-ui-medium);
+  --mt-font-large: var(--font-ui-large);
+  --mt-font-text: var(--font-text-size, 16px);
+
   --marktodo-backlog: var(--text-muted);
   --marktodo-warming: var(--color-yellow);
   --marktodo-progress: var(--interactive-accent);
@@ -52,7 +64,7 @@ body {
 /* Rows are sized from the NOTE text size (Settings → Appearance), not the UI
    size — a todo list is reading material, and it should match your notes. */
 .marktodo-view {
-  --marktodo-row-font: var(--font-text-size, 16px);
+  --marktodo-row-font: var(--mt-font-text);
   --marktodo-row-line: calc(var(--marktodo-row-font) * 1.45);
   padding: 0 var(--size-4-2) var(--size-4-8);
 }
@@ -60,12 +72,29 @@ body {
 .marktodo-empty {
   padding: var(--size-4-4) var(--size-4-2);
   color: var(--text-muted);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   text-align: center;
 }
 
 .marktodo-group {
   margin-bottom: var(--size-4-1);
+}
+
+/* Phase heading: which half of the board the sections below belong to. A quiet
+   uppercase label, not a box — it separates, it doesn't decorate. */
+.marktodo-phase-head {
+  margin: var(--size-4-4) 0 0;
+  padding: 0 var(--size-4-2);
+  color: var(--text-faint);
+  font-size: var(--mt-font-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+/* The first section under a phase heading sits right below it, not a heading's
+   worth of air away. */
+.marktodo-phase-head + .marktodo-group .marktodo-section-head {
+  margin-top: var(--size-4-1);
 }
 
 /* Status section heading — the app's StatusSectionHeader: a slim status-colored
@@ -132,7 +161,7 @@ body {
   border-radius: 999px;
   background-color: var(--background-modifier-hover);
   color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   font-weight: var(--font-semibold);
   font-variant-numeric: tabular-nums;
 }
@@ -181,7 +210,7 @@ body {
 }
 .marktodo-group-count {
   color: var(--text-faint);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   font-weight: var(--font-normal);
   font-variant-numeric: tabular-nums;
 }
@@ -298,7 +327,7 @@ body {
 .marktodo-note-preview {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -319,7 +348,7 @@ body {
   border-radius: var(--radius-s);
   background-color: var(--mt-chip-upcoming);
   color: var(--mt-chip-upcoming-text);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -337,7 +366,7 @@ body {
   gap: var(--size-2-2);
   min-width: 0;
   color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
 }
 .marktodo-meta-icon {
   display: inline-flex;
@@ -387,7 +416,20 @@ body {
   flex: 0 0 auto;
   height: auto;
   padding: var(--size-2-1) var(--size-4-2);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
+}
+/* Hover/focus take the accent: on an unmanaged row the button IS the call to
+   action, and the row's own hover tint would otherwise swallow a plain button's. */
+.marktodo-todo .marktodo-convert:hover,
+.marktodo-todo .marktodo-convert:focus-visible {
+  background-color: var(--interactive-accent);
+  border-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+  box-shadow: none;
+}
+.marktodo-todo .marktodo-convert:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
 }
 .marktodo-convert-icon {
   display: inline-flex;
@@ -396,6 +438,79 @@ body {
   width: var(--icon-xs);
   height: var(--icon-xs);
 }
+/* ── Focus row (All / Plan / Active / Doing) ────────────────────────── */
+/* The same segmented track as the List/Kanban switch, stretched across the pane
+   because this one changes WHAT YOU SEE rather than how it is drawn. Anything
+   but "All" is hiding statuses, so the track takes the accent to say so. */
+.marktodo-focus-bar {
+  padding: 0 var(--size-4-3) var(--size-4-2);
+}
+.marktodo-focus-bar:empty {
+  display: none;
+}
+.marktodo-focus-switch {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-m);
+  background-color: var(--background-modifier-hover);
+}
+.marktodo-focus-switch.is-narrowed {
+  border-color: var(--interactive-accent);
+}
+.marktodo-focus-switch button.marktodo-focus {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: baseline;
+  justify-content: center;
+  gap: var(--size-4-1);
+  height: auto;
+  min-width: 0;
+  padding: var(--size-2-2) var(--size-4-2);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--mt-font-small);
+  cursor: pointer;
+}
+.marktodo-focus-switch button.marktodo-focus:hover {
+  color: var(--text-normal);
+}
+.marktodo-focus-switch button.marktodo-focus.is-active {
+  background-color: var(--background-primary);
+  box-shadow: var(--shadow-s);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
+}
+.marktodo-focus-switch.is-narrowed button.marktodo-focus.is-active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+.marktodo-focus-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.marktodo-focus-count {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: var(--mt-font-smaller);
+  font-variant-numeric: tabular-nums;
+}
+.marktodo-focus-switch button.marktodo-focus.is-active .marktodo-focus-count {
+  color: inherit;
+  opacity: 0.75;
+}
+/* On a board the row sits in the toolbar beside the mode switch. */
+.marktodo-toolbar > .marktodo-focus-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+}
+
 /* ── Board / kanban ─────────────────────────────────────────────────── */
 .marktodo-board {
   display: flex;
@@ -406,7 +521,7 @@ body {
   overflow-x: auto;
 }
 .marktodo-column {
-  --marktodo-row-font: var(--font-ui-medium);
+  --marktodo-row-font: var(--mt-font-medium);
   --marktodo-row-line: calc(var(--marktodo-row-font) * 1.4);
   display: flex;
   flex: 0 0 280px;
@@ -415,6 +530,14 @@ body {
   border: 1px solid var(--mt-hairline);
   border-radius: var(--radius-l);
   background-color: var(--mt-raised);
+}
+/* The phase boundary on a board: a gap wide enough to read as a break, and a
+   hairline in it. The first column starts a phase too — it gets neither. */
+.marktodo-column.is-phase-start:not(:first-child) {
+  margin-inline-start: var(--size-4-3);
+  border-inline-start: 1px solid var(--mt-hairline);
+  padding-inline-start: var(--size-4-3);
+  border-radius: 0 var(--radius-l) var(--radius-l) 0;
 }
 .marktodo-section-head.marktodo-column-head {
   margin: 0;
@@ -456,53 +579,152 @@ body {
 }
 
 /* ── Todo detail modal ──────────────────────────────────────────────── */
-.marktodo-modal-title {
+/* Its own rows, not Obsidian `Setting`s: a settings row is built for a settings
+   tab (tall, bordered, buttons stretched full-width on phones) and six of them
+   made the editor a form. One label column, one control column. */
+
+/* Click-to-edit: the text reads as text (links live) until you click it, then
+   it is a textarea in the same box, the same size, in the same place. */
+.marktodo-editable-view,
+.marktodo-editable-input {
   display: block;
   width: 100%;
-  margin: 0 0 var(--size-4-3);
   padding: var(--size-2-2) var(--size-4-2);
-  font-size: var(--font-ui-large);
-  font-weight: var(--font-semibold);
-  line-height: var(--line-height-tight);
-  resize: none;
-  overflow: hidden;
-  background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-s);
+  font: inherit;
+  line-height: inherit;
+  color: inherit;
+  background: transparent;
 }
-.marktodo-modal-title:hover {
+.marktodo-editable-view {
+  cursor: text;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.marktodo-editable-view:hover {
   border-color: var(--background-modifier-border);
 }
-.marktodo-modal-title:focus {
+.marktodo-editable-view:focus-visible,
+.marktodo-editable-input:focus {
   border-color: var(--interactive-accent);
   box-shadow: none;
+  outline: none;
+}
+.marktodo-editable-input {
+  resize: none;
+  overflow: hidden;
+}
+.marktodo-editable-empty {
+  color: var(--text-faint);
+}
+.marktodo-modal-title {
+  margin-bottom: var(--size-2-2);
+  font-size: var(--mt-font-large);
+  font-weight: var(--font-semibold);
+  line-height: var(--line-height-tight);
+}
+.marktodo-modal-note {
+  margin-bottom: var(--size-4-3);
+  color: var(--text-muted);
+  font-size: var(--mt-font-small);
+}
+/* The note DISPLAY hugs its text — only the textarea opens to three rows. A
+   one-line note shouldn't leave two lines of air above the fields. */
+.marktodo-modal-note .marktodo-editable-input {
+  min-height: calc(3 * var(--mt-font-small) * 1.6);
+}
+
+/* Links inside a MarkTodo dialog behave like links anywhere else in Obsidian:
+   internal ones take the accent, external ones are underlined on hover. */
+.marktodo-link {
+  color: var(--link-color, var(--text-accent));
+  cursor: pointer;
+  text-decoration: none;
+}
+.marktodo-link:hover {
+  text-decoration: underline;
+}
+.marktodo-link.is-external::after {
+  content: "↗";
+  margin-inline-start: 0.15em;
+  font-size: 0.85em;
+  vertical-align: super;
+  opacity: 0.7;
+}
+
+/* The field grid. */
+.marktodo-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding: var(--size-4-3) 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.marktodo-field {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--size-4-2);
+}
+.marktodo-field-label {
+  color: var(--text-muted);
+  font-size: var(--mt-font-small);
+}
+.marktodo-field-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+}
+.marktodo-field-control select.dropdown {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.marktodo-field-control input[type="date"] {
+  flex: 0 1 auto;
+}
+.marktodo-field-hint {
+  flex: 1 1 100%;
+  color: var(--text-faint);
+  font-size: var(--mt-font-smaller);
+}
+.marktodo-field-clear {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+}
+
+/* Status chips, in their two phases: the caption says which half of the board
+   the chips beside it put the todo in. */
+.marktodo-chip-group {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: var(--size-4-2);
+  min-width: 0;
+}
+.marktodo-chip-phase {
+  flex: 0 0 3.2rem;
+  color: var(--text-faint);
+  font-size: var(--mt-font-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 .marktodo-chip-row {
   display: flex;
   flex-wrap: wrap;
   gap: var(--size-4-1);
-  justify-content: flex-end;
-}
-/* Todo editor rows holding chips stack the label above a left-aligned chip row,
-   so neither the label nor the chips get squeezed. */
-.marktodo-todo-modal .marktodo-chip-setting {
-  flex-direction: column;
-  align-items: stretch;
-  gap: var(--size-4-2);
-}
-.marktodo-todo-modal .marktodo-chip-setting .setting-item-info {
-  margin-inline-end: 0;
-}
-.marktodo-todo-modal .marktodo-chip-setting .setting-item-control,
-.marktodo-todo-modal .marktodo-chip-setting .marktodo-chip-row {
-  justify-content: flex-start;
+  min-width: 0;
 }
 .marktodo-chip {
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
   padding: var(--size-4-1) var(--size-4-2);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   border-radius: var(--radius-s);
   background: var(--background-modifier-form-field);
   border: 1px solid var(--background-modifier-border);
@@ -527,7 +749,18 @@ body {
   height: var(--icon-xs);
 }
 
-/* Action footer: Open note / Move / Delete in one row. */
+/* Where the todo actually lives — a quiet line, not a field. */
+.marktodo-modal-location {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-1);
+  padding-bottom: var(--size-4-3);
+  overflow-wrap: anywhere;
+  color: var(--text-faint);
+  font-size: var(--mt-font-smaller);
+}
+
+/* Action footer: Open note / Convert / Delete in one row. */
 .marktodo-modal-actions {
   display: flex;
   flex-wrap: wrap;
@@ -549,22 +782,22 @@ body {
   max-height: min(var(--dialog-max-height), calc(100% - 2 * var(--size-4-3)));
 }
 
-/* Phone: Obsidian stacks every settings row and stretches its buttons to 100%
-   width / 44px. Keep the editor dense instead — chips in a grid, Due on one line,
-   actions as an even footer row. Selectors carry `.modal` so they
-   out-rank `.is-phone .modal .setting-item-control button:not(.clickable-icon)`. */
-.is-phone .modal .marktodo-todo-modal .setting-item {
-  gap: var(--size-4-2);
-  padding-block: var(--size-4-2);
+/* Phone: Obsidian stretches dialog buttons to 100% width / 44px. Keep the
+   editor dense instead — the label above its control, chips in a grid, actions
+   as an even footer row. Selectors carry `.modal` so they out-rank
+   `.is-phone .modal .setting-item-control button:not(.clickable-icon)`. */
+.is-phone .modal .marktodo-todo-modal .marktodo-field {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--size-4-1);
 }
-.is-phone .modal .marktodo-todo-modal .marktodo-modal-title {
-  margin-bottom: var(--size-4-1);
+.is-phone .modal .marktodo-todo-modal .marktodo-chip-group {
+  flex-wrap: wrap;
 }
 .is-phone .modal .marktodo-todo-modal .marktodo-chip-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--size-4-1);
-  width: 100%;
+  flex: 1 1 100%;
 }
 .is-phone .modal .marktodo-todo-modal .marktodo-chip-row.mod-priority {
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -574,17 +807,10 @@ body {
   height: 34px;
   padding: 0 var(--size-4-1);
   justify-content: center;
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
 }
-.is-phone .modal .marktodo-todo-modal .setting-item.marktodo-inline-setting {
-  flex-direction: row;
-  align-items: center;
-}
-.is-phone .modal .marktodo-todo-modal .marktodo-inline-setting .setting-item-control {
+.is-phone .modal .marktodo-todo-modal .marktodo-field-control input[type="date"] {
   flex: 1 1 auto;
-  width: auto;
-}
-.is-phone .modal .marktodo-todo-modal .marktodo-inline-setting .setting-item-control input {
   height: 36px;
 }
 .is-phone .modal .marktodo-todo-modal .marktodo-modal-actions button {
@@ -622,7 +848,7 @@ body {
   gap: var(--size-4-1);
   width: auto;
   padding: var(--size-2-1) var(--size-4-1);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   color: var(--text-muted);
 }
 .marktodo-filter-toggle-icon {
@@ -638,7 +864,7 @@ body {
   border-radius: var(--radius-l);
   background: var(--interactive-accent);
   color: var(--text-on-accent);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   text-align: center;
 }
 .marktodo-filter-count.is-hidden {
@@ -650,11 +876,11 @@ body {
   gap: var(--size-4-1);
 }
 .marktodo-filter-label {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   color: var(--text-muted);
 }
 .marktodo-filterbar select {
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
 }
 /* Searchable picker (project / tag): an input dressed as a select. */
 .marktodo-picker {
@@ -668,7 +894,7 @@ body {
   width: 100%;
   height: auto;
   padding: var(--size-4-1) calc(var(--size-4-2) + var(--icon-xs) + var(--size-4-1)) var(--size-4-1) var(--size-4-2);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   border-radius: var(--radius-s);
   border: 1px solid var(--background-modifier-border);
   background: var(--interactive-normal);
@@ -707,7 +933,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
 }
 .marktodo-filter-clear.is-hidden {
   display: none;
@@ -750,7 +976,7 @@ body {
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   cursor: pointer;
 }
 .marktodo-mode-switch button.marktodo-mode:hover {
@@ -815,15 +1041,23 @@ body {
 .marktodo-suggest-note {
   margin-left: auto;
   padding-left: var(--size-4-3);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   color: var(--text-muted);
 }
-/* Todo editor (create mode): the title input takes the row's full width. */
-.marktodo-capture-title .setting-item-control {
-  flex: 1 1 auto;
-}
-.marktodo-capture-title .marktodo-quickadd-input {
+/* Todo editor (create mode): the title is the dialog's one big input, sitting
+   where the todo editor's title sits, above the field grid. */
+.marktodo-quickadd-input {
   width: 100%;
+  margin-bottom: var(--size-4-2);
+  font-size: var(--mt-font-medium);
+}
+
+/* Create project: the same shape as the capture dialog — a heading, one input,
+   one action — so the two prompts don't look like different programs. */
+.marktodo-project-modal .marktodo-project-name-input {
+  width: 100%;
+  margin-bottom: var(--size-4-2);
+  font-size: var(--mt-font-medium);
 }
 
 /* ── Live-Preview managed todo checkboxes ───────────────────────────── */
@@ -909,7 +1143,7 @@ body {
   min-height: 4.5em;
   margin-top: var(--size-4-2);
   resize: vertical;
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   color: var(--text-muted);
 }
 .marktodo-modal-note:focus {
@@ -1085,7 +1319,7 @@ body {
   min-width: 0;
   padding: 0 var(--size-4-2);
   color: var(--text-normal);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   font-weight: var(--font-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1111,7 +1345,7 @@ body {
   padding: 0 var(--size-4-2) var(--size-4-8);
   overflow-y: auto;
   color: var(--text-normal);
-  font-size: var(--font-ui-medium);
+  font-size: var(--mt-font-medium);
 }
 .marktodo-nav-row {
   display: flex;
@@ -1180,7 +1414,7 @@ body {
 .marktodo-nav-count {
   min-width: 1.5em;
   color: var(--text-faint);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   font-variant-numeric: tabular-nums;
   text-align: right;
 }
@@ -1218,7 +1452,7 @@ body {
 .marktodo-nav-hint {
   padding: var(--size-4-2) var(--size-4-3);
   color: var(--text-faint);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   line-height: var(--line-height-tight);
 }
 
@@ -1250,7 +1484,7 @@ body {
   border: none;
   background: transparent;
   box-shadow: none;
-  font-size: var(--font-ui-medium);
+  font-size: var(--mt-font-medium);
 }
 /* ── List column ─────────────────────────────────────────────────────── */
 .marktodo-list-scroll {
@@ -1280,7 +1514,7 @@ body {
   gap: var(--size-4-2);
   margin: var(--size-4-4) var(--size-4-2) var(--size-4-1);
   color: var(--text-faint);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   font-weight: var(--font-bold);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -1302,7 +1536,7 @@ body {
 .marktodo-dash-list .marktodo-note-preview {
   display: -webkit-box;
   overflow: hidden;
-  font-size: var(--font-ui-medium);
+  font-size: var(--mt-font-medium);
   white-space: normal;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -1312,7 +1546,7 @@ body {
   margin: var(--size-4-3) 0 0;
 }
 .marktodo-dash-list .marktodo-section-label {
-  font-size: var(--font-ui-medium);
+  font-size: var(--mt-font-medium);
   font-weight: var(--font-semibold);
 }
 .marktodo-dash-list .marktodo-section-count {
@@ -1342,7 +1576,7 @@ body {
 }
 .marktodo-dash-list .marktodo-group-heading {
   margin: var(--size-4-3) var(--size-4-2) 0;
-  font-size: var(--font-ui-medium);
+  font-size: var(--mt-font-medium);
 }
 
 /* ── Today's segments (in the dashboard's list column) ──────────────── */
@@ -1362,7 +1596,7 @@ body {
   padding: var(--size-2-2) var(--size-4-3);
   border-radius: 999px;
   color: var(--text-muted);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1376,7 +1610,7 @@ body {
 }
 .marktodo-segment-count {
   color: var(--text-faint);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1384,12 +1618,12 @@ body {
 .marktodo-group-modal .marktodo-group-name {
   width: 100%;
   margin-bottom: var(--size-4-3);
-  font-size: var(--font-ui-medium);
+  font-size: var(--mt-font-medium);
 }
 .marktodo-group-hint {
   margin-bottom: var(--size-4-1);
   color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
   font-weight: var(--font-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1423,7 +1657,7 @@ body {
 }
 .marktodo-group-member-note {
   color: var(--text-faint);
-  font-size: var(--font-ui-smaller);
+  font-size: var(--mt-font-smaller);
 }
 .marktodo-group-member.is-muted .marktodo-group-member-name {
   color: var(--text-muted);
@@ -1434,6 +1668,20 @@ body {
 }
 .marktodo-group-buttons .setting-item-control {
   flex-wrap: wrap;
+}
+
+/* ── Text size ──────────────────────────────────────────────────────── */
+/* `--mt-font-scale` arrives on <body> from Settings → Appearance → Text size
+   (obsidian/themeStyles.ts). Every MarkTodo pane and dialog carries
+   `.marktodo-theme`, so scaling the tokens here moves all of MarkTodo's text at
+   once and nothing else in Obsidian. Not gated on `marktodo-themed`: legibility
+   has to work under your Obsidian theme too. */
+.marktodo-theme {
+  --mt-font-smaller: calc(var(--font-ui-smaller) * var(--mt-font-scale, 1));
+  --mt-font-small: calc(var(--font-ui-small) * var(--mt-font-scale, 1));
+  --mt-font-medium: calc(var(--font-ui-medium) * var(--mt-font-scale, 1));
+  --mt-font-large: calc(var(--font-ui-large) * var(--mt-font-scale, 1));
+  --mt-font-text: calc(var(--font-text-size, 16px) * var(--mt-font-scale, 1));
 }
 
 /* ── MarkTodo theme surfaces ────────────────────────────────────────── */
@@ -1606,7 +1854,7 @@ body.marktodo-themed .marktodo-theme {
 }
 .marktodo-app-offer-ios {
   color: var(--text-muted);
-  font-size: var(--font-ui-small);
+  font-size: var(--mt-font-small);
 }
 .workspace-leaf-content .marktodo-app-offer {
   max-width: 32rem;

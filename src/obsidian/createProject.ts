@@ -10,21 +10,28 @@ import { noteFolderPrefix, projectNoteContent, safeProjectBasename } from "./pro
 import { showInDashboard } from "./layout";
 import type MarkTodoPlugin from "../../main";
 import { THEME_CLASS } from "./themeStyles";
+import { anchorBox, anchorModal, type ModalAnchor } from "./modalAnchor";
+import { type Box } from "./modalAnchorLogic";
 
 class ProjectNameModal extends Modal {
   private value = "";
+  private anchor: Box | null;
+  private stopAnchoring: (() => void) | null = null;
 
   constructor(
     app: App,
+    anchor: ModalAnchor,
     private onSubmit: (name: string) => void,
   ) {
     super(app);
     this.modalEl.addClass(THEME_CLASS);
+    this.anchor = anchorBox(anchor);
   }
 
   onOpen(): void {
     const { contentEl } = this;
-    contentEl.createEl("h3", { text: "Create project" });
+    contentEl.addClass("marktodo-project-modal");
+    contentEl.createEl("h3", { cls: "marktodo-modal-title", text: "Create project" });
 
     const input = contentEl.createEl("input", {
       attr: { type: "text", placeholder: "Project name" },
@@ -47,6 +54,7 @@ class ProjectNameModal extends Modal {
         .onClick(() => this.submit()),
     );
     input.focus();
+    this.stopAnchoring = anchorModal(this, this.anchor, ".marktodo-modal-title");
   }
 
   private submit(): void {
@@ -60,12 +68,14 @@ class ProjectNameModal extends Modal {
   }
 
   onClose(): void {
+    this.stopAnchoring?.();
+    this.stopAnchoring = null;
     this.contentEl.empty();
   }
 }
 
-export function createProject(plugin: MarkTodoPlugin): void {
-  new ProjectNameModal(plugin.app, (name) => {
+export function createProject(plugin: MarkTodoPlugin, anchor?: ModalAnchor): void {
+  new ProjectNameModal(plugin.app, anchor, (name) => {
     void (async () => {
       const { settings, app } = plugin;
       const base = safeProjectBasename(name);

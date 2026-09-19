@@ -1,4 +1,4 @@
-import { type Status, type TodoRecord } from "../core/types";
+import { type Phase, type Status, type TodoRecord } from "../core/types";
 
 /** A draggable card. `id` must be stable + unique for svelte-dnd-action. */
 export interface Card {
@@ -9,6 +9,8 @@ export interface Card {
 export interface Column {
   status: Status;
   label: string;
+  /** The status's phase — the board rules a line where Plan gives way to Active. */
+  phase: Phase;
   cards: Card[];
 }
 

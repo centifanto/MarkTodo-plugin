@@ -56,6 +56,7 @@ import { getProjectFiles, noteMetaOf } from "../projects";
 import { reconcileArchive } from "../archiveReconcile";
 import { createProject } from "../createProject";
 import { openCaptureEditor } from "../quickAdd";
+import { type ModalAnchor } from "../modalAnchor";
 import { type NavMemory } from "../settings";
 import { GroupModal } from "../groupModal";
 import { openNote, type DashboardHandle } from "../layout";
@@ -296,7 +297,7 @@ export class NavView extends ItemView implements DashboardHandle {
       setIcon(b, icon);
       b.addEventListener("click", onClick);
     };
-    button("square-pen", "Add todo", () => this.addTodo());
+    button("square-pen", "Add todo", (evt) => this.addTodo(evt));
     button("plus", "New project or group", (evt) => this.newMenu(evt, this.projects(this.plugin.index.getAll())));
     button("arrow-up-down", "Sort projects", (evt) => this.sortMenu(evt));
     button("chevrons-down-up", "Collapse or expand all groups", () => this.toggleAllGroups());
@@ -355,9 +356,12 @@ export class NavView extends ItemView implements DashboardHandle {
     this.saveNav({ collapsed: next });
   }
 
-  private addTodo(): void {
+  private addTodo(anchor?: ModalAnchor): void {
     const selected = this.plugin.settings.nav.selected;
-    openCaptureEditor(this.plugin, { projectPath: selected.kind === "project" ? selected.path : undefined });
+    openCaptureEditor(this.plugin, {
+      projectPath: selected.kind === "project" ? selected.path : undefined,
+      anchor,
+    });
   }
 
   private renderNav(): void {
@@ -554,7 +558,7 @@ export class NavView extends ItemView implements DashboardHandle {
       item
         .setTitle("New project…")
         .setIcon(PROJECT_ICON)
-        .onClick(() => createProject(this.plugin)),
+        .onClick((evt) => createProject(this.plugin, evt)),
     );
     menu.addItem((item) =>
       item

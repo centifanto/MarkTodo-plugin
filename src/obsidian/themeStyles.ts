@@ -9,7 +9,7 @@
  * Panes and dialogs opt in by carrying `.marktodo-theme` (see `THEME_CLASS`);
  * nothing else in Obsidian is restyled.
  */
-import { themeProperties, parseObsidianAccent } from "../ui/theme";
+import { fontProperties, themeProperties, parseObsidianAccent } from "../ui/theme";
 import type MarkTodoPlugin from "../../main";
 
 export const THEME_CLASS = "marktodo-theme";
@@ -54,11 +54,16 @@ export class ThemeStyles {
   private paint(doc: Document): void {
     const body = doc.body;
     const read = (name: string): string => getComputedStyle(body).getPropertyValue(name);
-    const props = themeProperties(
-      this.plugin.settings.appearance,
-      parseObsidianAccent(read("--accent-h"), read("--accent-s"), read("--accent-l")),
-      body.hasClass("theme-dark"),
-    );
+    // Text size rides along but is NOT a theme property: it applies under your
+    // Obsidian theme too, where `themeProperties` deliberately yields nothing.
+    const props = {
+      ...themeProperties(
+        this.plugin.settings.appearance,
+        parseObsidianAccent(read("--accent-h"), read("--accent-s"), read("--accent-l")),
+        body.hasClass("theme-dark"),
+      ),
+      ...fontProperties(this.plugin.settings.fontScale),
+    };
     // Lets the stylesheet tell "themed" from "your Obsidian theme": the carried
     // variables only take effect under it.
     body.toggleClass("marktodo-themed", this.plugin.settings.appearance.style === "marktodo");

@@ -41,11 +41,13 @@ import { STATUS_ORDER, STATUS_LABELS, type Status } from "../core/types";
 import { DEFAULT_SETTINGS } from "./settings";
 import {
   ACCENTS,
+  FONT_SCALES,
   THEME_MODES,
   THEME_STYLES,
   buildTheme,
   parseObsidianAccent,
   type AccentKey,
+  type FontScale,
   type ThemeMode,
   type ThemeStyle,
 } from "../ui/theme";
@@ -678,6 +680,21 @@ export class MarkTodoSettingTab extends PluginSettingTab {
               for (const { key, label } of THEME_STYLES) dropdown.addOption(key, label);
               dropdown.setValue(settings.appearance.style).onChange((value) => {
                 settings.appearance = { ...settings.appearance, style: value as ThemeStyle };
+                apply();
+              });
+            });
+          },
+        },
+        {
+          name: "Text size",
+          desc:
+            "How big MarkTodo's own text draws — todo titles, section headings, chips, the navigator " +
+            "and its dialogs. A multiplier on your theme's sizes; the rest of Obsidian is untouched.",
+          render: (setting) => {
+            setting.addDropdown((dropdown) => {
+              for (const { key, label } of FONT_SCALES) dropdown.addOption(key, label);
+              dropdown.setValue(settings.fontScale).onChange((value) => {
+                settings.fontScale = value as FontScale;
                 apply();
               });
             });

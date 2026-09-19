@@ -16,7 +16,8 @@ import { NavView, NAV_VIEW_TYPE } from "./src/obsidian/views/navView";
 import { DashboardGuard, openBoard, openDashboard, showInDashboard } from "./src/obsidian/layout";
 import { registerProjectNoteActions } from "./src/obsidian/projectNoteActions";
 import { ThemeStyles } from "./src/obsidian/themeStyles";
-import { parseAppearance } from "./src/ui/theme";
+import { parseAppearance, parseFontScale } from "./src/ui/theme";
+import { parseFocus } from "./src/ui/focus";
 import { parseDashboardLocation } from "./src/ui/paneLayout";
 import { parseSelection } from "./src/ui/dashboardNav";
 import { getProjectFiles, isProjectFrontmatter } from "./src/obsidian/projects";
@@ -418,6 +419,8 @@ export default class MarkTodoPlugin extends Plugin {
     if (this.settings.paneMode !== "single") this.settings.paneMode = "dual";
     if (this.settings.navSide !== "right") this.settings.navSide = "left";
     this.settings.appearance = parseAppearance(this.settings.appearance);
+    this.settings.fontScale = parseFontScale(this.settings.fontScale);
+    this.settings.focus = parseFocus(this.settings.focus);
     this.settings.dashboardLocation = parseDashboardLocation(this.settings.dashboardLocation);
     if (!(Number.isFinite(this.settings.dashboardWidth) && this.settings.dashboardWidth >= 160)) {
       this.settings.dashboardWidth = DEFAULT_SETTINGS.dashboardWidth;

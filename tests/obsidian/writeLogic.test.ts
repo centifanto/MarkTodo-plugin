@@ -105,13 +105,15 @@ describe("placeTodoInProject — subproject moves", () => {
     expect(managedIds(result.join("\n"))).toEqual(new Set(["k1", "k2", "k3"]));
   });
 
-  it("creates a missing status section in column order (Paused before Done)", () => {
+  it("creates a missing status section in column order (Paused between Backlog and Doing)", () => {
     const result = placeTodoInProject(RENO, 6, "Kitchen", "PAUSED", "- [-] Pick countertop <!-- mt id=k1 -->");
-    const progress = result.indexOf("### Doing");
+    const backlog = result.indexOf("### Backlog");
     const paused = result.indexOf("### Paused");
-    const done = result.indexOf("### Done");
-    expect(paused).toBeGreaterThan(progress);
-    expect(paused).toBeLessThan(done);
+    const progress = result.indexOf("### Doing");
+    // STATUS_ORDER runs Backlog, Warming, Paused | Doing, Blocked, Done: Paused
+    // is the last of the PLAN phase, so it lands ahead of Doing, not after it.
+    expect(paused).toBeGreaterThan(backlog);
+    expect(paused).toBeLessThan(progress);
     expect(result[paused + 1]).toContain("id=k1");
     expect(managedIds(result.join("\n"))).toEqual(new Set(["k1", "k2", "k3"]));
   });

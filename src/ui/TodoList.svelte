@@ -3,7 +3,7 @@
   import { flip } from "svelte/animate";
   import TodoRow from "./TodoRow.svelte";
   import { icon } from "./icon";
-  import { statusOf, type Status, type TodoRecord } from "../core/types";
+  import { PHASE_LABELS, statusOf, type Phase, type Status, type TodoRecord } from "../core/types";
   import { localIsoDate } from "../core/dates";
   import { type Card } from "./boardTypes";
   import { isStatusCollapsed, toggleStatusSection } from "./statusSections";
@@ -14,6 +14,8 @@
     /** A note group: the heading links to this file. */
     file?: string;
     status?: Status;
+    /** A status group's phase — the first group of each run gets a phase heading. */
+    phase?: Phase;
   }
 
   let {
@@ -50,8 +52,11 @@
     onReveal?: (todo: TodoRecord) => void;
     onOpenNote?: (file: string) => void;
     onConvert?: (todo: TodoRecord) => void;
-    /** When set, status groups get a "+" that adds a todo with that status. */
-    onAdd?: (status: Status) => void;
+    /**
+     * When set, status groups get a "+" that adds a todo with that status.
+     * `anchor` is the "+" itself, so the capture dialog opens over it.
+     */
+    onAdd?: (status: Status, anchor?: Element) => void;
     /**
      * Drag: when set, status groups are drop zones — dropping a
      * todo into another group changes its status (onMove), dropping it at a new
@@ -75,6 +80,14 @@
 
   const isFolded = (group: Group): boolean =>
     onToggleSection !== undefined && group.status !== undefined && isStatusCollapsed(group.status, toggled);
+
+  /**
+   * A phase heading goes above the FIRST status section of each phase — so a
+   * focused list that shows only Active still says so, and a full list reads as
+   * two halves rather than six equal sections.
+   */
+  const startsPhase = (gi: number): boolean =>
+    groups[gi].phase !== undefined && groups[gi].phase !== groups[gi - 1]?.phase;
 
   function toggle(status: Status): void {
     toggled = toggleStatusSection(toggled, status);
@@ -115,6 +128,9 @@
   {/if}
   {#each groups as group, gi (group.file ?? group.label)}
     {@const folded = isFolded(group)}
+    {#if startsPhase(gi)}
+      <div class="marktodo-phase-head">{PHASE_LABELS[group.phase!]}</div>
+    {/if}
     <div class="marktodo-group" class:is-folded={folded}>
       {#if group.status}
         {@const status = group.status}
@@ -137,7 +153,7 @@
               class="marktodo-section-add clickable-icon"
               aria-label={`Add todo to ${group.label}`}
               title={`Add todo to ${group.label}`}
-              onclick={() => onAdd?.(status)}
+              onclick={(e) => onAdd?.(status, e.currentTarget)}
             ><span use:icon={"plus"}></span></button>
           {/if}
         </div>

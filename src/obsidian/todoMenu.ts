@@ -10,7 +10,7 @@ import { openNote } from "./layout";
 import { STATUS_LABELS, STATUS_ORDER, statusOf, type Priority, type TodoRecord } from "../core/types";
 import { STATUS_ICONS } from "../ui/iconMaps";
 import { DueModal } from "./dueModal";
-import { MoveToProjectModal } from "./moveModal";
+import { openMoveToProjectMenu } from "./moveMenu";
 import { getProjectFiles } from "./projects";
 import { canSetStatus, placementOf } from "./placement";
 import type MarkTodoPlugin from "../../main";
@@ -82,10 +82,9 @@ export function openTodoMenu(
   const { writer, app } = plugin;
   const menu = new Menu();
   const projectFiles = getProjectFiles(app).filter((f) => f.path !== todo.file);
-  const moveItem = (): void => {
-    new MoveToProjectModal(app, projectFiles, (file) =>
-      void writer.moveTodo(todo, file.path),
-    ).open();
+  const moveItem = (evt: MouseEvent | KeyboardEvent): void => {
+    // Reopened at the same pointer, so the project list lands where the menu was.
+    if (evt instanceof MouseEvent) openMoveToProjectMenu(projectFiles, evt, (file) => void writer.moveTodo(todo, file.path));
   };
 
   addStatusItems(menu, plugin, todo);
@@ -124,7 +123,7 @@ export function openTodoMenu(
   if (projectFiles.length > 0) {
     menu.addSeparator();
     menu.addItem((i) =>
-      i.setTitle("Move to project…").setIcon("folder-input").onClick(moveItem),
+      i.setTitle("Move to project…").setIcon("folder-input").onClick((evt) => moveItem(evt)),
     );
   }
 

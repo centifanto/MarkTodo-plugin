@@ -25,9 +25,12 @@ the todo you're in sit side by side and slide. The list never disappears, and
 you never press Back to work out where you are.
 
 **A vocabulary that keeps the distinctions that matter.** Backlog, Warming,
-Doing, Blocked, Paused, Done — the six names, their order, and the split
+Paused, Doing, Blocked, Done — the six names, their order, and the split
 between the three you plan with (Backlog, Warming and Paused) and the three
-that mean work is live (Doing, Blocked and Done).
+that mean work is live (Doing, Blocked and Done). Every list and board runs in
+that order, headed **Plan** and **Active**, and one row of segments narrows any
+view to a phase — or to Doing alone, when all you want on screen is what you
+are actually working on.
 **Warming** doesn't exist in any other tool: it's the decision that something
 is next, made once and written into the file instead of faked with a tag or a
 due date. **Blocked** and **Paused** stay separate, because "someone else
@@ -59,9 +62,9 @@ The checkbox glyph is the canonical status:
 |-------|--------|-----------------|
 | `[ ]` | Backlog | `## Backlog` |
 | `[>]` | Warming | `## Warming` |
+| `[-]` | Paused | `## Paused` |
 | `[/]` | Doing | `## Doing` |
 | `[!]` | Blocked | `## Blocked` |
-| `[-]` | Paused | `## Paused` |
 | `[x]` | Done | `## Done` |
 
 The six statuses and their names are fixed: a heading means the same thing in

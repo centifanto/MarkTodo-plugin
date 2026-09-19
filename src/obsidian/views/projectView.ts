@@ -17,6 +17,8 @@ import { ItemView, TFile, type ViewStateResult, type WorkspaceLeaf } from "obsid
 import { type Status } from "../../core/types";
 import { VIEW_TYPES } from "../../ui/paneLayout";
 import { openCaptureEditor } from "../quickAdd";
+import { buildFocusBar } from "../focusBar";
+import { type ModalAnchor } from "../modalAnchor";
 import { openBoard, showInDashboard } from "../layout";
 import { PROJECT_ICON } from "../../ui/iconMaps";
 import { PROJECT_MODES, TodoSurface, buildModeSwitch, type BoardMode } from "./todoSurface";
@@ -72,7 +74,7 @@ export class ProjectView extends ItemView {
 
   async onOpen(): Promise<void> {
     this.containerEl.addClass(THEME_CLASS);
-    this.addAction("plus", "Add todo", () => this.addTodo());
+    this.addAction("plus", "Add todo", (evt) => this.addTodo(undefined, evt));
     this.contentEl.empty();
     this.contentEl.addClass("marktodo-view", "marktodo-surface-view", "is-kanban");
     this.toolbarEl = this.contentEl.createDiv({ cls: "marktodo-toolbar" });
@@ -80,13 +82,16 @@ export class ProjectView extends ItemView {
       plugin: this.plugin,
       el: this.contentEl.createDiv({ cls: "marktodo-surface" }),
       emptyText: () => "No todos in this project yet. Add one with +.",
-      onAdd: (status) => this.addTodo(status),
+      onAdd: (status, anchor) => this.addTodo(status, anchor),
       showProject: false,
       memoryKey: "project",
     });
     this.renderToolbar();
     this.renderContent();
-    this.unsubscribe = this.plugin.index.onChange(() => this.renderContent());
+    this.unsubscribe = this.plugin.index.onChange(() => {
+      this.renderToolbar();
+      this.renderContent();
+    });
     this.registerEvent(this.app.workspace.on("layout-change", () => this.flush()));
     this.registerEvent(
       this.app.vault.on("rename", (file, oldPath) => {
@@ -143,6 +148,17 @@ export class ProjectView extends ItemView {
     if (!this.toolbarEl) return;
     this.toolbarEl.empty();
     buildModeSwitch(this.toolbarEl, PROJECT_MODES, "kanban", (mode) => this.setMode(mode));
+    buildFocusBar(this.toolbarEl.createDiv({ cls: "marktodo-focus-bar" }), {
+      todos: this.path === null ? [] : this.plugin.index.getByFile(this.path),
+      focus: this.plugin.settings.focus,
+      onPick: (focus) => {
+        this.plugin.settings.focus = focus;
+        void this.plugin.saveSettings();
+        this.renderToolbar();
+        this.surface?.invalidate();
+        this.renderContent();
+      },
+    });
   }
 
   private renderContent(): void {
@@ -156,7 +172,7 @@ export class ProjectView extends ItemView {
     this.surface.render(todos, "kanban");
   }
 
-  private addTodo(status?: Status): void {
-    openCaptureEditor(this.plugin, { status, projectPath: this.path ?? undefined });
+  private addTodo(status?: Status, anchor?: ModalAnchor): void {
+    openCaptureEditor(this.plugin, { status, projectPath: this.path ?? undefined, anchor });
   }
 }
