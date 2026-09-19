@@ -1,6 +1,6 @@
 # MarkTodo
 
-[marktodo.com](https://marktodo.com) · [Documentation](https://marktodo.com/docs)
+[marktodo.com](https://marktodo.com)
 
 A standalone Android app and Obsidian plugin, over the notes you already keep.
 Both were born out of long hours wanting more from every other productivity
