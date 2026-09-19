@@ -31,7 +31,7 @@
     "@types/node": "^22.0.0",
     "esbuild": "^0.25.0",
     "esbuild-svelte": "^0.9.3",
-    "eslint": "^9.39.5",
+    "eslint": "^10.10.0",
     "eslint-plugin-obsidianmd": "0.4.2",
     "obsidian": "1.13.1",
     "svelte": "^5.0.0",
