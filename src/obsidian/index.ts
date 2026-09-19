@@ -134,10 +134,9 @@ export class TodoIndex {
     );
     const failed = results.filter((r) => r.status === "rejected");
     if (failed.length > 0) {
-      console.error(
-        `MarkTodo: ${failed.length} note(s) could not be indexed`,
-        failed.map((r) => (r as PromiseRejectedResult).reason),
-      );
+      // The rejected results themselves: each carries its `reason`, and reading
+      // it out here would hand eslint an `any` for nothing.
+      console.error(`MarkTodo: ${failed.length} note(s) could not be indexed`, failed);
     }
     this.rebuildById();
     this.notify();
