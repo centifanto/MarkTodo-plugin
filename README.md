@@ -138,7 +138,7 @@ The full plugin on a phone, with On this device switched on:
 
 ## Status
 
-Early beta (0.0.3), not yet published to Community Plugins.
+Early beta (0.0.4), not yet published to Community Plugins.
 
 ## Development
 
