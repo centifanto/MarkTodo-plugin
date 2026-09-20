@@ -12,8 +12,10 @@
  * draw in the neutral raised style at every focus, like the List/Kanban switch:
  * the selected segment is marked by its fill, and nothing else shouts.
  */
+import { setIcon } from "obsidian";
 import { type TodoRecord } from "../core/types";
 import { FOCUS_SEGMENTS, type Focus, focusCounts } from "../ui/focus";
+import { FOCUS_ICONS } from "./viewIcons";
 
 export interface FocusBarOptions {
   /** The todos the counts are drawn from — the view's own set, already filtered. */
@@ -40,6 +42,7 @@ export function buildFocusBar(parent: HTMLElement, opts: FocusBarOptions): void 
         title: key === "all" ? "Show every status" : `Show only ${label}`,
       },
     });
+    setIcon(button.createSpan({ cls: "marktodo-focus-icon" }), FOCUS_ICONS[key]);
     button.createSpan({ cls: "marktodo-focus-label", text: label });
     button.createSpan({ cls: "marktodo-focus-count", text: String(counts[key]) });
     button.addEventListener("click", () => {

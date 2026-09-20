@@ -1,39 +1,52 @@
 /**
- * The MarkTodo theme for the plugin's own panes. PURE.
+ * MarkTodo's color, ON TOP OF your Obsidian theme. PURE.
  *
- * This is the app's derivation — every color from (mode, accent): neutrals
- * carrying a faint tint of the accent hue, status and chip colors nudged to
- * contrast floors — ported into the plugin as its OWN copy, with its own
- * settings in the plugin's data.json. Nothing here is read by the app or
- * written into a note.
+ * The plugin does not paint its own surfaces. Backgrounds, text, borders and
+ * controls are Obsidian's, whatever theme and light/dark you run — there is no
+ * "MarkTodo theme" to switch to and no light/dark of its own to get out of step
+ * with the vault around it.
  *
- * Flat: no gradients, no glow, no lit-from-the-top surfaces; the tint and the
- * status colors are the theme.
+ * What MarkTodo still owns is COLOR THAT CARRIES MEANING:
  *
- * How it reaches the screen: `themeVariables` maps a theme onto Obsidian's own
- * CSS variables (plus a few `--mt-*` ones for what Obsidian has no word for, like
- * the chips). `obsidian/themeStyles.ts` puts them on `<body>` under carrier names,
- * and styles.css scopes them to `.marktodo-theme`, the
- * class every MarkTodo pane and dialog carries — so Obsidian's controls inside
- * (dropdowns, inputs, buttons) take the theme too, and the rest of Obsidian is
- * untouched.
+ *   - the SIX STATUS HUES, which are FIXED. The six names are fixed so a
+ *     heading means the same thing in every vault; their colors are fixed for
+ *     the same reason. A Doing column is the same blue on your screen as on
+ *     mine, and a board is readable over someone's shoulder.
+ *   - the DUE CHIPS — overdue, today, upcoming — which are about time, not
+ *     state, and so get their own three.
+ *   - your ACCENT, which colors CHROME only: selection, links, focus rings,
+ *     buttons. It is the one thing here you choose, and it can't change what a
+ *     status means.
+ *
+ * The palette is Flexoki (https://stephango.com/flexoki): its 600 step in
+ * light, its 400 step in dark, which is what that palette prescribes for
+ * colored text. Everything else — neutrals, surfaces, every shade of gray —
+ * comes from your theme.
+ *
+ * How it reaches the screen: `themeProperties` yields custom properties for
+ * `<body>` under carrier names (`--mtt-*`), plus the `--marktodo-*` status
+ * colors. `obsidian/themeStyles.ts` sets them; styles.css gives the carriers
+ * their real names inside `.marktodo-theme`, the class every MarkTodo pane and
+ * dialog wears — so Obsidian's own controls in there take the accent too, and
+ * the rest of Obsidian is untouched.
  */
-import { composite, contrast, hsl, hueDistance, parseHex, withAlpha } from "./color";
+import { composite, contrast, hsl, toHsl, withAlpha } from "./color";
 
-/** "marktodo": the app's look. "obsidian": no theming — your Obsidian theme as-is. */
-export type ThemeStyle = "marktodo" | "obsidian";
-/** "obsidian" follows Obsidian's light/dark; the rest force one inside MarkTodo panes. */
-export type ThemeMode = "obsidian" | "dark" | "light" | "black";
-export type ResolvedMode = Exclude<ThemeMode, "obsidian">;
-export type AccentKey = "obsidian" | "purple" | "blue" | "cyan" | "green" | "amber" | "orange" | "rose" | "graphite";
+/** A Flexoki hue. The accent presets and the fixed status colors both come from here. */
+export type FlexokiHue = "red" | "orange" | "yellow" | "green" | "cyan" | "blue" | "purple" | "magenta" | "base";
 
+/** "obsidian" follows your Obsidian accent; the rest are Flexoki's. */
+export type AccentKey = "obsidian" | FlexokiHue;
+
+/**
+ * The only appearance setting left. Theme style and light/dark are gone: both
+ * are your Obsidian theme's to decide now.
+ */
 export interface Appearance {
-  style: ThemeStyle;
-  mode: ThemeMode;
   accent: AccentKey;
 }
 
-export const DEFAULT_APPEARANCE: Appearance = { style: "marktodo", mode: "obsidian", accent: "obsidian" };
+export const DEFAULT_APPEARANCE: Appearance = { accent: "obsidian" };
 
 export interface AccentHsl {
   h: number;
@@ -41,31 +54,71 @@ export interface AccentHsl {
   l: number;
 }
 
-/** The app's accents (same hues). Obsidian's default accent is hsl(258 88% 66%). */
-export const ACCENTS: Record<Exclude<AccentKey, "obsidian">, AccentHsl & { label: string }> = {
-  purple: { label: "Purple", h: 258, s: 88, l: 66 },
-  blue: { label: "Blue", h: 217, s: 91, l: 60 },
-  cyan: { label: "Cyan", h: 188, s: 86, l: 45 },
-  green: { label: "Green", h: 152, s: 62, l: 45 },
-  amber: { label: "Amber", h: 38, s: 92, l: 50 },
-  orange: { label: "Orange", h: 21, s: 90, l: 55 },
-  rose: { label: "Rose", h: 347, s: 85, l: 62 },
-  graphite: { label: "Graphite", h: 220, s: 10, l: 62 },
+/** One Flexoki hue at the two steps the palette prescribes: 600 light, 400 dark. */
+export interface FlexokiRamp {
+  label: string;
+  light: string;
+  dark: string;
+}
+
+/**
+ * Flexoki, https://stephango.com/flexoki — the 600 and 400 steps of each hue.
+ * "Light themes should use 600 for syntax highlighted text, dark themes should
+ * use 400", which is exactly the job every color here does: a hue read as text
+ * or as a small glyph against the theme's own background.
+ *
+ * `base` is Flexoki's neutral ramp (600/400), for an accent that stays out of
+ * the way.
+ */
+export const ACCENTS: Record<FlexokiHue, FlexokiRamp> = {
+  red: { label: "Red", light: "#AF3029", dark: "#D14D41" },
+  orange: { label: "Orange", light: "#BC5215", dark: "#DA702C" },
+  yellow: { label: "Yellow", light: "#AD8301", dark: "#D0A215" },
+  green: { label: "Green", light: "#66800B", dark: "#879A39" },
+  cyan: { label: "Cyan", light: "#24837B", dark: "#3AA99F" },
+  blue: { label: "Blue", light: "#205EA6", dark: "#4385BE" },
+  purple: { label: "Purple", light: "#5E409D", dark: "#8B7EC8" },
+  magenta: { label: "Magenta", light: "#A02F6F", dark: "#CE5D97" },
+  base: { label: "Base", light: "#6F6E69", dark: "#9F9D96" },
 };
 
-export const THEME_STYLES: ReadonlyArray<{ key: ThemeStyle; label: string }> = [
-  { key: "marktodo", label: "MarkTodo" },
-  { key: "obsidian", label: "Obsidian theme" },
-];
-
-export const THEME_MODES: ReadonlyArray<{ key: ThemeMode; label: string }> = [
-  { key: "obsidian", label: "Match Obsidian" },
-  { key: "dark", label: "Dark" },
-  { key: "light", label: "Light" },
-  { key: "black", label: "Black" },
-];
-
+/** Obsidian's default accent is hsl(258 88% 66%) — `--accent-h/s/l`. */
 export const OBSIDIAN_PURPLE: AccentHsl = { h: 258, s: 88, l: 66 };
+
+/**
+ * The six statuses, in Flexoki. FIXED — not derived from your accent.
+ *
+ * The reading, left to right through a todo's life: nothing started yet is
+ * neutral; `warming` is heat; `doing` is the one live, cool, working color;
+ * `blocked` is the stop everyone already reads as a stop; `paused` is set down
+ * deliberately, so it is a color of its own rather than a dimmer red; `done` is
+ * the only green, so green means finished and nothing else.
+ */
+const STATUS_HUES = {
+  backlog: "base",
+  warming: "yellow",
+  doing: "blue",
+  blocked: "red",
+  paused: "purple",
+  done: "green",
+} as const satisfies Record<string, FlexokiHue>;
+
+/**
+ * The three due chips. Time, not state, so they do not reuse the status hues'
+ * meanings: overdue is the same red as a stop, today is the same yellow as
+ * heat, and upcoming is deliberately neutral — a date that is merely coming is
+ * not urgent, and coloring it says it is.
+ */
+const CHIP_HUES = {
+  overdue: "red",
+  today: "yellow",
+  upcoming: "base",
+} as const satisfies Record<string, FlexokiHue>;
+
+/** A Flexoki hue at the step for this mode. */
+function step(hue: FlexokiHue, dark: boolean): string {
+  return dark ? ACCENTS[hue].dark : ACCENTS[hue].light;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Text size — a multiplier, not a set of pixel sizes
@@ -78,9 +131,6 @@ export const OBSIDIAN_PURPLE: AccentHsl = { h: 258, s: 88, l: 66 };
  * with it. Scaling a resolved size is also the only way to do this without
  * re-declaring Obsidian's `--font-ui-*` variables in terms of themselves, which
  * CSS treats as a cycle and drops.
- *
- * Independent of the theme style on purpose: text size is legibility, and it has
- * to work whether you use MarkTodo's colors or your Obsidian theme's.
  */
 export type FontScale = "smaller" | "small" | "default" | "large" | "larger";
 
@@ -99,10 +149,7 @@ export function fontScaleValue(scale: FontScale): number {
   return FONT_SCALES.find((f) => f.key === scale)?.scale ?? 1;
 }
 
-/**
- * The `<body>` property carrying the text size down to `.marktodo-theme`. Not a
- * theme variable: those are inert under "Obsidian theme", and this must not be.
- */
+/** The `<body>` property carrying the text size down to `.marktodo-theme`. */
 export function fontProperties(scale: FontScale): Record<string, string> {
   return { "--mt-font-scale": String(fontScaleValue(scale)) };
 }
@@ -112,26 +159,26 @@ export function parseFontScale(raw: unknown): FontScale {
   return FONT_SCALES.some((f) => f.key === raw) ? (raw as FontScale) : DEFAULT_FONT_SCALE;
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// The theme
+// ────────────────────────────────────────────────────────────────────────────
+
 export interface ThemeColors {
-  background: string;
-  surface: string;
-  elevated: string;
-  pressed: string;
-  border: string;
-  hairline: string;
-  shadow: string;
-  textPrimary: string;
-  textSecondary: string;
-  textTertiary: string;
+  /** The accent, readable on this background. */
   primary: string;
-  /** The accent a step toward the text color: hover on accent buttons, links, checkboxes. */
+  /** The accent a step toward the text color: hover on accent buttons and links. */
   primaryHover: string;
+  /** The accent as a wash: selected rows, active chips. */
   primaryLight: string;
+  /** Text drawn ON the accent. */
   onAccent: string;
-  warning: string;
-  danger: string;
-  orange: string;
+  /** The six statuses, fixed. */
+  backlog: string;
+  warming: string;
+  doing: string;
+  blocked: string;
   paused: string;
+  done: string;
   chipDueToday: string;
   chipDueTodayText: string;
   chipOverdue: string;
@@ -141,7 +188,6 @@ export interface ThemeColors {
 }
 
 export interface Theme {
-  mode: ResolvedMode;
   dark: boolean;
   accent: AccentHsl;
   colors: ThemeColors;
@@ -156,81 +202,54 @@ function nudge(l: number, direction: 1 | -1, min: number, bg: string, color: (l:
 
 const cache = new Map<string, Theme>();
 
-/** The app's `buildTheme`, over any accent (so "match Obsidian's accent" works). */
-export function buildTheme(mode: ResolvedMode, accent: AccentHsl): Theme {
-  const key = `${mode}:${accent.h}:${accent.s}:${accent.l}`;
+/**
+ * The theme for a mode, an accent and the background it will be read against.
+ *
+ * `background` is Obsidian's resolved `--background-primary`: the chips composite
+ * their tint over it and then nudge their text to 4.5:1 on the result, so a chip
+ * stays legible on a paper-white theme and a true-black one alike. It is passed
+ * in rather than assumed because the plugin no longer decides what it is.
+ */
+export function buildTheme(dark: boolean, accent: AccentHsl, background: string): Theme {
+  const key = `${dark ? "d" : "l"}:${accent.h}:${accent.s}:${accent.l}:${background}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
-  const { h } = accent;
-  const dark = mode !== "light";
-  // Neutrals borrow the accent hue; a desaturated accent (graphite) tints less.
-  const tint = Math.min(1, accent.s / 60);
-  const n = (s: number, l: number, alpha = 1): string => hsl(h, s * tint, l, alpha);
-
-  const base =
-    mode === "light"
-      ? { bg: n(18, 95.5), surface: n(40, 99.5), elevated: n(30, 98.5), pressed: n(20, 90), border: n(14, 86) }
-      : mode === "black"
-        ? { bg: "#000000", surface: n(12, 7.5), elevated: n(12, 10.5), pressed: n(14, 15), border: n(10, 15) }
-        : { bg: n(9, 6.5), surface: n(10, 11.5), elevated: n(10, 14.5), pressed: n(12, 19), border: n(9, 18.5) };
-
-  const text = dark
-    ? { primary: n(14, 93), secondary: n(8, 68), tertiary: n(6, 52) }
-    : { primary: n(24, 11), secondary: n(10, 34), tertiary: n(7, 45) };
-
-  // Accent: keep the requested color when it already reads; darken for light mode.
-  const accentAt = (l: number): string => hsl(h, accent.s, l);
-  const primaryL = dark ? nudge(accent.l, 1, 3, base.bg, accentAt) : nudge(Math.min(accent.l, 56), -1, 3.2, base.bg, accentAt);
+  const accentAt = (l: number): string => hsl(accent.h, accent.s, l);
+  // Keep the chosen accent when it already reads; step it toward the background
+  // until it does. 3:1 is the floor for a UI color that is not body text.
+  const primaryL = dark
+    ? nudge(accent.l, 1, 3, background, accentAt)
+    : nudge(Math.min(accent.l, 56), -1, 3.2, background, accentAt);
   const primary = accentAt(primaryL);
-  const onAccent = contrast("#FFFFFF", primary) >= 3 ? "#FFFFFF" : hsl(h, 40, 10);
-
-  // Semantic hues [h, s, l], tuned per mode.
-  type Hsl = [number, number, number];
-  const sem: Record<"warning" | "danger" | "orange", Hsl> = dark
-    ? { warning: [43, 96, 56], danger: [0, 91, 71], orange: [27, 96, 61] }
-    : { warning: [32, 95, 37], danger: [0, 72, 46], orange: [21, 90, 42] };
-  // PAUSED is violet unless the accent is already violet-ish — then sky, so
-  // DOING (the accent) and PAUSED never look alike.
-  const pausedHue = hueDistance(h, 262) < 45 ? 199 : 262;
-  const pausedHsl: Hsl = dark ? [pausedHue, 92, 76] : [pausedHue, 70, 42];
-  const color = ([hh, ss, ll]: Hsl): string => hsl(hh, ss, ll);
 
   const tintAlpha = dark ? 0.18 : 0.13;
   /** A chip = the hue's tint behind the hue as small text, nudged to 4.5:1 on the tint. */
-  const chipPair = ([hh, ss, ll]: Hsl): [string, string] => {
-    const bgChip = withAlpha(hsl(hh, ss, ll), tintAlpha);
-    const onChip = composite(bgChip, base.bg);
-    const at = (x: number): string => hsl(hh, ss, x);
-    return [bgChip, at(nudge(ll, dark ? 1 : -1, 4.5, onChip, at))];
+  const chipPair = (hex: string): [string, string] => {
+    const { h, s, l } = toHsl(hex);
+    const bgChip = withAlpha(hex, tintAlpha);
+    const onChip = composite(bgChip, background);
+    const at = (x: number): string => hsl(h, s, x);
+    return [bgChip, at(nudge(l, dark ? 1 : -1, 4.5, onChip, at))];
   };
-  const [chipDueToday, chipDueTodayText] = chipPair(sem.warning);
-  const [chipOverdue, chipOverdueText] = chipPair(sem.danger);
-  const [chipUpcoming, chipUpcomingText] = chipPair([h, accent.s, primaryL]);
+  const [chipDueToday, chipDueTodayText] = chipPair(step(CHIP_HUES.today, dark));
+  const [chipOverdue, chipOverdueText] = chipPair(step(CHIP_HUES.overdue, dark));
+  const [chipUpcoming, chipUpcomingText] = chipPair(step(CHIP_HUES.upcoming, dark));
 
   const theme: Theme = {
-    mode,
     dark,
     accent,
     colors: {
-      background: base.bg,
-      surface: base.surface,
-      elevated: base.elevated,
-      pressed: base.pressed,
-      border: base.border,
-      hairline: dark ? "#FFFFFF14" : "#0000000F",
-      shadow: dark ? "#00000066" : withAlpha(hsl(h, 30, 20), 0.14),
-      textPrimary: text.primary,
-      textSecondary: text.secondary,
-      textTertiary: text.tertiary,
       primary,
       primaryHover: accentAt(primaryL + (dark ? 6 : -6)),
       primaryLight: withAlpha(primary, tintAlpha),
-      onAccent,
-      warning: color(sem.warning),
-      danger: color(sem.danger),
-      orange: color(sem.orange),
-      paused: color(pausedHsl),
+      onAccent: contrast("#FFFFFF", primary) >= 3 ? "#FFFFFF" : hsl(accent.h, 40, 10),
+      backlog: step(STATUS_HUES.backlog, dark),
+      warming: step(STATUS_HUES.warming, dark),
+      doing: step(STATUS_HUES.doing, dark),
+      blocked: step(STATUS_HUES.blocked, dark),
+      paused: step(STATUS_HUES.paused, dark),
+      done: step(STATUS_HUES.done, dark),
       chipDueToday,
       chipDueTodayText,
       chipOverdue,
@@ -243,57 +262,35 @@ export function buildTheme(mode: ResolvedMode, accent: AccentHsl): Theme {
   return theme;
 }
 
-/** `#rrggbb[aa]` → `r, g, b` (Obsidian's `--color-*-rgb` format). */
-function rgbTriplet(hex: string): string {
-  const { r, g, b } = parseHex(hex);
-  return `${r}, ${g}, ${b}`;
-}
-
 /**
- * The status colors (the app's `statusColor`), as the `--marktodo-*` variables
- * every glyph, section bar and note checkbox reads.
+ * The status colors, as the `--marktodo-*` variables every glyph, section bar
+ * and note checkbox reads. Set on `<body>`, NOT carried: a managed checkbox is
+ * drawn in the note, outside any MarkTodo pane.
  */
 export function statusVariables(theme: Theme): Record<string, string> {
   const c = theme.colors;
   return {
-    "--marktodo-backlog": c.textSecondary,
-    "--marktodo-warming": c.warning,
-    "--marktodo-progress": c.primary,
-    "--marktodo-blocked": c.danger,
+    "--marktodo-backlog": c.backlog,
+    "--marktodo-warming": c.warming,
+    "--marktodo-progress": c.doing,
+    "--marktodo-blocked": c.blocked,
     "--marktodo-paused": c.paused,
-    "--marktodo-done": c.primary,
+    "--marktodo-done": c.done,
   };
 }
 
 /**
- * Everything a `.marktodo-theme` element redefines. Obsidian's own variable
- * names wherever one exists — that is what makes a stock dropdown inside a
- * themed pane match it — and `--mt-*` for the app's layered surfaces.
+ * Everything a `.marktodo-theme` element redefines — Obsidian's own variable
+ * names wherever one exists, so a stock dropdown or button inside a MarkTodo
+ * pane takes the accent with it.
+ *
+ * SHORT ON PURPOSE. Every background, text and border variable this used to
+ * restate now comes from your Obsidian theme; what is left is the accent, and
+ * the chips, which have no Obsidian variable to inherit.
  */
 export function themeVariables(theme: Theme): Record<string, string> {
   const c = theme.colors;
-  const hover = withAlpha(c.textPrimary, theme.dark ? 0.06 : 0.05);
   return {
-    "color-scheme": theme.dark ? "dark" : "light",
-    // `color` is inherited as a COMPUTED value: text that sets no color of its
-    // own (a dialog title, a setting's name, a card's title) would keep the
-    // color resolved on <body> — light gray when Obsidian is dark and the theme
-    // forces Light. Restating it here resolves it against the theme's variables.
-    color: c.textPrimary,
-
-    "--background-primary": c.background,
-    "--background-primary-alt": c.surface,
-    "--background-secondary": c.surface,
-    "--background-secondary-alt": c.elevated,
-    "--background-modifier-hover": hover,
-    "--background-modifier-active-hover": c.primaryLight,
-    "--background-modifier-border": c.border,
-    "--background-modifier-border-hover": c.pressed,
-    "--background-modifier-border-focus": c.primary,
-    "--background-modifier-form-field": c.surface,
-    "--background-modifier-form-field-highlighted": c.elevated,
-    "--interactive-normal": c.elevated,
-    "--interactive-hover": c.pressed,
     "--interactive-accent": c.primary,
     "--interactive-accent-hover": c.primaryHover,
     "--interactive-accent-hsl": `${theme.accent.h}, ${theme.accent.s}%, ${theme.accent.l}%`,
@@ -301,93 +298,24 @@ export function themeVariables(theme: Theme): Record<string, string> {
     "--accent-s": `${theme.accent.s}%`,
     "--accent-l": `${theme.accent.l}%`,
     "--color-accent": c.primary,
-
-    "--text-normal": c.textPrimary,
-    "--text-muted": c.textSecondary,
-    "--text-faint": c.textTertiary,
+    "--color-accent-1": c.primaryHover,
+    "--color-accent-2": c.primary,
     "--text-accent": c.primary,
     "--text-accent-hover": c.primaryHover,
     "--text-on-accent": c.onAccent,
-    "--text-error": c.danger,
-    "--icon-color": c.textSecondary,
-    "--icon-color-hover": c.textPrimary,
-    "--icon-color-active": c.primary,
-    "--icon-color-focused": c.textPrimary,
-    "--nav-item-color": c.textSecondary,
-    "--nav-item-color-hover": c.textPrimary,
-    "--nav-item-color-active": c.textPrimary,
+    "--text-selection": withAlpha(c.primary, 0.25),
+    "--link-color": c.primary,
+    "--link-color-hover": c.primaryHover,
+    "--tag-color": c.primary,
+    "--tag-color-hover": c.primaryHover,
     "--checkbox-color": c.primary,
     "--checkbox-color-hover": c.primaryHover,
-
-    // Obsidian defines these on <body> in terms of the variables above, so they
-    // resolve THERE and would keep Obsidian's colors inside a themed pane —
-    // each has to be restated here, not just its source.
-    "--dropdown-background": c.elevated,
-    "--dropdown-background-hover": c.pressed,
-    "--dropdown-icon-background": c.elevated,
-    "--background-modifier-form-field-hover": c.surface,
-    "--background-modifier-error": c.danger,
-    "--input-placeholder-color": c.textTertiary,
-    "--modal-background": c.elevated,
-    "--modal-border-color": c.border,
-    "--prompt-background": c.elevated,
-    "--prompt-border-color": c.border,
-    "--suggestion-background": c.elevated,
-    "--divider-color": c.border,
-    "--text-selection": withAlpha(c.primary, 0.25),
-    "--checkbox-border-color": c.textTertiary,
-    "--checkbox-border-color-hover": c.textSecondary,
-    "--checkbox-marker-color": c.background,
-    "--collapse-icon-color": c.textTertiary,
-    "--nav-item-background-hover": hover,
+    "--icon-color-active": c.primary,
+    "--background-modifier-border-focus": c.primary,
+    "--background-modifier-active-hover": c.primaryLight,
     "--nav-item-background-active": c.primaryLight,
-    "--pill-color": c.textSecondary,
-    "--pill-border-color": c.border,
-    "--toggle-thumb-color": "#FFFFFF",
-    // More of the same kind, found forcing Light inside dark Obsidian —
-    // a dialog's field labels stayed light gray.
-    "--setting-item-name-color": c.textPrimary,
-    "--setting-group-heading-color": c.textPrimary,
-    "--setting-items-border-color": c.border,
-    "--setting-items-divider-color": c.border,
-    "--caret-color": c.textPrimary,
-    "--pill-color-hover": c.textPrimary,
-    "--pill-color-remove": c.textTertiary,
-    "--pill-color-remove-hover": c.primary,
-    "--input-date-separator": c.textTertiary,
-    "--search-icon-color": c.textSecondary,
-    "--search-clear-button-color": c.textSecondary,
-    "--collapse-icon-color-collapsed": c.primary,
-    "--nav-collapse-icon-color": c.textTertiary,
-    "--nav-collapse-icon-color-collapsed": c.textTertiary,
-    "--nav-heading-color": c.textPrimary,
-    "--nav-heading-color-hover": c.textPrimary,
-    "--nav-item-color-selected": c.textPrimary,
-    "--tag-color": c.primary,
-    "--tag-color-hover": c.primary,
-    "--link-color": c.primary,
-    "--divider-color-hover": c.primary,
 
-    "--color-red": c.danger,
-    "--color-red-rgb": rgbTriplet(c.danger),
-    "--color-yellow": c.warning,
-    "--color-yellow-rgb": rgbTriplet(c.warning),
-    "--color-orange": c.orange,
-    "--color-orange-rgb": rgbTriplet(c.orange),
-
-    "--shadow-s": `0 1px 2px ${c.shadow}, 0 2px 8px ${withAlpha(c.shadow.slice(0, 7), theme.dark ? 0.25 : 0.06)}`,
-    "--shadow-l": `0 8px 24px ${c.shadow}`,
-
-    ...statusVariables(theme),
-
-    "--mt-screen": c.background,
-    "--mt-drawer": c.surface,
-    "--mt-raised": withAlpha(c.surface, theme.dark ? 0.88 : 0.92),
-    "--mt-hairline": c.hairline,
     "--mt-primary-light": c.primaryLight,
-    // A selected row: a neutral lift, the way Notebook Navigator marks one.
-    "--mt-selection": withAlpha(c.textPrimary, theme.dark ? 0.1 : 0.08),
-    "--mt-card": c.elevated,
     "--mt-chip-today": c.chipDueToday,
     "--mt-chip-today-text": c.chipDueTodayText,
     "--mt-chip-overdue": c.chipOverdue,
@@ -397,52 +325,49 @@ export function themeVariables(theme: Theme): Record<string, string> {
   };
 }
 
-/**
- * The `<body>` custom property that carries one theme value down to
- * `.marktodo-theme`: `--background-primary` → `--mtt-background-primary`,
- * `color` → `--mtt-color`. styles.css maps each one back onto its real name
- * inside `body.marktodo-themed .marktodo-theme`.
- */
+/** The `<body>` name carrying a theme variable down to `.marktodo-theme`. */
 export function themeCarrier(name: string): string {
   return `--mtt-${name.replace(/^--/, "")}`;
 }
 
 /**
- * The custom properties to set on `<body>` for an appearance. `obsidianAccent`
- * and `obsidianDark` are Obsidian's current accent and light/dark (read from the
- * page by the caller) for the "match Obsidian" choices.
- *
- * Obsidian doesn't allow plugins to add `<style>` elements, so styles.css holds
- * the rules and this supplies only the values: every theme variable under its
- * carrier name (inert until styles.css maps it inside a MarkTodo pane), and the
- * status colors under their own names — note checkboxes live OUTSIDE MarkTodo
- * panes and take only those, never the surfaces. Style "obsidian" yields
- * nothing: MarkTodo then draws with your theme's own variables.
+ * The custom properties to set on `<body>`. `obsidianAccent`, `obsidianDark` and
+ * `background` are read from the page by the caller — Obsidian's accent (for
+ * "Match Obsidian"), its light/dark, and the background the chips are read on.
  */
 export function themeProperties(
   appearance: Appearance,
   obsidianAccent: AccentHsl,
   obsidianDark: boolean,
+  background: string,
 ): Record<string, string> {
-  if (appearance.style !== "marktodo") return {};
-  const accent = appearance.accent === "obsidian" ? obsidianAccent : ACCENTS[appearance.accent];
-  const mode: ResolvedMode = appearance.mode === "obsidian" ? (obsidianDark ? "dark" : "light") : appearance.mode;
-  const theme = buildTheme(mode, accent);
+  const accent =
+    appearance.accent === "obsidian" ? obsidianAccent : toHsl(step(appearance.accent, obsidianDark));
+  const theme = buildTheme(obsidianDark, accent, background);
   const props: Record<string, string> = { ...statusVariables(theme) };
   for (const [name, value] of Object.entries(themeVariables(theme))) props[themeCarrier(name)] = value;
   return props;
 }
 
+/**
+ * The pre-Flexoki accent names, each to its nearest Flexoki hue. Kept so an
+ * upgrade doesn't silently reset a choice someone made; `amber` and `rose` are
+ * simply what those hues are called in this palette, and `graphite` is `base`.
+ * The dropped `style` and `mode` need no migration: there is nothing to migrate
+ * them TO, and your Obsidian theme now decides both.
+ */
+const LEGACY_ACCENTS: Record<string, FlexokiHue> = {
+  amber: "yellow",
+  rose: "red",
+  graphite: "base",
+};
+
 /** A stored appearance, with anything unknown replaced by its default. */
 export function parseAppearance(raw: unknown): Appearance {
   const r = (raw ?? {}) as Partial<Record<keyof Appearance, unknown>>;
-  const pick = <T extends string>(value: unknown, allowed: readonly T[], fallback: T): T =>
-    allowed.includes(value as T) ? (value as T) : fallback;
-  return {
-    style: pick(r.style, THEME_STYLES.map((s) => s.key), DEFAULT_APPEARANCE.style),
-    mode: pick(r.mode, THEME_MODES.map((m) => m.key), DEFAULT_APPEARANCE.mode),
-    accent: pick(r.accent, ["obsidian", ...Object.keys(ACCENTS)] as AccentKey[], DEFAULT_APPEARANCE.accent),
-  };
+  const stored = typeof r.accent === "string" ? (LEGACY_ACCENTS[r.accent] ?? r.accent) : r.accent;
+  const allowed: readonly AccentKey[] = ["obsidian", ...(Object.keys(ACCENTS) as FlexokiHue[])];
+  return { accent: allowed.includes(stored as AccentKey) ? (stored as AccentKey) : DEFAULT_APPEARANCE.accent };
 }
 
 /** Obsidian's `--accent-h/s/l` computed values → an accent (its default when unreadable). */

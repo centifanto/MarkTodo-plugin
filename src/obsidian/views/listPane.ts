@@ -14,7 +14,7 @@
  * Boards and notes still open as tabs in the main area (the header's board and
  * note buttons); a todo still opens the todo editor.
  */
-import { Menu, Notice, setIcon } from "obsidian";
+import { Notice, setIcon } from "obsidian";
 import { mount, unmount, type ComponentProps } from "svelte";
 import TodoList from "../../ui/TodoList.svelte";
 import { type Status, type TodoRecord } from "../../core/types";
@@ -26,7 +26,6 @@ import {
   EMPTY_MESSAGES,
   SMART_VIEWS,
   TODAY_GROUPS,
-  TODAY_SORTS,
   arrangeSmartTodos,
   smartViewCounts,
   smartViewTodos,
@@ -40,6 +39,7 @@ import { type SortKey } from "../../ui/sorts";
 import { TODAY_COLLAPSED_STATUSES } from "../../ui/statusSections";
 import { buildListGroups } from "../viewData";
 import { buildViewBar } from "../viewBar";
+import { GROUP_ICONS, SMART_VIEW_ICONS, withIcons } from "../viewIcons";
 import {
   filterByState,
   filterOptionsSignature,
@@ -213,11 +213,9 @@ export class ListPane {
     const sel = this.selection;
     const out: HeaderAction[] = [];
     if (this.searching()) return out;
-    // No Filters button: the view bar below carries its own summary line and
-    // chevron, and says how many filters are set even while collapsed.
-    if (sel.kind === "today") {
-      out.push({ icon: "arrow-up-down", label: "Sort and group", onClick: (evt) => this.arrangeMenu(evt) });
-    }
+    // No Filters and no Sort button: the view bar below carries all of it —
+    // its summary line says the focus, the filter count, the sort and the
+    // grouping even while collapsed, and its chevron opens the controls.
     if (sel.kind === "todos") {
       out.push({ icon: "columns-3", label: "Open as a Kanban board", onClick: () => void openBoard(this.plugin, { kind: "todos" }) });
     }
@@ -237,9 +235,9 @@ export class ListPane {
   // ── the view bar (focus · filters · sort) ────────────────────────────────
 
   /**
-   * Which `ViewMemory` entry this selection's bar state lives under. Today has
-   * none: it arranges itself through `settings.todayArrangement` and the header's
-   * sort-and-group menu, which is a different control with a different shape.
+   * Which `ViewMemory` entry this selection's bar state lives under. Today's is
+   * per segment; its sort and group come from `settings.todayArrangement`
+   * instead, because the companion app reads those too.
    */
   private memoryKey(): string | null {
     switch (this.selection.kind) {
@@ -250,18 +248,22 @@ export class ListPane {
       case "project":
         return "project";
       case "today":
-        // Not for filters or sort — Today has neither — but its status sections
-        // fold, and which are folded has to survive a restart like any other.
+        // Per SEGMENT: the four are four different questions, so each remembers
+        // its own filters, its folds and its collapse. Its sort and group live
+        // in `settings.todayArrangement`, which the companion app reads too.
         return `today:${this.segment}`;
     }
   }
 
   /**
-   * Filters are for the surfaces that span notes. A project's own list is
-   * already one project's todos, so every picker on it would be a no-op.
+   * Every surface offers filters. A project's own list used to be excluded
+   * because "it is already one project" — but that rules out only the PROJECT
+   * picker; tag, priority and managed all still narrow a long project usefully,
+   * and the companion app offers them there, so a vault and a phone showing the
+   * same project disagreed about what you could do to it.
    */
   private hasFilters(): boolean {
-    return this.selection.kind === "inbox" || this.selection.kind === "todos";
+    return true;
   }
 
   /**
@@ -275,7 +277,10 @@ export class ListPane {
   }
 
   private surfaceOf(): FilterSurface {
-    return this.selection.kind === "inbox" ? "loose" : "projects";
+    if (this.selection.kind === "inbox") return "loose";
+    // Today is every todo with a date on it, filed or loose, so it filters over both.
+    if (this.selection.kind === "today") return "any";
+    return "projects";
   }
 
   /** The todos this surface works on, filtered — what the focus counts count. */
@@ -292,25 +297,28 @@ export class ListPane {
    */
   private renderViewBar(): void {
     const key = this.memoryKey();
-    // Today has no focus, no filters and no sort — its arranging is the header's
-    // own menu — so there is no bar to draw, only a summary of nothing.
-    if (key === null || (!this.hasStatusSections() && !this.hasFilters())) {
+    if (key === null) {
       this.barEl.empty();
       this.barSig = null;
       return;
     }
+    const today = this.selection.kind === "today";
     const memory = this.plugin.viewMemory(key);
     const focus = this.plugin.settings.focus;
     const all = this.plugin.index.getAll();
     const options = this.surfaceOf() === "loose" ? all.filter((t) => t.project === null) : all;
     const todos = this.surfaceTodos();
+    // Today sorts and groups per segment out of settings; every other surface
+    // sorts out of its own view memory and doesn't group at all.
+    const arrangement = today ? this.arrangement : null;
     const sig = JSON.stringify([
       key,
       memory.focusCollapsed,
       memory.sort,
+      arrangement,
       focus,
       this.hasStatusSections() ? focusCounts(todos) : null,
-      this.hasFilters() ? [filterOptionsSignature(options), this.filterState] : null,
+      [filterOptionsSignature(options), this.filterState],
     ]);
     if (sig === this.barSig) return;
     this.barSig = sig;
@@ -318,27 +326,41 @@ export class ListPane {
     buildViewBar(this.barEl, {
       app: this.plugin.app,
       todos,
+      // Only the surfaces with a board to switch to name a layout.
+      layout: this.hasStatusSections() ? { key: "list", label: "List" } : undefined,
       focus: this.hasStatusSections()
         ? { current: focus, onPick: (next) => this.setFocus(next) }
         : undefined,
-      filters: this.hasFilters()
+      filters: {
+        state: this.filterState,
+        surface: this.surfaceOf(),
+        onChange: () => {
+          this.plugin.rememberView(key, { filters: this.filterState });
+          this.barSig = null;
+          this.refresh();
+        },
+      },
+      sort: arrangement
         ? {
-            state: this.filterState,
-            surface: this.surfaceOf(),
-            onChange: () => {
-              this.plugin.rememberView(key, { filters: this.filterState });
-              this.barSig = null;
-              this.refresh();
-            },
+            current: arrangement.sort,
+            surface: "today",
+            spansProjects: true,
+            onPick: (sort) => this.setArrangement({ sort }),
           }
-        : undefined,
-      sort: this.hasStatusSections()
+        : this.hasStatusSections()
+          ? {
+              current: memory.sort,
+              surface: "list",
+              // Only Todos spans projects; a project's own list orders nothing by it.
+              spansProjects: this.selection.kind === "todos",
+              onPick: (sort) => this.setSort(key, sort),
+            }
+          : undefined,
+      group: arrangement
         ? {
-            current: memory.sort,
-            surface: "list",
-            // Only Todos spans projects; a project's own list orders nothing by it.
-            spansProjects: this.selection.kind === "todos",
-            onPick: (sort) => this.setSort(key, sort),
+            current: arrangement.group,
+            options: withIcons(TODAY_GROUPS, GROUP_ICONS),
+            onPick: (group) => this.setArrangement({ group: group as TodayArrangement["group"] }),
           }
         : undefined,
       collapsed: memory.focusCollapsed,
@@ -348,6 +370,17 @@ export class ListPane {
         this.renderViewBar();
       },
     });
+  }
+
+  /** Write one of Today's per-segment arrangement fields and redraw. */
+  private setArrangement(patch: Partial<TodayArrangement>): void {
+    this.plugin.settings.todayArrangement = {
+      ...this.plugin.settings.todayArrangement,
+      [this.segment]: { ...this.arrangement, ...patch },
+    };
+    void this.plugin.saveSettings();
+    this.barSig = null;
+    this.refresh(true);
   }
 
   private setFocus(focus: Focus): void {
@@ -570,6 +603,7 @@ export class ListPane {
       const el = this.segmentsEl.createDiv({ cls: `marktodo-segment${key === this.segment ? " is-active" : ""}` });
       el.setAttribute("role", "tab");
       el.setAttribute("aria-selected", String(key === this.segment));
+      setIcon(el.createSpan({ cls: "marktodo-segment-icon" }), SMART_VIEW_ICONS[key]);
       el.createSpan({ text: label });
       if (counts[key] > 0) el.createSpan({ cls: "marktodo-segment-count", text: String(counts[key]) });
       el.addEventListener("click", () => {
@@ -584,40 +618,6 @@ export class ListPane {
     return this.plugin.settings.todayArrangement[this.segment];
   }
 
-  /** Sort and group, as one menu — Notebook Navigator's sort button. */
-  private arrangeMenu(evt: MouseEvent): void {
-    const menu = new Menu();
-    const { sort, group } = this.arrangement;
-    const segment = this.segment;
-    const set = (patch: Partial<TodayArrangement>): void => {
-      this.plugin.settings.todayArrangement = {
-        ...this.plugin.settings.todayArrangement,
-        [segment]: { ...this.arrangement, ...patch },
-      };
-      void this.plugin.saveSettings();
-      this.refresh();
-    };
-    menu.addItem((item) => item.setTitle("Sort by").setIsLabel(true));
-    for (const option of TODAY_SORTS) {
-      menu.addItem((item) =>
-        item
-          .setTitle(option.label)
-          .setChecked(sort === option.key)
-          .onClick(() => set({ sort: option.key })),
-      );
-    }
-    menu.addSeparator();
-    menu.addItem((item) => item.setTitle("Group by").setIsLabel(true));
-    for (const option of TODAY_GROUPS) {
-      menu.addItem((item) =>
-        item
-          .setTitle(option.label)
-          .setChecked(group === option.key)
-          .onClick(() => set({ group: option.key })),
-      );
-    }
-    menu.showAtMouseEvent(evt);
-  }
 
   /** The todo editor, preset to what is on screen: the project, or the filtered one. */
   private addTodo(status?: Status, anchor?: ModalAnchor): void {

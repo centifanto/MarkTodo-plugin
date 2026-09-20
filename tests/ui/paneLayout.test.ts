@@ -59,9 +59,9 @@ describe("identity", () => {
     expect(destinationOf(VIEW_TYPES.dashboard, {}, isProject)).toBeNull();
   });
 
-  it("parses the stored dashboard location, defaulting to the right sidebar", () => {
+  it("parses the stored dashboard location, defaulting to the left sidebar", () => {
     expect(parseDashboardLocation("main")).toBe("main");
-    expect(parseDashboardLocation(undefined)).toBe("right");
+    expect(parseDashboardLocation(undefined)).toBe("left");
   });
 });
 

@@ -128,6 +128,8 @@ export class TodosView extends ItemView {
       app: this.app,
       todos,
       lead: lead.firstElementChild as HTMLElement,
+      // This view IS the board; picking List hands off to the list view.
+      layout: { key: "kanban", label: "Kanban" },
       focus: {
         current: focus,
         onPick: (next) => {

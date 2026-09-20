@@ -25,14 +25,14 @@ export type Destination = { kind: "todos" } | { kind: "project"; path: string; m
 export type DashboardLocation = "left" | "right" | "pane" | "main";
 
 export const DASHBOARD_LOCATIONS: ReadonlyArray<{ key: DashboardLocation; label: string }> = [
-  { key: "right", label: "Right sidebar" },
   { key: "left", label: "Left sidebar" },
+  { key: "right", label: "Right sidebar" },
   { key: "pane", label: "Pane at the left of the main area" },
   { key: "main", label: "Main area" },
 ];
 
 export function parseDashboardLocation(value: unknown): DashboardLocation {
-  return DASHBOARD_LOCATIONS.some((l) => l.key === value) ? (value as DashboardLocation) : "right";
+  return DASHBOARD_LOCATIONS.some((l) => l.key === value) ? (value as DashboardLocation) : "left";
 }
 
 export type Area = "root" | "left" | "right";

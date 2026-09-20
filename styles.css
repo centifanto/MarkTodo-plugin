@@ -5,15 +5,16 @@
  */
 
 /* ── Status colors ──────────────────────────────────────────────────── */
-/* The app's `statusColor()`, in Obsidian's own palette so themes carry over:
-   Backlog neutral, Warming amber, Doing the accent, Blocked red, Paused blue,
-   Done the accent (filled). The glyph SHAPE still says the status on its own —
-   color is the at-a-glance layer on top, never the only signal. */
+/* The six status colors, fixed (ui/theme.ts): Backlog neutral, Warming yellow,
+   Doing blue, Blocked red, Paused purple, Done green — Flexoki, the same six in
+   every vault. `obsidian/themeStyles.ts` sets `--marktodo-*` on <body> from
+   there; the fallbacks below keep MarkTodo drawable before it first paints.
+   The glyph SHAPE still says the status on its own — color is the at-a-glance
+   layer on top, never the only signal. */
 body {
-  /* The MarkTodo theme's layered surfaces. These are the fallbacks —
-     plain Obsidian variables — used when Settings → Appearance → Theme is
-     "Obsidian theme"; `obsidian/themeStyles.ts` redefines every one of them on
-     `.marktodo-theme` otherwise. Components only ever read the --mt-* names. */
+  /* MarkTodo's layered surfaces, in your Obsidian theme's own variables. The
+     plugin no longer paints surfaces of its own, so these ARE the surfaces —
+     not fallbacks. Components only ever read the --mt-* names. */
   --mt-screen: var(--background-primary);
   --mt-drawer: var(--background-secondary);
   --mt-raised: var(--background-secondary);
@@ -21,6 +22,8 @@ body {
   --mt-hairline: var(--background-modifier-border);
   --mt-primary-light: hsla(var(--accent-h), var(--accent-s), var(--accent-l), 0.14);
   --mt-selection: var(--background-modifier-active-hover);
+  /* One height for every control in the view bar, whatever element it is. */
+  --mt-field-height: 1.9rem;
   --mt-chip-today: rgba(var(--color-yellow-rgb), 0.16);
   --mt-chip-today-text: var(--color-yellow);
   --mt-chip-overdue: rgba(var(--color-red-rgb), 0.16);
@@ -507,18 +510,26 @@ body {
 .marktodo-focus-bar:empty {
   display: none;
 }
+/* The same grid as Sort and Group, for the same reason: where four segments
+   don't fit a row, the fourth should land in a column under the first, not
+   stretch across the whole track on its own. `auto-fit` puts all four on one
+   row as soon as there is room. */
 .marktodo-focus-switch {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5rem, 1fr));
   gap: 2px;
   padding: 2px;
   border-radius: var(--radius-m);
   background-color: var(--background-modifier-hover);
 }
+/* `1 1 auto`, not `1 1 0`: four equal quarters cut "Active" and "Doing" short
+   while "All" sat in whitespace. Sizing to content and sharing only the SURPLUS
+   keeps every label whole, which is the point of naming the focus at all. */
 .marktodo-focus-switch button.marktodo-focus {
   display: inline-flex;
-  flex: 1 1 0;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
+  width: 100%;
   gap: var(--size-4-1);
   height: auto;
   min-width: 0;
@@ -541,8 +552,6 @@ body {
   font-weight: var(--font-semibold);
 }
 .marktodo-focus-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 .marktodo-focus-count {
@@ -889,28 +898,79 @@ body {
   align-items: center;
   gap: var(--size-4-2);
 }
-/* The summary is the control: clicking the line is what opens and closes. */
+/* The summary is the control: clicking the line is what opens and closes, so it
+   takes the FULL WIDTH of the bar and the same size as the list below it.
+   Hugging its content made the bar's primary row a small pill floating above
+   full-width rows, and `small` drew it at 13px under 15px todo titles — the one
+   row that is always visible reading as the least important thing on screen.
+   `space-between` keeps the chevron on the right edge where the row ends. */
 .marktodo-viewbar-toggle {
-  display: inline-flex;
+  display: flex;
+  flex: 1 1 auto;
   align-items: center;
-  gap: var(--size-4-1);
-  width: auto;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  width: 100%;
+  min-width: 0;
   height: auto;
-  padding: var(--size-2-1) var(--size-4-1);
+  padding: var(--size-2-2) var(--size-4-2);
   border: none;
   border-radius: var(--radius-s);
   background: transparent;
   box-shadow: none;
   color: var(--text-muted);
-  font-size: var(--mt-font-smaller);
+  font-size: var(--mt-font-medium);
   cursor: pointer;
 }
 .marktodo-viewbar-toggle:hover {
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
+/* The summary is DRAWN from its parts (obsidian/viewBar.ts), each under the icon
+   of the setting it names, so the collapsed row is scannable rather than a run
+   of grey words. The icons are what separate the parts — there is no "|" to
+   draw, unlike the plain sentence `focusSummary` still composes for the app. */
 .marktodo-viewbar-summary {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  /* Centred in the row it fills, so the parts sit under the middle of the bar
+     rather than hugging its left edge. The chevron stays at the right: it is
+     the disclosure, and it belongs where the row ends. */
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--size-4-3);
+  min-width: 0;
   font-variant-numeric: tabular-nums;
+}
+.marktodo-viewbar-part {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--size-4-1);
+}
+.marktodo-viewbar-part-icon,
+.marktodo-viewbar-column-icon,
+.marktodo-sort-icon,
+.marktodo-focus-icon,
+.marktodo-segment-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+.marktodo-viewbar-part-icon .svg-icon,
+.marktodo-viewbar-column-icon .svg-icon,
+.marktodo-sort-icon .svg-icon,
+.marktodo-focus-icon .svg-icon,
+.marktodo-segment-icon .svg-icon {
+  width: var(--icon-xs);
+  height: var(--icon-xs);
+}
+/* On the control that IS the setting, the icon takes the selected colour with
+   its label — otherwise the glyph stays grey beside text that just lit up. */
+.marktodo-sort-option.is-active .marktodo-sort-icon,
+.marktodo-focus.is-active .marktodo-focus-icon,
+.marktodo-segment.is-active .marktodo-segment-icon {
+  color: inherit;
 }
 .marktodo-viewbar-chevron {
   display: inline-flex;
@@ -925,11 +985,17 @@ body {
   gap: var(--size-4-2);
   padding-bottom: var(--size-4-1);
 }
+/* Filters, Sort and Group ALWAYS stack, one section per row. They used to sit
+   side by side once the pane passed ~370px and drop under each other below it,
+   so the same control had two different shapes and rearranged itself as you
+   dragged a divider. One shape at every width is worth more than the space the
+   two-up version saved, and stacking hands each section the full width for its
+   own grid — which is what lets all five sorts share one row when there is
+   room. */
 .marktodo-viewbar-columns {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-  gap: var(--size-4-2) var(--size-4-4);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
 }
 .marktodo-viewbar-column {
   display: flex;
@@ -950,20 +1016,35 @@ body {
 .marktodo-viewbar-column-head .marktodo-filter-clear {
   margin-left: 0;
 }
+/* The four filters on one grid. They used to be inline rows that wrapped, so a
+   picker with a 9-14rem clamp and a bare select ended up three different widths
+   on three different rows. Equal cells, one label column, controls that fill. */
 .marktodo-filter-fields {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
   gap: var(--size-4-2) var(--size-4-3);
 }
-/* Sort: the same quiet pills as the segments, wrapping rather than stretching. */
+/* Sort and Group are a GRID, because ALIGNMENT is what makes a wrapped set read
+   as one control. Flex rows size themselves independently, so a second row's
+   chips came out a different width from the first row's and the last option
+   looked misplaced rather than wrapped. Grid columns line up down the whole
+   set. `auto-fit` collapses the tracks it doesn't need, so five options spread
+   across one row where there is room and fall to 3 + 2 — still aligned — where
+   there isn't, and the track floor stays small enough that a full row never
+   hands "Due" more width than the word needs. */
 .marktodo-sort-options {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
   gap: 2px;
 }
 .marktodo-sort-options button.marktodo-sort-option {
-  width: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--size-4-1);
+  width: 100%;
+  min-width: 0;
+  white-space: nowrap;
   height: auto;
   padding: var(--size-2-2) var(--size-4-2);
   border: none;
@@ -986,30 +1067,45 @@ body {
   font-weight: var(--font-semibold);
 }
 .marktodo-filter {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(3.25rem, auto) minmax(0, 1fr);
   align-items: center;
-  gap: var(--size-4-1);
+  gap: var(--size-4-2);
+  min-width: 0;
 }
+/* The word naming a field reads at the same size as the value beside it —
+   `smaller` put an 11px "Priority" next to a 13px "All" on the same row. The
+   column heads above stay `smaller`: those caption a whole group, not a row. */
 .marktodo-filter-label {
-  font-size: var(--mt-font-smaller);
+  font-size: var(--mt-font-small);
   color: var(--text-muted);
 }
+/* Two sizes in this bar and only two: `smaller` NAMES a setting (a column
+   head, a field's label) and `small` carries a VALUE (the summary, every
+   chip, a dropdown, a picker's text). */
 .marktodo-viewbar select {
-  font-size: var(--mt-font-smaller);
+  width: 100%;
+  min-width: 0;
+  height: var(--mt-field-height);
+  min-height: var(--mt-field-height);
+  font-size: var(--mt-font-small);
 }
 /* Searchable picker (project / tag): an input dressed as a select. */
 .marktodo-picker {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  min-width: 9rem;
-  max-width: 14rem;
+  min-width: 0;
 }
+/* One box for all four filters: a searchable picker is an <input> and priority
+   and managed are native <select>s, so without this they came out two sizes and
+   two heights on adjacent rows of the same grid. */
 .marktodo-viewbar .marktodo-picker-input {
   width: 100%;
   height: auto;
+  min-height: var(--mt-field-height);
   padding: var(--size-4-1) calc(var(--size-4-2) + var(--icon-xs) + var(--size-4-1)) var(--size-4-1) var(--size-4-2);
-  font-size: var(--mt-font-smaller);
+  font-size: var(--mt-font-small);
   border-radius: var(--radius-s);
   border: 1px solid var(--background-modifier-border);
   background: var(--interactive-normal);
@@ -1588,10 +1684,16 @@ body {
   font-size: var(--mt-font-medium);
 }
 /* ── List column ─────────────────────────────────────────────────────── */
+/* `stable` reserves the scrollbar gutter whether or not the list is currently
+   long enough to scroll. Without it, changing focus changed whether the list
+   scrolled, which added or removed ~12px of scrollbar and RESIZED the pane —
+   so the view bar above reflowed to a different number of grid columns and the
+   whole control jumped when you switched to Plan. */
 .marktodo-list-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .marktodo-list-bar .marktodo-viewbar {
   margin: 0 var(--size-4-3) var(--size-4-2);
@@ -1771,8 +1873,7 @@ body {
 /* `--mt-font-scale` arrives on <body> from Settings → Appearance → Text size
    (obsidian/themeStyles.ts). Every MarkTodo pane and dialog carries
    `.marktodo-theme`, so scaling the tokens here moves all of MarkTodo's text at
-   once and nothing else in Obsidian. Not gated on `marktodo-themed`: legibility
-   has to work under your Obsidian theme too. */
+   once and nothing else in Obsidian. */
 .marktodo-theme {
   --mt-font-smaller: calc(var(--font-ui-smaller) * var(--mt-font-scale, 1));
   --mt-font-small: calc(var(--font-ui-small) * var(--mt-font-scale, 1));
@@ -1780,28 +1881,18 @@ body {
   --mt-font-large: calc(var(--font-ui-large) * var(--mt-font-scale, 1));
 }
 
-/* ── MarkTodo theme surfaces ────────────────────────────────────────── */
-/* The theme's values arrive on <body> as `--mtt-*` custom properties
-   (obsidian/themeStyles.ts, from ui/theme.ts `themeVariables`); here they take
-   their real names inside every MarkTodo pane and dialog, so Obsidian's own
-   controls there match. Inert unless Settings → Appearance → Theme is MarkTodo.
+/* ── MarkTodo accent ────────────────────────────────────────────────── */
+/* MarkTodo follows your Obsidian theme: every background, text and border
+   here is the theme's. What arrives on <body> as `--mtt-*` custom properties
+   (obsidian/themeStyles.ts, from ui/theme.ts `themeVariables`) is the ACCENT
+   you picked, and the due chips, which have no Obsidian variable to inherit.
+   Here they take their real names inside every MarkTodo pane and dialog, so
+   Obsidian's own controls in there take the accent too and nothing outside
+   MarkTodo is touched. The six `--marktodo-*` status colors are NOT here:
+   they go straight onto <body>, because a managed checkbox is drawn in the
+   note, outside any MarkTodo pane.
    One line per theme variable — tests/ui/theme.test.ts keeps this list complete. */
-body.marktodo-themed .marktodo-theme {
-  color-scheme: var(--mtt-color-scheme);
-  color: var(--mtt-color);
-  --background-primary: var(--mtt-background-primary);
-  --background-primary-alt: var(--mtt-background-primary-alt);
-  --background-secondary: var(--mtt-background-secondary);
-  --background-secondary-alt: var(--mtt-background-secondary-alt);
-  --background-modifier-hover: var(--mtt-background-modifier-hover);
-  --background-modifier-active-hover: var(--mtt-background-modifier-active-hover);
-  --background-modifier-border: var(--mtt-background-modifier-border);
-  --background-modifier-border-hover: var(--mtt-background-modifier-border-hover);
-  --background-modifier-border-focus: var(--mtt-background-modifier-border-focus);
-  --background-modifier-form-field: var(--mtt-background-modifier-form-field);
-  --background-modifier-form-field-highlighted: var(--mtt-background-modifier-form-field-highlighted);
-  --interactive-normal: var(--mtt-interactive-normal);
-  --interactive-hover: var(--mtt-interactive-hover);
+.marktodo-theme {
   --interactive-accent: var(--mtt-interactive-accent);
   --interactive-accent-hover: var(--mtt-interactive-accent-hover);
   --interactive-accent-hsl: var(--mtt-interactive-accent-hsl);
@@ -1809,86 +1900,23 @@ body.marktodo-themed .marktodo-theme {
   --accent-s: var(--mtt-accent-s);
   --accent-l: var(--mtt-accent-l);
   --color-accent: var(--mtt-color-accent);
-  --text-normal: var(--mtt-text-normal);
-  --text-muted: var(--mtt-text-muted);
-  --text-faint: var(--mtt-text-faint);
+  --color-accent-1: var(--mtt-color-accent-1);
+  --color-accent-2: var(--mtt-color-accent-2);
   --text-accent: var(--mtt-text-accent);
   --text-accent-hover: var(--mtt-text-accent-hover);
   --text-on-accent: var(--mtt-text-on-accent);
-  --text-error: var(--mtt-text-error);
-  --icon-color: var(--mtt-icon-color);
-  --icon-color-hover: var(--mtt-icon-color-hover);
-  --icon-color-active: var(--mtt-icon-color-active);
-  --icon-color-focused: var(--mtt-icon-color-focused);
-  --nav-item-color: var(--mtt-nav-item-color);
-  --nav-item-color-hover: var(--mtt-nav-item-color-hover);
-  --nav-item-color-active: var(--mtt-nav-item-color-active);
-  --checkbox-color: var(--mtt-checkbox-color);
-  --checkbox-color-hover: var(--mtt-checkbox-color-hover);
-  --dropdown-background: var(--mtt-dropdown-background);
-  --dropdown-background-hover: var(--mtt-dropdown-background-hover);
-  --dropdown-icon-background: var(--mtt-dropdown-icon-background);
-  --background-modifier-form-field-hover: var(--mtt-background-modifier-form-field-hover);
-  --background-modifier-error: var(--mtt-background-modifier-error);
-  --input-placeholder-color: var(--mtt-input-placeholder-color);
-  --modal-background: var(--mtt-modal-background);
-  --modal-border-color: var(--mtt-modal-border-color);
-  --prompt-background: var(--mtt-prompt-background);
-  --prompt-border-color: var(--mtt-prompt-border-color);
-  --suggestion-background: var(--mtt-suggestion-background);
-  --divider-color: var(--mtt-divider-color);
   --text-selection: var(--mtt-text-selection);
-  --checkbox-border-color: var(--mtt-checkbox-border-color);
-  --checkbox-border-color-hover: var(--mtt-checkbox-border-color-hover);
-  --checkbox-marker-color: var(--mtt-checkbox-marker-color);
-  --collapse-icon-color: var(--mtt-collapse-icon-color);
-  --nav-item-background-hover: var(--mtt-nav-item-background-hover);
-  --nav-item-background-active: var(--mtt-nav-item-background-active);
-  --pill-color: var(--mtt-pill-color);
-  --pill-border-color: var(--mtt-pill-border-color);
-  --toggle-thumb-color: var(--mtt-toggle-thumb-color);
-  --setting-item-name-color: var(--mtt-setting-item-name-color);
-  --setting-group-heading-color: var(--mtt-setting-group-heading-color);
-  --setting-items-border-color: var(--mtt-setting-items-border-color);
-  --setting-items-divider-color: var(--mtt-setting-items-divider-color);
-  --caret-color: var(--mtt-caret-color);
-  --pill-color-hover: var(--mtt-pill-color-hover);
-  --pill-color-remove: var(--mtt-pill-color-remove);
-  --pill-color-remove-hover: var(--mtt-pill-color-remove-hover);
-  --input-date-separator: var(--mtt-input-date-separator);
-  --search-icon-color: var(--mtt-search-icon-color);
-  --search-clear-button-color: var(--mtt-search-clear-button-color);
-  --collapse-icon-color-collapsed: var(--mtt-collapse-icon-color-collapsed);
-  --nav-collapse-icon-color: var(--mtt-nav-collapse-icon-color);
-  --nav-collapse-icon-color-collapsed: var(--mtt-nav-collapse-icon-color-collapsed);
-  --nav-heading-color: var(--mtt-nav-heading-color);
-  --nav-heading-color-hover: var(--mtt-nav-heading-color-hover);
-  --nav-item-color-selected: var(--mtt-nav-item-color-selected);
+  --link-color: var(--mtt-link-color);
+  --link-color-hover: var(--mtt-link-color-hover);
   --tag-color: var(--mtt-tag-color);
   --tag-color-hover: var(--mtt-tag-color-hover);
-  --link-color: var(--mtt-link-color);
-  --divider-color-hover: var(--mtt-divider-color-hover);
-  --color-red: var(--mtt-color-red);
-  --color-red-rgb: var(--mtt-color-red-rgb);
-  --color-yellow: var(--mtt-color-yellow);
-  --color-yellow-rgb: var(--mtt-color-yellow-rgb);
-  --color-orange: var(--mtt-color-orange);
-  --color-orange-rgb: var(--mtt-color-orange-rgb);
-  --shadow-s: var(--mtt-shadow-s);
-  --shadow-l: var(--mtt-shadow-l);
-  --marktodo-backlog: var(--mtt-marktodo-backlog);
-  --marktodo-warming: var(--mtt-marktodo-warming);
-  --marktodo-progress: var(--mtt-marktodo-progress);
-  --marktodo-blocked: var(--mtt-marktodo-blocked);
-  --marktodo-paused: var(--mtt-marktodo-paused);
-  --marktodo-done: var(--mtt-marktodo-done);
-  --mt-screen: var(--mtt-mt-screen);
-  --mt-drawer: var(--mtt-mt-drawer);
-  --mt-raised: var(--mtt-mt-raised);
-  --mt-hairline: var(--mtt-mt-hairline);
+  --checkbox-color: var(--mtt-checkbox-color);
+  --checkbox-color-hover: var(--mtt-checkbox-color-hover);
+  --icon-color-active: var(--mtt-icon-color-active);
+  --background-modifier-border-focus: var(--mtt-background-modifier-border-focus);
+  --background-modifier-active-hover: var(--mtt-background-modifier-active-hover);
+  --nav-item-background-active: var(--mtt-nav-item-background-active);
   --mt-primary-light: var(--mtt-mt-primary-light);
-  --mt-selection: var(--mtt-mt-selection);
-  --mt-card: var(--mtt-mt-card);
   --mt-chip-today: var(--mtt-mt-chip-today);
   --mt-chip-today-text: var(--mtt-mt-chip-today-text);
   --mt-chip-overdue: var(--mtt-mt-chip-overdue);
@@ -1904,6 +1932,13 @@ body.marktodo-themed .marktodo-theme {
 .modal.marktodo-theme {
   border: 1px solid var(--mt-hairline);
   box-shadow: var(--shadow-l);
+}
+
+/* The version in Settings → About: a value, so it reads like one. */
+.marktodo-version {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-small);
 }
 
 /* Accent swatches in Settings → Appearance (the app's picker). */

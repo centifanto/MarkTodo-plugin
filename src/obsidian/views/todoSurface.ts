@@ -16,6 +16,7 @@ import TodoList from "../../ui/TodoList.svelte";
 import Board from "../../ui/Board.svelte";
 import { type BoardInstance, type Card } from "../../ui/boardTypes";
 import { type Status, type TodoRecord } from "../../core/types";
+import { LAYOUT_ICONS } from "../viewIcons";
 import { groupsSignature } from "../../ui/viewSignature";
 import { isManualSort, type SortKey } from "../../ui/sorts";
 import { buildColumns, buildStatusSections } from "../viewData";
@@ -160,13 +161,13 @@ export class TodoSurface {
 
 /** The modes a toggle offers, in order. */
 export const TODOS_MODES: ReadonlyArray<ModeOption<SurfaceMode>> = [
-  { mode: "list", icon: "list", label: "List" },
-  { mode: "kanban", icon: "columns-3", label: "Kanban" },
+  { mode: "list", icon: LAYOUT_ICONS.list, label: "List" },
+  { mode: "kanban", icon: LAYOUT_ICONS.kanban, label: "Kanban" },
 ];
 
 export const PROJECT_MODES: ReadonlyArray<ModeOption<BoardMode>> = [
   ...TODOS_MODES,
-  { mode: "source", icon: "code-xml", label: "Source" },
+  { mode: "source", icon: LAYOUT_ICONS.source, label: "Source" },
 ];
 
 export interface ModeOption<M extends string> {

@@ -1,10 +1,12 @@
 /**
- * Puts the MarkTodo theme on the page — the Obsidian half of
- * `ui/theme.ts`, which derives the colors. Obsidian doesn't allow plugins to add
- * `<style>` elements, so the rules live in styles.css and this sets only their
- * values: custom properties on each window's `<body>` (the main one and any
- * pop-outs), kept in step with the plugin's Appearance settings and with
- * Obsidian's accent and light/dark, for the "match Obsidian" choices.
+ * Puts MarkTodo's color on the page — the Obsidian half of `ui/theme.ts`, which
+ * derives it. Obsidian doesn't allow plugins to add `<style>` elements, so the
+ * rules live in styles.css and this sets only their values: custom properties on
+ * each window's `<body>` (the main one and any pop-outs), kept in step with your
+ * accent setting and with Obsidian's own accent, light/dark and background.
+ *
+ * Surfaces are NOT set here: the plugin follows your Obsidian theme. What lands
+ * on `<body>` is the accent, the six status colors and the due chips.
  *
  * Panes and dialogs opt in by carrying `.marktodo-theme` (see `THEME_CLASS`);
  * nothing else in Obsidian is restyled.
@@ -30,7 +32,7 @@ export class ThemeStyles {
       this.plugin.app.workspace.on("window-open", (win) => this.attach(win.doc)),
     );
     // Obsidian fires this when the theme, the light/dark mode or the accent
-    // changes — the three inputs "match Obsidian" reads.
+    // changes — every input this reads from the page.
     this.plugin.registerEvent(this.plugin.app.workspace.on("css-change", () => this.refresh()));
     this.plugin.register(() => this.detachAll());
   }
@@ -54,19 +56,19 @@ export class ThemeStyles {
   private paint(doc: Document): void {
     const body = doc.body;
     const read = (name: string): string => getComputedStyle(body).getPropertyValue(name);
-    // Text size rides along but is NOT a theme property: it applies under your
-    // Obsidian theme too, where `themeProperties` deliberately yields nothing.
+    // Text size rides along but is NOT a color property: it is legibility, and
+    // it is set the same way whatever your accent is.
     const props = {
       ...themeProperties(
         this.plugin.settings.appearance,
         parseObsidianAccent(read("--accent-h"), read("--accent-s"), read("--accent-l")),
         body.hasClass("theme-dark"),
+        // The chips composite onto this and then nudge their text to 4.5:1, so
+        // they stay legible on a paper-white theme and a true-black one alike.
+        read("--background-primary").trim() || (body.hasClass("theme-dark") ? "#111111" : "#FFFFFF"),
       ),
       ...fontProperties(this.plugin.settings.fontScale),
     };
-    // Lets the stylesheet tell "themed" from "your Obsidian theme": the carried
-    // variables only take effect under it.
-    body.toggleClass("marktodo-themed", this.plugin.settings.appearance.style === "marktodo");
 
     const signature = JSON.stringify(props);
     if (this.painted.get(doc) === signature) return;
@@ -82,7 +84,6 @@ export class ThemeStyles {
     const cleared = Object.fromEntries([...this.keys].map((key) => [key, ""]));
     for (const doc of this.docs) {
       doc.body?.setCssProps(cleared);
-      doc.body?.removeClass("marktodo-themed");
     }
     this.docs.clear();
   }

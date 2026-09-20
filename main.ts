@@ -78,7 +78,7 @@ export default class MarkTodoPlugin extends Plugin {
     const deviceMode = storedDeviceMode(this.app);
     this.lightweight = effectiveDeviceMode(deviceMode, Platform.isMobile) === "light";
 
-    // The MarkTodo theme before any pane draws, so nothing flashes
+    // MarkTodo's accent and status colors before any pane draws, so nothing flashes
     // in Obsidian's colors first.
     this.theme = new ThemeStyles(this);
     this.theme.register();

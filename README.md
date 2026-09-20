@@ -52,7 +52,7 @@ The app is not this plugin on a smaller screen. It puts your projects, your
 list, and the todo you're in in three panes side by side, and slides between
 them rather than stacking full-screen views you have to press Back out of — so
 the list you were reading is still there when you finish with a todo. The app
-is pending review on Google Play.
+is in closed testing on Google Play.
 
 ## The format
 
@@ -94,6 +94,66 @@ different views over the same Markdown.
 ![The MarkTodo dashboard in Obsidian: projects listed down the left, todos grouped under their status headings in the main pane](docs/screenshots/plugin-dashboard.png)
 
 ![A project as a Kanban board: one column per status, from Backlog through Done, with todo cards in each](docs/screenshots/plugin-kanban.png)
+
+## Narrowing a view
+
+Every list and board carries one collapsible bar, and collapsed it still says
+what it is doing — `List | All | 0 filters | Manual | Status`. A control that
+hides itself leaves you guessing why a list is short.
+
+- **Phase segments** — All, Plan, Active, Doing — narrow any view to a phase,
+  or to Doing alone when all you want on screen is what you are working on.
+- **Filters** by project, tag, priority, or whether a todo is managed.
+- **Sort** within each status: Manual, Due, Priority or Title. Manual means
+  file order and is the only sort a drag can write back, so choosing another
+  turns drag-to-reorder off rather than writing an order nothing on screen
+  reflects.
+- **Group** Today's segments by date, project, priority or status.
+
+**Today** leads with whatever is overdue, in a band of its own, whatever the
+sort or grouping — with **Pull forward** to move those todos to today. Its four
+segments (Today, Upcoming, Reminders, Recent) each remember their own sort,
+grouping and folds, because they are four different questions.
+
+A project is **pinned** with `marktodo-pinned: true` in its note, which lifts it
+to the top of the dashboard. Because the pin lives in the note, it crosses to
+the app and survives a rename.
+
+## Appearance
+
+MarkTodo follows your Obsidian theme. Backgrounds, text and borders are your
+theme's, in whatever light or dark you run — there is no MarkTodo theme to
+switch to, and nothing to fall out of step with the vault around it.
+
+Two things are MarkTodo's own. **The six status colours are fixed** — Backlog
+neutral, Warming yellow, Doing blue, Blocked red, Paused purple, Done green —
+for the same reason the six names are: a heading means one thing in every
+vault, so it should look the same in every vault too. And **one accent**, which
+colours selection, links and buttons inside MarkTodo's panes — any Flexoki hue,
+or Obsidian's own.
+
+### Why Flexoki
+
+[Flexoki](https://stephango.com/flexoki) is an inky palette by Steph Ango,
+Obsidian's own CEO, drawn from analog inks and warm shades of paper — and it is
+built for exactly the job six status colours have to do. Its own goal is to be
+"calibrated for legibility and perceptual balance across devices", which is the
+difference between a palette that looks good on a swatch and one you can read
+all day.
+
+That matters here because these colours are not decoration. A status glyph is a
+small mark you scan past hundreds of times, so the palette has to stay quiet:
+Flexoki's hues are muted and slightly warm rather than saturated, and six of
+them can share a list without any one shouting over the others. Each hue is
+also a full ramp with a step chosen for light backgrounds and another for dark,
+so a status stays legible on paper-white and on true black without being tuned
+twice. MarkTodo takes Flexoki's 600 in light and 400 in dark, exactly as that
+palette prescribes for coloured text.
+
+The dashboard opens in the left sidebar by default; Settings offers the right
+sidebar, a pane at the left of the main area, or the main area itself. Text
+size is a multiplier on your theme's sizes, so your theme and zoom still decide
+the baseline.
 
 ## Making todos
 
@@ -138,7 +198,7 @@ these in Settings → Hotkeys.
 
 ## Status
 
-Early beta (0.0.5), available in
+Early beta (0.0.9), available in
 [Community Plugins](https://community.obsidian.md/plugins/marktodo).
 
 ## Development
@@ -153,7 +213,7 @@ pnpm lint    # Obsidian's community-plugin review rules
 ```
 
 To release, bump the version in `manifest.json`, `package.json` and
-`versions.json`, then push a tag with the bare version (`0.0.5`). The Release
+`versions.json`, then push a tag with the bare version (`0.0.9`). The Release
 workflow builds, attests and publishes `main.js`, `manifest.json` and
 `styles.css`.
 

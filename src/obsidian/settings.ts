@@ -128,7 +128,7 @@ export interface MarkTodoSettings {
    * or your Obsidian theme. The plugin's own; the app has separate settings.
    */
   appearance: Appearance;
-  /** Where the dashboard (the navigator) lives. Default: right sidebar. */
+  /** Where the dashboard (the navigator) lives. Default: left sidebar. */
   dashboardLocation: DashboardLocation;
   /**
    * The width in px of a dashboard living as a pane in the main area —
@@ -191,7 +191,7 @@ export const DEFAULT_SETTINGS: MarkTodoSettings = {
   todayArrangement: defaultArrangements(),
   viewMemory: {},
   appearance: { ...DEFAULT_APPEARANCE },
-  dashboardLocation: "right",
+  dashboardLocation: "left",
   dashboardWidth: 600,
   paneMode: "dual",
   navSide: "left",

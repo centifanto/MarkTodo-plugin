@@ -67,17 +67,55 @@ export function focusLabel(focus: Focus): string {
 }
 
 /** What the view bar's summary line says, and which parts it has to say it with. */
+/** What the view bar's summary line says, and which parts it has to say it with. */
 export interface FocusSummary {
+  /**
+   * The layout in effect ("List" / "Board"); omitted on a surface with one
+   * layout. FIRST in the line, because it is the most structural of the parts —
+   * the others describe what is in the view, this one describes its shape.
+   */
+  layout?: string | null;
   /** The focus in effect; null on a surface that has no focus (the Inbox). */
   focus: Focus | null;
   /** How many filters are set; null on a surface that offers none. */
   filters: number | null;
   /** The current sort's label; null on a surface that doesn't sort. */
   sort: string | null;
+  /** The current grouping's label; omitted on a surface that groups one way only. */
+  group?: string | null;
 }
 
 /** The separator between the summary's parts. */
 const SUMMARY_SEP = " | ";
+
+/** Which setting a summary part is about — what a surface draws its icon from. */
+export type SummaryPart = "layout" | "focus" | "filters" | "sort" | "group";
+
+/**
+ * The collapsed line's parts, in order, each with the setting it speaks for.
+ *
+ * Split out from `focusSummary` so a surface can DRAW the parts rather than
+ * print them — each one gets the icon of the setting it names. Order,
+ * membership and wording stay here, once, so the drawn row and the printed
+ * sentence can never come to disagree, and so the sentence is still this
+ * function joined by `SUMMARY_SEP`.
+ */
+export function focusSummaryParts({
+  layout,
+  focus,
+  filters,
+  sort,
+  group,
+}: FocusSummary): ReadonlyArray<{ part: SummaryPart; text: string }> {
+  const parts: Array<{ part: SummaryPart; text: string }> = [];
+  if (layout != null) parts.push({ part: "layout", text: layout });
+  if (focus !== null) parts.push({ part: "focus", text: focusLabel(focus) });
+  if (filters !== null)
+    parts.push({ part: "filters", text: filters === 1 ? "1 filter" : `${filters} filters` });
+  if (sort !== null) parts.push({ part: "sort", text: sort });
+  if (group != null) parts.push({ part: "group", text: group });
+  return parts;
+}
 
 /**
  * The one-line reading of a collapsed focus row: `All | 0 filters | Manual`.
@@ -92,10 +130,9 @@ const SUMMARY_SEP = " | ";
  * "0 filters", because the count is the whole reason that part is there — the
  * row has to say the list is unfiltered, not leave you to infer it.
  */
-export function focusSummary({ focus, filters, sort }: FocusSummary): string {
-  const parts: string[] = [];
-  if (focus !== null) parts.push(focusLabel(focus));
-  if (filters !== null) parts.push(filters === 1 ? "1 filter" : `${filters} filters`);
-  if (sort !== null) parts.push(sort);
-  return parts.join(SUMMARY_SEP);
+export function focusSummary(summary: FocusSummary): string {
+  return focusSummaryParts(summary)
+    .map((p) => p.text)
+    .join(SUMMARY_SEP);
 }
+

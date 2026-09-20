@@ -42,15 +42,13 @@ import { DEFAULT_SETTINGS } from "./settings";
 import {
   ACCENTS,
   FONT_SCALES,
-  THEME_MODES,
-  THEME_STYLES,
   buildTheme,
   parseObsidianAccent,
   type AccentKey,
+  type FlexokiHue,
   type FontScale,
-  type ThemeMode,
-  type ThemeStyle,
 } from "../ui/theme";
+import { toHsl } from "../ui/color";
 import { DASHBOARD_LOCATIONS, type DashboardLocation } from "../ui/paneLayout";
 import { NAV_SIDES, PANE_MODES, type NavSide, type PaneMode } from "../ui/dashboardNav";
 import { openDashboard } from "./layout";
@@ -144,7 +142,7 @@ export class MarkTodoSettingTab extends PluginSettingTab {
       this.advancedSection(),
       this.folderSection(),
       this.appNoteSection(),
-      this.contactSection(),
+      this.aboutSection(),
     ];
   }
 
@@ -436,10 +434,20 @@ export class MarkTodoSettingTab extends PluginSettingTab {
   }
 
   /** Contact — always last, like the app's. */
-  private contactSection(): Section {
+  /** The plugin itself: which build you are running, then where to reach us. */
+  private aboutSection(): Section {
+    const version: Row = {
+      name: "Version",
+      desc: "The MarkTodo plugin you have installed. Say this when you report something.",
+      render: (setting) => {
+        setting.controlEl.createSpan({ cls: "marktodo-version", text: this.plugin.manifest.version });
+      },
+    };
     return {
-      heading: "Contact",
-      rows: CONTACT_LINKS.map(
+      heading: "About",
+      rows: [
+        version,
+        ...CONTACT_LINKS.map(
         (link): Row => ({
           name: link.name,
           desc: link.desc,
@@ -452,7 +460,8 @@ export class MarkTodoSettingTab extends PluginSettingTab {
             return () => icon.detach();
           },
         }),
-      ),
+        ),
+      ],
     };
   }
 
@@ -665,26 +674,10 @@ export class MarkTodoSettingTab extends PluginSettingTab {
       this.plugin.theme.refresh();
       this.redraw();
     };
-    const marktodoStyle = (): boolean => settings.appearance.style === "marktodo";
 
     return {
       heading: "Appearance",
       rows: [
-        {
-          name: "Theme",
-          desc:
-            "MarkTodo: the companion app's colors in MarkTodo's panes and dialogs — surfaces tinted " +
-            "with your accent, status colors tuned for contrast. Obsidian theme: your current theme's colors.",
-          render: (setting) => {
-            setting.addDropdown((dropdown) => {
-              for (const { key, label } of THEME_STYLES) dropdown.addOption(key, label);
-              dropdown.setValue(settings.appearance.style).onChange((value) => {
-                settings.appearance = { ...settings.appearance, style: value as ThemeStyle };
-                apply();
-              });
-            });
-          },
-        },
         {
           name: "Text size",
           desc:
@@ -701,45 +694,32 @@ export class MarkTodoSettingTab extends PluginSettingTab {
           },
         },
         {
-          name: "Mode",
-          desc: "Match Obsidian follows its light/dark setting. Black is dark with a true-black background.",
-          visible: marktodoStyle,
-          render: (setting) => {
-            setting.addDropdown((dropdown) => {
-              for (const { key, label } of THEME_MODES) dropdown.addOption(key, label);
-              dropdown.setValue(settings.appearance.mode).onChange((value) => {
-                settings.appearance = { ...settings.appearance, mode: value as ThemeMode };
-                apply();
-              });
-            });
-          },
-        },
-        {
           name: "Accent",
-          visible: marktodoStyle,
+          desc:
+            "The one color MarkTodo picks — selection, links and buttons in its panes. Everything " +
+            "else follows your Obsidian theme, and the six status colors are fixed. Palette: Flexoki.",
           render: (setting) => {
-            setting.setDesc(
-              settings.appearance.accent === "obsidian" ? "Obsidian's accent color" : ACCENTS[settings.appearance.accent].label,
-            );
             const row = setting.controlEl.createDiv({ cls: "marktodo-swatches" });
-            const dark =
-              settings.appearance.mode === "obsidian" ? document.body.hasClass("theme-dark") : settings.appearance.mode !== "light";
+            const dark = document.body.hasClass("theme-dark");
             const read = (name: string): string => getComputedStyle(document.body).getPropertyValue(name);
+            const background = read("--background-primary").trim() || (dark ? "#111111" : "#FFFFFF");
             const obsidianAccent = parseObsidianAccent(read("--accent-h"), read("--accent-s"), read("--accent-l"));
             const choices: Array<[AccentKey, string]> = [
               ["obsidian", "Match Obsidian's accent"],
-              ...Object.entries(ACCENTS).map(([key, a]) => [key as AccentKey, a.label] as [AccentKey, string]),
+              ...(Object.entries(ACCENTS) as Array<[FlexokiHue, { label: string }]>).map(
+                ([key, a]) => [key as AccentKey, a.label] as [AccentKey, string],
+              ),
             ];
             for (const [key, label] of choices) {
-              const hsl = key === "obsidian" ? obsidianAccent : ACCENTS[key];
-              const { primary } = buildTheme(dark ? "dark" : "light", hsl).colors;
+              const hsl = key === "obsidian" ? obsidianAccent : toHsl(dark ? ACCENTS[key].dark : ACCENTS[key].light);
+              const { primary } = buildTheme(dark, hsl, background).colors;
               const swatch = row.createEl("button", {
                 cls: `marktodo-swatch${settings.appearance.accent === key ? " is-active" : ""}${key === "obsidian" ? " is-obsidian" : ""}`,
                 attr: { "aria-label": label, title: label },
               });
               swatch.setCssProps({ "--swatch": primary });
               swatch.addEventListener("click", () => {
-                settings.appearance = { ...settings.appearance, accent: key };
+                settings.appearance = { accent: key };
                 apply();
               });
             }

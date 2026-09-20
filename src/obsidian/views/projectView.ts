@@ -22,6 +22,7 @@ import { type ModalAnchor } from "../modalAnchor";
 import { openBoard, showInDashboard } from "../layout";
 import { PROJECT_ICON } from "../../ui/iconMaps";
 import { PROJECT_MODES, TodoSurface, buildModeSwitch, type BoardMode } from "./todoSurface";
+import { filterByState, type FilterState } from "../filterBar";
 import { THEME_CLASS } from "../themeStyles";
 import type MarkTodoPlugin from "../../../main";
 
@@ -35,6 +36,8 @@ export class ProjectView extends ItemView {
   private toolbarEl: HTMLElement | null = null;
   private surface: TodoSurface | null = null;
   private dirty = false;
+  /** Shared with this project's list through `MEMORY_KEY`, so both narrow alike. */
+  private filterState: FilterState = {};
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -147,18 +150,28 @@ export class ProjectView extends ItemView {
   }
 
   /**
-   * The mode switch, then the view bar. Focus only: a project's own board has
-   * no filters to offer (it is already one project) and no sort (a board's
-   * order is the one you set by dragging).
+   * One bar, with the mode switch riding in its head — the same shape the Todos
+   * board uses, so List ⇄ Kanban ⇄ Source sits in one place on every surface
+   * rather than above the bar here and inside it there.
+   *
+   * No sort: a board's order is the one you set by dragging. Filters it does
+   * have — "already one project" rules out the PROJECT picker, not tag,
+   * priority or managed — and they are the same `MEMORY_KEY` as this project's
+   * list, so narrowing it in the dashboard narrows it here too.
    */
   private renderToolbar(): void {
     if (!this.toolbarEl) return;
     this.toolbarEl.empty();
-    buildModeSwitch(this.toolbarEl, PROJECT_MODES, "kanban", (mode) => this.setMode(mode));
     const memory = this.plugin.viewMemory(MEMORY_KEY);
+    this.filterState = memory.filters;
+    const all = this.path === null ? [] : this.plugin.index.getByFile(this.path);
+    const lead = createDiv();
+    buildModeSwitch(lead, PROJECT_MODES, "kanban", (mode) => this.setMode(mode));
     buildViewBar(this.toolbarEl.createDiv({ cls: "marktodo-toolbar-bar" }), {
       app: this.app,
-      todos: this.path === null ? [] : this.plugin.index.getByFile(this.path),
+      todos: filterByState(all, this.filterState, "projects"),
+      lead: lead.firstElementChild as HTMLElement,
+      layout: { key: "kanban", label: "Kanban" },
       focus: {
         current: this.plugin.settings.focus,
         onPick: (focus) => {
@@ -166,6 +179,15 @@ export class ProjectView extends ItemView {
           void this.plugin.saveSettings();
           this.renderToolbar();
           this.surface?.invalidate();
+          this.renderContent();
+        },
+      },
+      filters: {
+        state: this.filterState,
+        surface: "projects",
+        onChange: () => {
+          this.plugin.rememberView(MEMORY_KEY, { filters: this.filterState });
+          this.renderToolbar();
           this.renderContent();
         },
       },
@@ -184,8 +206,8 @@ export class ProjectView extends ItemView {
       return;
     }
     this.dirty = false;
-    const todos = this.path === null ? [] : this.plugin.index.getByFile(this.path);
-    this.surface.render(todos, "kanban");
+    const all = this.path === null ? [] : this.plugin.index.getByFile(this.path);
+    this.surface.render(filterByState(all, this.filterState, "projects"), "kanban");
   }
 
   private addTodo(status?: Status, anchor?: ModalAnchor): void {

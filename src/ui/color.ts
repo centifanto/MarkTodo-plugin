@@ -42,6 +42,21 @@ export function parseHex(hex: string): Rgb {
   return {r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: m[2] ? parseInt(m[2], 16) / 255 : 1};
 }
 
+/** `#rrggbb` → the same color as `{h, s, l}`, the shape Obsidian's `--accent-*` wants. */
+export function toHsl(hex: string): {h: number; s: number; l: number} {
+  const {r, g, b} = parseHex(hex);
+  const [rr, gg, bb] = [r / 255, g / 255, b / 255];
+  const max = Math.max(rr, gg, bb);
+  const min = Math.min(rr, gg, bb);
+  const l = (max + min) / 2;
+  const d = max - min;
+  if (d === 0) return {h: 0, s: 0, l: l * 100};
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h =
+    max === rr ? ((gg - bb) / d) % 6 : max === gg ? (bb - rr) / d + 2 : (rr - gg) / d + 4;
+  return {h: ((h * 60) % 360 + 360) % 360, s: s * 100, l: l * 100};
+}
+
 export function withAlpha(hex: string, alpha: number): string {
   return toHex({...parseHex(hex), a: alpha});
 }
