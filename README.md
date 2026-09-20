@@ -51,8 +51,19 @@ Enable kanban drag on mobile to move cards between columns with a thumb.
 The app is not this plugin on a smaller screen. It puts your projects, your
 list, and the todo you're in in three panes side by side, and slides between
 them rather than stacking full-screen views you have to press Back out of — so
-the list you were reading is still there when you finish with a todo. The app
-is in closed testing on Google Play.
+the list you were reading is still there when you finish with a todo.
+
+![The MarkTodo Android app: projects down the left, a project's todos in the middle, and the open todo's editor on the right, all three panes visible at once](docs/screenshots/app-three-panes.png)
+
+That is one screen, not three. Your projects, the list you are working, and the
+todo you have open are all in view together — pick a project on the left and the
+middle updates; open a todo and the editor slides in beside the list rather than
+over it. On a phone the panes are one swipe apart, so the same layout works with
+one thumb. Everything in that shot is plain Markdown in an Obsidian vault, read
+and written under the same grammar this plugin uses.
+
+The app is in closed testing on
+[Google Play](https://play.google.com/store/apps/details?id=com.marktodo.app).
 
 ## The format
 
