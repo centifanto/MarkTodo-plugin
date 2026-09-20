@@ -5,7 +5,8 @@
 import { type Status } from "../core/types";
 import { type FilterState } from "./filterLogic";
 import { DEFAULT_PROJECT_SORT, type ProjectSort } from "../ui/projectNav";
-import { DEFAULT_TODAY_ARRANGEMENT, type TodayArrangement } from "../ui/smartViews";
+import { defaultArrangements, type SmartViewType, type TodayArrangement } from "../ui/smartViews";
+import { type SortKey } from "../ui/sorts";
 import { type DashboardLocation } from "../ui/paneLayout";
 import {
   DEFAULT_SELECTION,
@@ -20,14 +21,13 @@ import { DEFAULT_FOCUS, type Focus } from "../ui/focus";
 
 /**
  * What the navigator pane remembers. Not a user-facing
- * setting — it is state the pane writes as you use it. Pins are vault PATHS, so
- * a renamed note drops its pin rather than following a name onto some other
- * note; `collapsed` holds the sections toggled AWAY from their default, so a new
- * group never inherits a stale collapse.
+ * setting — it is state the pane writes as you use it. Pins are NOT here: a pin
+ * is a note flag (`marktodo-pinned`), so it syncs with the vault and the
+ * companion app can set one. `collapsed` holds the sections toggled AWAY from
+ * their default, so a new group never inherits a stale collapse.
  */
 export interface NavMemory {
   sort: ProjectSort;
-  pinned: string[];
   collapsed: string[];
   /** What the dashboard's list column shows. */
   selected: Selection;
@@ -40,10 +40,16 @@ export interface NavMemory {
 /** What a view remembers between openings: its last filters + bar state. */
 export interface ViewMemory {
   filters: FilterState;
-  /** Whether the filter bar is collapsed. */
-  collapsed: boolean;
+  /**
+   * Whether the view bar is collapsed to its one-line summary. Default open:
+   * the row names the focus, the filter count and the sort, and a control that
+   * says what it is doing is only worth hiding once you have asked it to.
+   */
+  focusCollapsed: boolean;
   /** Status sections folded shut in the list, by status key. */
   sections: string[];
+  /** Within-status ordering, by `ui/sorts.ts` key. Manual = file order. */
+  sort: SortKey;
 }
 
 export interface MarkTodoSettings {
@@ -109,8 +115,12 @@ export interface MarkTodoSettings {
   showCapsuleInEditor: boolean;
   /** Navigator pane state — not a user-facing setting. */
   nav: NavMemory;
-  /** The Today view's sort + group — remembered across openings. */
-  todayArrangement: TodayArrangement;
+  /**
+   * Each Today segment's sort + group, remembered across openings. Per segment
+   * because they ask different questions: Today wants status dividers, Recent
+   * wants none (every row in it is Done).
+   */
+  todayArrangement: Record<SmartViewType, TodayArrangement>;
   /** Per-view memory keyed by view ("todos", "inbox", …) — not a user-facing setting. */
   viewMemory: Record<string, ViewMemory>;
   /**
@@ -173,13 +183,12 @@ export const DEFAULT_SETTINGS: MarkTodoSettings = {
   showCapsuleInEditor: false,
   nav: {
     sort: DEFAULT_PROJECT_SORT,
-    pinned: [],
     collapsed: [],
     selected: DEFAULT_SELECTION,
     singleView: "nav",
     navWidth: NAV_COLUMN_PX,
   },
-  todayArrangement: { ...DEFAULT_TODAY_ARRANGEMENT },
+  todayArrangement: defaultArrangements(),
   viewMemory: {},
   appearance: { ...DEFAULT_APPEARANCE },
   dashboardLocation: "right",

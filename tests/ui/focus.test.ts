@@ -3,7 +3,9 @@ import {
   DEFAULT_FOCUS,
   FOCUS_SEGMENTS,
   focusCounts,
+  focusLabel,
   focusStatuses,
+  focusSummary,
   inFocus,
   parseFocus,
   type Focus,
@@ -115,6 +117,38 @@ describe("focus", () => {
     expect(parseFocus("blocked")).toBe(DEFAULT_FOCUS);
     expect(parseFocus("doing")).toBe("doing");
     expect(DEFAULT_FOCUS).toBe("all");
+  });
+});
+
+describe("focusSummary — the view bar's one-line reading", () => {
+  // The plugin owns this composition so both programs say the same sentence;
+  // these are the rules the app has to match.
+  it("reads focus, then the filter count, then the sort", () => {
+    expect(focusSummary({ focus: "all", filters: 0, sort: "Manual" })).toBe("All | 0 filters | Manual");
+    expect(focusSummary({ focus: "doing", filters: 2, sort: "Due" })).toBe("Doing | 2 filters | Due");
+  });
+
+  it("says 0 filters rather than dropping the part — unfiltered is worth saying", () => {
+    expect(focusSummary({ focus: "all", filters: 0, sort: null })).toBe("All | 0 filters");
+  });
+
+  it("singularizes one filter", () => {
+    expect(focusSummary({ focus: "all", filters: 1, sort: null })).toBe("All | 1 filter");
+  });
+
+  it("drops a part the surface does not have, rather than writing 'none'", () => {
+    // The Inbox: no focus, no sort.
+    expect(focusSummary({ focus: null, filters: 0, sort: null })).toBe("0 filters");
+    // A project's own list: no filters.
+    expect(focusSummary({ focus: "all", filters: null, sort: "Title" })).toBe("All | Title");
+    expect(focusSummary({ focus: null, filters: null, sort: null })).toBe("");
+  });
+
+  it("names the focus with the segment's own label, never the raw key", () => {
+    for (const { key, label } of FOCUS_SEGMENTS) {
+      expect(focusLabel(key)).toBe(label);
+      expect(focusSummary({ focus: key, filters: null, sort: null })).toBe(label);
+    }
   });
 });
 

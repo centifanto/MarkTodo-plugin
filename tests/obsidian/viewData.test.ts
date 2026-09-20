@@ -96,6 +96,46 @@ describe("buildListGroups", () => {
   });
 });
 
+describe("buildStatusSections — the within-status sort", () => {
+  const backlog = (title: string, over: Partial<TodoRecord> = {}) =>
+    rec(" ", { displayText: title, ...over });
+
+  it("defaults to file order, so a fresh list reads as the note does", () => {
+    const todos = [backlog("z", { line: 1 }), backlog("a", { line: 2 })];
+    const section = buildStatusSections(todos)[0];
+    expect(section.todos.map((t) => t.displayText)).toEqual(["z", "a"]);
+  });
+
+  it("orders inside a status when asked", () => {
+    const todos = [
+      backlog("later", { due: "2026-09-20", line: 1 }),
+      backlog("soon", { due: "2026-09-10", line: 2 }),
+    ];
+    const section = buildStatusSections(todos, "all", "due")[0];
+    expect(section.todos.map((t) => t.displayText)).toEqual(["soon", "later"]);
+  });
+
+  // The invariant worth guarding: a sort reorders rows, it never regroups them.
+  // A todo that changed section would be a regrouping wearing a sort's name.
+  it("never moves a todo out of its own status", () => {
+    const todos = [
+      rec("/", { id: "doing", due: "2026-12-01" }),
+      rec(" ", { id: "backlog", due: "2026-01-01" }),
+      rec("x", { id: "done", due: "2026-06-01" }),
+    ];
+    for (const sort of ["manual", "due", "priority", "title", "project"] as const) {
+      const byStatus = Object.fromEntries(
+        buildStatusSections(todos, "all", sort).map((s) => [s.status, s.todos.map((t) => t.id)]),
+      );
+      expect(byStatus, sort).toMatchObject({
+        BACKLOG: ["backlog"],
+        PROGRESS: ["doing"],
+        DONE: ["done"],
+      });
+    }
+  });
+});
+
 describe("buildStatusSections", () => {
   it("has every status in column order, empty ones included", () => {
     const sections = buildStatusSections([rec(" ", { id: "a" })]);

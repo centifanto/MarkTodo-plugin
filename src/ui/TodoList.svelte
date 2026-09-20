@@ -6,11 +6,18 @@
   import { PHASE_LABELS, statusOf, type Phase, type Status, type TodoRecord } from "../core/types";
   import { localIsoDate } from "../core/dates";
   import { type Card } from "./boardTypes";
-  import { isStatusCollapsed, toggleStatusSection } from "./statusSections";
+  import { DEFAULT_COLLAPSED_STATUSES, isStatusCollapsed, toggleStatusSection } from "./statusSections";
+  import { OVERDUE_KEY } from "./smartViews";
 
   interface Group {
     label: string;
     todos: TodoRecord[];
+    /**
+     * Stable section key. `OVERDUE_KEY` draws the band instead of an ordinary
+     * heading — matched on the key, not on the word "Overdue", so the two
+     * renderers agree without sharing a string of display text.
+     */
+    key?: string;
     /** A note group: the heading links to this file. */
     file?: string;
     status?: Status;
@@ -24,6 +31,7 @@
     emptyText = "No todos found.",
     showProject = false,
     collapsed = [],
+    collapsedDefaults = DEFAULT_COLLAPSED_STATUSES,
     onToggleSection,
     onStatusClick,
     onOpenTodo,
@@ -33,6 +41,7 @@
     onAdd,
     onMove,
     onReorder,
+    onPullForward,
     dragDisabled = false,
   }: {
     groups: Group[];
@@ -45,6 +54,11 @@
      * folded). When `onToggleSection` is set, status headings fold on click.
      */
     collapsed?: string[];
+    /**
+     * Which statuses start folded on THIS surface — `collapsed` holds the flips
+     * away from it. A project list folds Done; Today folds all but Doing.
+     */
+    collapsedDefaults?: readonly Status[];
     onToggleSection?: (toggled: string[]) => void;
     onStatusClick?: (todo: TodoRecord, event: MouseEvent) => void;
     /** `anchor` is the clicked row / card, so the editor can open over it. */
@@ -64,6 +78,11 @@
      */
     onMove?: (todo: TodoRecord, toStatus: Status) => void;
     onReorder?: (todo: TodoRecord, anchor: TodoRecord, position: "before" | "after") => void;
+    /**
+     * When set, the overdue band gets a "Pull forward" button that re-dates the
+     * todos IT is showing — only those, never every overdue todo in the vault.
+     */
+    onPullForward?: (todos: TodoRecord[]) => void;
     dragDisabled?: boolean;
   } = $props();
 
@@ -79,7 +98,9 @@
   let toggled = $state<string[]>([...collapsed]);
 
   const isFolded = (group: Group): boolean =>
-    onToggleSection !== undefined && group.status !== undefined && isStatusCollapsed(group.status, toggled);
+    onToggleSection !== undefined &&
+    group.status !== undefined &&
+    isStatusCollapsed(group.status, toggled, collapsedDefaults);
 
   /**
    * A phase heading goes above the FIRST status section of each phase — so a
@@ -126,13 +147,27 @@
   {#if total === 0}
     <div class="marktodo-empty">{emptyText}</div>
   {/if}
-  {#each groups as group, gi (group.file ?? group.label)}
+  {#each groups as group, gi (group.key ?? group.file ?? group.label)}
     {@const folded = isFolded(group)}
     {#if startsPhase(gi)}
       <div class="marktodo-phase-head">{PHASE_LABELS[group.phase!]}</div>
     {/if}
     <div class="marktodo-group" class:is-folded={folded}>
-      {#if group.status}
+      {#if group.key === OVERDUE_KEY}
+        <!-- A divider, not a group header: overdue is a state the list is
+             warning you about, not one of the buckets it sorts into. -->
+        <div class="marktodo-overdue-band">
+          <span class="marktodo-overdue-label">{group.label}</span>
+          <span class="marktodo-overdue-count">{group.todos.length}</span>
+          {#if onPullForward}
+            <button
+              class="marktodo-overdue-pull"
+              title="Set every overdue todo shown here to today"
+              onclick={() => onPullForward?.(group.todos)}
+            >Pull forward</button>
+          {/if}
+        </div>
+      {:else if group.status}
         {@const status = group.status}
         <div class="marktodo-section-head is-{status.toLowerCase()}">
           <button

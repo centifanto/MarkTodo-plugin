@@ -1,7 +1,8 @@
 /**
  * Icon names per status / priority. Render-only.
- * Status icons are MarkTodo's own rounded-square glyphs (`statusGlyphs.ts`),
- * registered with `addIcon` under these ids at load; priority icons are Lucide.
+ * Both sets are MarkTodo's own glyphs — rounded squares for status
+ * (`statusGlyphs.ts`), ascending bars for priority (`priorityGlyphs.ts`) —
+ * registered with `addIcon` under these ids at load.
  */
 import { type Priority, type Status } from "../core/types";
 
@@ -15,9 +16,9 @@ export const STATUS_ICONS: Record<Status, string> = {
 };
 
 export const PRIORITY_ICONS: Record<Exclude<Priority, "NONE">, string> = {
-  URGENT: "flame",
-  HIGH: "chevron-up",
-  LOW: "chevron-down",
+  URGENT: "marktodo-priority-urgent",
+  HIGH: "marktodo-priority-high",
+  LOW: "marktodo-priority-low",
 };
 
 /**

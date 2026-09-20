@@ -13,7 +13,6 @@ import {
   sectionProjects,
   sortProjects,
   toggleSection,
-  togglePin,
   type NavProject,
 } from "../../src/ui/projectNav";
 import { type TodoRecord } from "../../src/core/types";
@@ -24,6 +23,7 @@ function proj(name: string, over: Partial<NavProject> = {}): NavProject {
     path: `${name}.md`,
     group: null,
     archived: false,
+    pinned: false,
     open: 0,
     overdue: 0,
     mtime: 0,
@@ -90,18 +90,23 @@ describe("sortProjects", () => {
 });
 
 describe("arrangeProjects", () => {
-  const list = [proj("a"), proj("b"), proj("c")];
+  const list = [proj("c", { pinned: true }), proj("b"), proj("a", { pinned: true })];
 
   it("splits pinned from the rest, both in sort order", () => {
-    const { pinned, rest } = arrangeProjects(list, "name", ["c.md", "a.md"]);
+    const { pinned, rest } = arrangeProjects(list, "name");
     expect(names(pinned)).toEqual(["a", "c"]);
     expect(names(rest)).toEqual(["b"]);
   });
 
-  it("ignores a pin whose path no longer exists (a renamed note drops its pin)", () => {
-    const { pinned, rest } = arrangeProjects(list, "name", ["gone.md"]);
+  it("pins nothing when no note carries the flag", () => {
+    const { pinned, rest } = arrangeProjects([proj("a"), proj("b")], "name");
     expect(pinned).toEqual([]);
-    expect(names(rest)).toEqual(["a", "b", "c"]);
+    expect(names(rest)).toEqual(["a", "b"]);
+  });
+
+  it("keeps an archived project in the Pinned section — the pin outranks it", () => {
+    const { pinned } = arrangeProjects([proj("old", { pinned: true, archived: true })], "name");
+    expect(names(pinned)).toEqual(["old"]);
   });
 });
 
@@ -176,13 +181,6 @@ describe("existingGroups", () => {
       { group: "   " },
     ]);
     expect(groups).toEqual(["home", "Work"]);
-  });
-});
-
-describe("togglePin", () => {
-  it("pins and unpins by path", () => {
-    expect(togglePin([], "a.md")).toEqual(["a.md"]);
-    expect(togglePin(["a.md", "b.md"], "a.md")).toEqual(["b.md"]);
   });
 });
 

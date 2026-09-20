@@ -15,6 +15,7 @@ import {
 import { groupTodos } from "../core/query";
 import { type Card, type Column } from "../ui/boardTypes";
 import { DEFAULT_FOCUS, type Focus, inFocus } from "../ui/focus";
+import { DEFAULT_LIST_SORT, sortTodos, type SortKey } from "../ui/sorts";
 
 export interface LabeledGroup {
   label: string;
@@ -69,24 +70,31 @@ export function buildListGroups(todos: TodoRecord[], groupBy: ListGroupBy): Labe
  * List sections for Todos and a project: every status the `focus` shows, in
  * column order, empty ones included, as in the app. An empty section is still
  * where its "+" lives, and headings that are always there are something you
- * learn to scan; ones that come and go are not. Each todo keeps the order it
- * arrives in (file order from the index).
+ * learn to scan; ones that come and go are not.
  *
  * Focus narrows WHICH sections exist, never what a section contains — so a
  * focused list is the same list with whole sections lifted out, and the counts
  * on the sections that remain are unchanged.
+ *
+ * `sort` orders WITHIN each status, never across them: the status sections are
+ * the list's structure, and a sort that could move a todo out of its own
+ * section would be a regrouping wearing a sort's name. The default leaves every
+ * todo in the order it arrived — file order from the index — which is the only
+ * ordering that dragging a row can write back to the note.
  */
 export function buildStatusSections(
   todos: readonly TodoRecord[],
   focus: Focus = DEFAULT_FOCUS,
+  sort: SortKey = DEFAULT_LIST_SORT,
 ): LabeledGroup[] {
   const byStatus = new Map<Status, TodoRecord[]>(STATUS_ORDER.map((st) => [st, []]));
   for (const todo of todos) byStatus.get(statusOf(todo))?.push(todo);
+  const ctx = { dateOf: (t: TodoRecord) => t.due, newestFirst: false };
   return STATUS_ORDER.filter((st) => inFocus(focus, st)).map((st) => ({
     label: STATUS_LABELS[st],
     status: st,
     phase: STATUS_PHASE[st],
-    todos: byStatus.get(st) ?? [],
+    todos: sortTodos(byStatus.get(st) ?? [], sort, ctx),
   }));
 }
 

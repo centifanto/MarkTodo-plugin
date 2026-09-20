@@ -1,10 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
+  OVERDUE_KEY,
   SMART_VIEWS,
   arrangeSmartTodos,
   smartDateOf,
   smartViewCounts,
   smartViewTodos,
+  splitOverdue,
   type ArrangeContext,
 } from "../../src/ui/smartViews";
 import { type TodoRecord } from "../../src/core/types";
@@ -67,14 +69,20 @@ describe("smartViewTodos — Today", () => {
 });
 
 describe("smartViewTodos — Upcoming", () => {
-  it("runs from today through a week out, and does not reach back", () => {
+  it("runs through a week out, with no lower bound — overdue is upcoming too", () => {
     const todos = [
+      todo("long overdue", { due: "2026-08-01" }),
       todo("overdue", { due: "2026-09-14" }),
       todo("today", { due: TODAY }),
       todo("edge", { due: "2026-09-22" }),
       todo("past the edge", { due: "2026-09-23" }),
     ];
-    expect(titles(smartViewTodos(todos, "upcoming", TODAY))).toEqual(["today", "edge"]);
+    expect(titles(smartViewTodos(todos, "upcoming", TODAY))).toEqual([
+      "long overdue",
+      "overdue",
+      "today",
+      "edge",
+    ]);
   });
 });
 
@@ -113,13 +121,15 @@ describe("smartViewTodos — Recent", () => {
 });
 
 describe("arrangeSmartTodos — sorting", () => {
+  // Dates ahead of TODAY, so the overdue band doesn't claim them and this stays
+  // a test of the ordering rather than of the split.
   it("sorts by date soonest first, undated last", () => {
     const todos = [
       todo("c"),
-      todo("a", { due: "2026-09-10" }),
-      todo("b", { due: "2026-09-12" }),
+      todo("a", { due: "2026-09-16" }),
+      todo("b", { due: "2026-09-18" }),
     ];
-    const [section] = arrangeSmartTodos(todos, "today", { sort: "date", group: "none" }, ctx);
+    const [section] = arrangeSmartTodos(todos, "upcoming", { sort: "date", group: "none" }, ctx);
     expect(titles(section.todos)).toEqual(["a", "b", "c"]);
   });
 
@@ -206,6 +216,60 @@ describe("arrangeSmartTodos — grouping", () => {
     const todos = [todo("none"), todo("urgent", { priority: "URGENT" })];
     const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "priority" }, ctx);
     expect(sections.map((s) => s.title)).toEqual(["Urgent", "None"]);
+  });
+});
+
+describe("splitOverdue", () => {
+  it("splits on a strict due < today, keeping each side in order", () => {
+    const todos = [
+      todo("late", { due: "2026-09-01" }),
+      todo("due today", { due: TODAY }),
+      todo("yesterday", { due: "2026-09-14" }),
+      todo("undated"),
+    ];
+    const { overdue, rest } = splitOverdue(todos, TODAY);
+    expect(titles(overdue)).toEqual(["late", "yesterday"]);
+    expect(titles(rest)).toEqual(["due today", "undated"]);
+  });
+});
+
+describe("arrangeSmartTodos — the overdue band", () => {
+  const late = todo("late", { due: "2026-09-01" });
+  const now = todo("due today", { due: TODAY });
+
+  // The band is the point of the screen, so it cannot depend on the user
+  // happening to have picked one sort or one grouping.
+  it("leads Today and Upcoming whatever the sort or group", () => {
+    for (const view of ["today", "upcoming"] as const) {
+      for (const sort of ["date", "priority", "title"] as const) {
+        for (const group of ["none", "date", "project", "priority", "status"] as const) {
+          const sections = arrangeSmartTodos([now, late], view, { sort, group }, ctx);
+          expect(sections[0].key, `${view}/${sort}/${group}`).toBe(OVERDUE_KEY);
+          expect(titles(sections[0].todos)).toEqual(["late"]);
+        }
+      }
+    }
+  });
+
+  it("is left out entirely when nothing is late", () => {
+    const sections = arrangeSmartTodos([now], "today", { sort: "date", group: "none" }, ctx);
+    expect(sections.map((s) => s.key)).toEqual(["all"]);
+  });
+
+  it("is the only section when everything is late", () => {
+    const sections = arrangeSmartTodos([late], "today", { sort: "date", group: "none" }, ctx);
+    expect(sections.map((s) => s.key)).toEqual([OVERDUE_KEY]);
+  });
+
+  it("never bands Reminders or Recent", () => {
+    const stale = todo("missed notify @ 2026-09-01 09:00");
+    expect(arrangeSmartTodos([stale], "reminders", { sort: "date", group: "none" }, ctx)[0].key).toBe(
+      "all",
+    );
+    const finished = todo("done done @ 2026-09-10", { glyph: "x", due: "2026-09-01" });
+    expect(
+      arrangeSmartTodos([finished], "recent", { sort: "date", group: "none" }, ctx)[0].key,
+    ).toBe("all");
   });
 });
 

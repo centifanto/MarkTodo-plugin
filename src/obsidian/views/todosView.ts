@@ -6,14 +6,10 @@
 import { ItemView, type ViewStateResult, type WorkspaceLeaf } from "obsidian";
 import { type Status } from "../../core/types";
 import { VIEW_TYPES } from "../../ui/paneLayout";
-import {
-  buildFilterBar,
-  filterByState,
-  filterOptionsSignature,
-  type FilterState,
-} from "../filterBar";
+import { filterByState, filterOptionsSignature, type FilterState } from "../filterBar";
 import { openCaptureEditor } from "../quickAdd";
-import { buildFocusBar } from "../focusBar";
+import { buildViewBar } from "../viewBar";
+import { focusCounts } from "../../ui/focus";
 import { type ModalAnchor } from "../modalAnchor";
 import { projectPathByName } from "../projects";
 import { showInDashboard } from "../layout";
@@ -29,7 +25,6 @@ export class TodosView extends ItemView {
   private unsubscribe?: () => void;
   private filterState: FilterState = {};
   private barEl: HTMLElement | null = null;
-  private focusEl: HTMLElement | null = null;
   private barSig: string | null = null;
   private surface: TodoSurface | null = null;
   /** An index change arrived while hidden — rebuild when this view is shown. */
@@ -67,7 +62,6 @@ export class TodosView extends ItemView {
     this.contentEl.empty();
     this.contentEl.addClass("marktodo-view", "marktodo-surface-view", "is-kanban");
     this.barEl = this.contentEl.createDiv();
-    this.focusEl = this.contentEl.createDiv({ cls: "marktodo-focus-bar" });
     this.surface = new TodoSurface({
       plugin: this.plugin,
       el: this.contentEl.createDiv({ cls: "marktodo-surface" }),
@@ -76,13 +70,11 @@ export class TodosView extends ItemView {
       showProject: true,
       memoryKey: MEMORY_KEY,
     });
-    this.renderFilterBar();
-    this.renderFocusBar();
+    this.renderViewBar();
     this.renderContent();
     // An index change can add or rename projects → the bar's options too.
     this.unsubscribe = this.plugin.index.onChange(() => {
-      this.renderFilterBar();
-      this.renderFocusBar();
+      this.renderViewBar();
       this.renderContent();
     });
     // A background tab draws nothing; this is when it comes back to the front.
@@ -105,48 +97,63 @@ export class TodosView extends ItemView {
   }
 
   /**
-   * (Re)build the filter bar only when its option set changed, so an index
-   * update never tears down a picker you have open. The mode switch rides in
-   * its head row and is rebuilt with it.
+   * (Re)build the view bar only when what it draws changes, so an index update
+   * never tears down a picker you have open. The mode switch rides in its head
+   * row and is rebuilt with it.
+   *
+   * No sort column here: this tab is the BOARD, whose order is the one you set
+   * by dragging cards.
    */
-  private renderFilterBar(): void {
+  private renderViewBar(): void {
     if (!this.barEl) return;
-    const todos = this.plugin.index.getAll();
-    const sig = filterOptionsSignature(todos);
+    const all = this.plugin.index.getAll();
+    const todos = filterByState(all, this.filterState, "projects");
+    const focus = this.plugin.settings.focus;
+    const memory = this.plugin.viewMemory(MEMORY_KEY);
+    const sig = JSON.stringify([
+      filterOptionsSignature(all),
+      this.filterState,
+      focus,
+      focusCounts(todos),
+      memory.focusCollapsed,
+    ]);
     if (sig === this.barSig) return;
     this.barSig = sig;
-    this.barEl.empty();
+
     const lead = createDiv();
     buildModeSwitch(lead, TODOS_MODES, "kanban", (mode) => {
       if (mode === "list") this.toList();
     });
-    buildFilterBar(this.barEl, {
+    buildViewBar(this.barEl, {
       app: this.app,
       todos,
-      state: this.filterState,
-      surface: "projects",
-      collapsed: this.plugin.viewMemory(MEMORY_KEY).collapsed,
       lead: lead.firstElementChild as HTMLElement,
-      onChange: () => {
-        this.renderFocusBar();
-        this.renderContent();
-        this.plugin.rememberView(MEMORY_KEY, { filters: this.filterState });
+      focus: {
+        current: focus,
+        onPick: (next) => {
+          this.plugin.settings.focus = next;
+          void this.plugin.saveSettings();
+          this.barSig = null;
+          this.renderViewBar();
+          this.surface?.invalidate();
+          this.renderContent();
+        },
       },
-      onToggleCollapsed: (collapsed) => this.plugin.rememberView(MEMORY_KEY, { collapsed }),
-    });
-  }
-
-  private renderFocusBar(): void {
-    if (!this.focusEl) return;
-    buildFocusBar(this.focusEl, {
-      todos: filterByState(this.plugin.index.getAll(), this.filterState, "projects"),
-      focus: this.plugin.settings.focus,
-      onPick: (focus) => {
-        this.plugin.settings.focus = focus;
-        void this.plugin.saveSettings();
-        this.renderFocusBar();
-        this.surface?.invalidate();
-        this.renderContent();
+      filters: {
+        state: this.filterState,
+        surface: "projects",
+        onChange: () => {
+          this.plugin.rememberView(MEMORY_KEY, { filters: this.filterState });
+          this.barSig = null;
+          this.renderViewBar();
+          this.renderContent();
+        },
+      },
+      collapsed: memory.focusCollapsed,
+      onToggleCollapsed: (collapsed) => {
+        this.plugin.rememberView(MEMORY_KEY, { focusCollapsed: collapsed });
+        this.barSig = null;
+        this.renderViewBar();
       },
     });
   }

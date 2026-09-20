@@ -6,6 +6,7 @@ import {
   GROUP_FM_KEY,
   deletesOnComplete,
   isProjectFrontmatter,
+  PINNED_FM_KEY,
   PROJECT_FM_KEY,
   readNoteMeta,
 } from "../../src/core/noteMeta";
@@ -35,11 +36,12 @@ describe("readNoteMeta — defaults", () => {
     expect(readNoteMeta(undefined)).toEqual(DEFAULT_NOTE_META);
   });
 
-  it("a note with no MarkTodo keys is ungrouped, keep, unarchived", () => {
+  it("a note with no MarkTodo keys is ungrouped, keep, unarchived, unpinned", () => {
     expect(readNoteMeta({ marktodo: true, tags: ["reno"] })).toEqual({
       group: null,
       cleanup: "keep",
       archived: false,
+      pinned: false,
     });
   });
 
@@ -100,6 +102,29 @@ describe("readNoteMeta — archived", () => {
     for (const v of ["false", "no", "off", "0", " "]) {
       expect(readNoteMeta({ [ARCHIVED_FM_KEY]: v }).archived).toBe(false);
     }
+  });
+});
+
+describe("readNoteMeta — pinned", () => {
+  it("is on for true and for the obvious written-by-hand affirmatives", () => {
+    expect(PINNED_FM_KEY).toBe("marktodo-pinned");
+    expect(readNoteMeta({ [PINNED_FM_KEY]: true }).pinned).toBe(true);
+    expect(readNoteMeta({ [PINNED_FM_KEY]: "yes" }).pinned).toBe(true);
+    expect(readNoteMeta({ [PINNED_FM_KEY]: 1 }).pinned).toBe(true);
+  });
+
+  it("is off for false, null, absent, and the written-out negatives", () => {
+    expect(readNoteMeta({ [PINNED_FM_KEY]: false }).pinned).toBe(false);
+    expect(readNoteMeta({ [PINNED_FM_KEY]: null }).pinned).toBe(false);
+    expect(readNoteMeta({}).pinned).toBe(false);
+    for (const v of ["false", "no", "off", "0", " "]) {
+      expect(readNoteMeta({ [PINNED_FM_KEY]: v }).pinned).toBe(false);
+    }
+  });
+
+  it("is independent of archiving — a pinned archived note is both", () => {
+    const meta = readNoteMeta({ [PINNED_FM_KEY]: true, [ARCHIVED_FM_KEY]: true });
+    expect(meta).toMatchObject({ pinned: true, archived: true });
   });
 });
 

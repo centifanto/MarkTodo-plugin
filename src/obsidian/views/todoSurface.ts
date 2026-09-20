@@ -17,6 +17,7 @@ import Board from "../../ui/Board.svelte";
 import { type BoardInstance, type Card } from "../../ui/boardTypes";
 import { type Status, type TodoRecord } from "../../core/types";
 import { groupsSignature } from "../../ui/viewSignature";
+import { isManualSort, type SortKey } from "../../ui/sorts";
 import { buildColumns, buildStatusSections } from "../viewData";
 import { openTodoMenu, revealTodo } from "../todoMenu";
 import { openTodoModal } from "../todoModal";
@@ -53,9 +54,14 @@ export class TodoSurface {
   /**
    * Draw `todos` in `mode`; a no-op when the result would be identical.
    *
-   * The focus is read here rather than passed in, so every surface narrows the
-   * same way from the one setting, and it joins the signature so changing it
-   * redraws (the todos themselves are unchanged — only which sections exist).
+   * Focus and sort are read here rather than passed in, so every surface
+   * narrows and orders the same way from the one place each is stored, and both
+   * join the signature so changing either redraws (the todos themselves are
+   * unchanged — only which sections exist and in what order they read).
+   *
+   * A BOARD is never sorted. Its ordering is the one you set by dragging cards,
+   * which is the whole point of it; a sort would overwrite that with an order
+   * nobody asked for and no drag could restore.
    */
   render(todos: TodoRecord[], mode: SurfaceMode): void {
     this.opts.el.toggleClass("is-kanban", mode === "kanban");
@@ -75,8 +81,9 @@ export class TodoSurface {
       return;
     }
 
-    const groups = buildStatusSections(todos, focus);
-    const signature = JSON.stringify([mode, focus, this.opts.emptyText(), groupsSignature(groups)]);
+    const sort = this.sort();
+    const groups = buildStatusSections(todos, focus, sort);
+    const signature = JSON.stringify([mode, focus, sort, this.opts.emptyText(), groupsSignature(groups)]);
     if (signature === this.signature) return;
     this.destroy();
     this.signature = signature;
@@ -96,7 +103,7 @@ export class TodoSurface {
         onOpenTodo: (todo: TodoRecord, anchor?: Element) => openTodoModal(this.opts.plugin, todo, anchor),
         onReveal: (todo: TodoRecord) => void revealTodo(this.opts.plugin, todo),
         onAdd: (status: Status, anchor?: Element) => this.opts.onAdd(status, anchor),
-        dragDisabled: this.dragDisabled(),
+        dragDisabled: this.dragDisabled() || !isManualSort(sort),
         onMove: (todo: TodoRecord, toStatus: Status) => void this.opts.plugin.writer.setStatus(todo, toStatus),
         onReorder: (todo: TodoRecord, anchor: TodoRecord, position: "before" | "after") =>
           void this.opts.plugin.writer.reorderTodo(todo, anchor, position),
@@ -139,6 +146,11 @@ export class TodoSurface {
     });
     this.board = this.boardComponent as unknown as BoardInstance;
     this.mode = "kanban";
+  }
+
+  /** This surface's remembered within-status order. */
+  private sort(): SortKey {
+    return this.opts.plugin.viewMemory(this.opts.memoryKey).sort;
   }
 
   private dragDisabled(): boolean {

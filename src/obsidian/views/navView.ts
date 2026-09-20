@@ -4,7 +4,7 @@
  *   ┌ navigation ───────┬ list ──────────────────────┐
  *   │ + ⊕ ⇅ ▥          │ ☐ TODAY          ⌕ ⇅ +     │
  *   │ Inbox          2  │ Today 2 · Upcoming · …     │
- *   │ Today          2  │ ☐ Test 10         🔥       │
+ *   │ Today          2  │ ☐ Test 10         ⇈        │
  *   │ Todos          8  │   Yesterday · Project 2    │
  *   │ ⌄ Projects        │ ─────────────────────────  │
  *   │   ⌄ Work          │ ☐ Test                     │
@@ -38,7 +38,6 @@ import {
   renameSectionKey,
   sectionProjects,
   toggleSection,
-  togglePin,
   type NavProject,
   type ProjectSection,
 } from "../../ui/projectNav";
@@ -254,6 +253,7 @@ export class NavView extends ItemView implements DashboardHandle {
         path: file.path,
         group: meta.group,
         archived: meta.archived,
+        pinned: meta.pinned,
         open: count?.open ?? 0,
         overdue: count?.overdue ?? 0,
         mtime: file.stat.mtime,
@@ -346,8 +346,8 @@ export class NavView extends ItemView implements DashboardHandle {
   /** Collapse every group if any is open; otherwise open them all. */
   private toggleAllGroups(): void {
     const projects = this.projects(this.plugin.index.getAll());
-    const { sort, pinned, collapsed } = this.plugin.settings.nav;
-    const sections = sectionProjects(arrangeProjects(projects, sort, pinned).rest, sort).filter(
+    const { sort, collapsed } = this.plugin.settings.nav;
+    const sections = sectionProjects(arrangeProjects(projects, sort).rest, sort).filter(
       (s) => s.label !== null && !s.archived,
     );
     const anyOpen = sections.some((s) => isSectionOpen(s, collapsed));
@@ -369,7 +369,7 @@ export class NavView extends ItemView implements DashboardHandle {
       this.dirty = true;
       return;
     }
-    const { sort, pinned: pins, collapsed } = this.plugin.settings.nav;
+    const { sort, collapsed } = this.plugin.settings.nav;
     const todos = this.plugin.index.getAll();
     const projects = this.projects(todos);
     const today = localIsoDate(new Date());
@@ -383,11 +383,12 @@ export class NavView extends ItemView implements DashboardHandle {
       today,
       todosCount,
       sort,
-      pins,
       collapsed,
       inbox,
       counts.today,
-      projects.map((p) => [p.name, p.path, p.group, p.archived, p.open, p.overdue]),
+      // Pinning is a per-project flag now, so it rides along in the per-project
+      // row instead of being its own list — leave it out and a pin never paints.
+      projects.map((p) => [p.name, p.path, p.group, p.pinned, p.archived, p.open, p.overdue]),
     ]);
     if (signature === this.signature) return;
     this.signature = signature;
@@ -401,7 +402,7 @@ export class NavView extends ItemView implements DashboardHandle {
     this.row(body, { label: "Today", icon: "calendar-days", count: counts.today, selection: { kind: "today" } });
     this.row(body, { label: "Todos", icon: "list-todo", count: todosCount, selection: { kind: "todos" } });
 
-    const { pinned, rest } = arrangeProjects(projects, sort, pins);
+    const { pinned, rest } = arrangeProjects(projects, sort);
     if (pinned.length > 0) {
       const children = this.node(body, { key: PINNED_KEY, label: "Pinned", icon: "pin" });
       if (children) for (const project of pinned) this.projectRow(children, project, projects);
@@ -605,9 +606,6 @@ export class NavView extends ItemView implements DashboardHandle {
 
   private projectMenu(project: NavProject, all: readonly NavProject[], evt: MouseEvent): void {
     const menu = new Menu();
-    const pins = this.plugin.settings.nav.pinned;
-    const isPinned = pins.includes(project.path);
-
     menu.addItem((item) =>
       item
         .setTitle("Open note")
@@ -616,9 +614,9 @@ export class NavView extends ItemView implements DashboardHandle {
     );
     menu.addItem((item) =>
       item
-        .setTitle(isPinned ? "Unpin" : "Pin to top")
-        .setIcon(isPinned ? "pin-off" : "pin")
-        .onClick(() => this.saveNav({ pinned: togglePin(pins, project.path) })),
+        .setTitle(project.pinned ? "Unpin" : "Pin to top")
+        .setIcon(project.pinned ? "pin-off" : "pin")
+        .onClick(() => void this.setPinned(project, !project.pinned)),
     );
     menu.addSeparator();
     // Groups in use, inline — the menu IS the picker, one click to move.
@@ -700,6 +698,16 @@ export class NavView extends ItemView implements DashboardHandle {
 
   private async setGroup(project: NavProject, group: string | null): Promise<void> {
     await this.setNoteKey(project, GROUP_FM_KEY, group);
+  }
+
+  /**
+   * Pinning is a note flag too, so it syncs with the vault and the companion
+   * app can set it. Nothing else moves: a pin only decides which section of
+   * this column the project is drawn in.
+   */
+  private async setPinned(project: NavProject, pinned: boolean): Promise<void> {
+    await this.plugin.writer.setPinned(project.path, pinned);
+    this.renderNav();
   }
 
   /**

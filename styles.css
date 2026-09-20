@@ -205,6 +205,55 @@ body {
   height: var(--icon-s);
 }
 
+/* Overdue band — a DIVIDER, not a group heading. Overdue is a warning about the
+   list, not one of the buckets it sorts into, so it draws as a thin red rule
+   rather than borrowing the heading weight of Today / Tomorrow beneath it. */
+.marktodo-overdue-band {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  margin: var(--size-4-3) var(--size-4-2) var(--size-4-1);
+  padding-bottom: var(--size-2-2);
+  border-bottom: 1px solid var(--color-red);
+  color: var(--color-red);
+  font-size: var(--mt-font-smaller);
+  font-weight: var(--font-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* It leads the list, so it gets no gap above it there. */
+.marktodo-group:first-child .marktodo-overdue-band {
+  margin-top: var(--size-4-1);
+}
+.marktodo-overdue-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+/* Quiet, and NOT red: the band is the warning, and a red button beside a red
+   rule reads as "danger" when the action is an ordinary re-date. */
+.marktodo-overdue-pull {
+  margin-left: auto;
+  width: auto;
+  height: auto;
+  padding: var(--size-2-1) var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--mt-font-smaller);
+  font-weight: var(--font-normal);
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.marktodo-overdue-pull:hover {
+  background-color: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border-hover);
+  color: var(--text-normal);
+}
+
 /* Plain group heading (Today's date/priority groups, the Inbox's notes). */
 .marktodo-group-heading {
   display: flex;
@@ -447,10 +496,13 @@ body {
 }
 /* ── Focus row (All / Plan / Active / Doing) ────────────────────────── */
 /* The same segmented track as the List/Kanban switch, stretched across the pane
-   because this one changes WHAT YOU SEE rather than how it is drawn. Anything
-   but "All" is hiding statuses, so the track takes the accent to say so. */
+   because this one changes WHAT YOU SEE rather than how it is drawn.
+   A narrowed focus used to take the accent here — a ring round the track and an
+   accent fill on the active segment — to say the view was hiding statuses. The
+   view bar's summary line now says which focus is in effect in words, which
+   says it better, so the track draws the same at every focus. */
 .marktodo-focus-bar {
-  padding: 0 var(--size-4-3) var(--size-4-2);
+  padding: 0;
 }
 .marktodo-focus-bar:empty {
   display: none;
@@ -459,12 +511,8 @@ body {
   display: flex;
   gap: 2px;
   padding: 2px;
-  border: 1px solid transparent;
   border-radius: var(--radius-m);
   background-color: var(--background-modifier-hover);
-}
-.marktodo-focus-switch.is-narrowed {
-  border-color: var(--interactive-accent);
 }
 .marktodo-focus-switch button.marktodo-focus {
   display: inline-flex;
@@ -492,10 +540,6 @@ body {
   color: var(--text-normal);
   font-weight: var(--font-semibold);
 }
-.marktodo-focus-switch.is-narrowed button.marktodo-focus.is-active {
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
 .marktodo-focus-label {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -511,11 +555,14 @@ body {
   color: inherit;
   opacity: 0.75;
 }
-/* On a board the row sits in the toolbar beside the mode switch. */
-.marktodo-toolbar > .marktodo-focus-bar {
+/* On a board the bar sits in the toolbar beside the mode switch. */
+.marktodo-toolbar > .marktodo-toolbar-bar {
   flex: 1 1 auto;
   min-width: 0;
+}
+.marktodo-toolbar > .marktodo-toolbar-bar > .marktodo-viewbar {
   padding: 0;
+  border-bottom: none;
 }
 
 /* ── Board / kanban ─────────────────────────────────────────────────── */
@@ -826,56 +873,117 @@ body {
   padding: 0 var(--size-4-2);
 }
 
-/* ── Filter bar (standalone List & Board) ───────────────────────────── */
-.marktodo-filterbar {
+/* ── View bar: focus · filters · sort, in one collapsible block ─────── */
+/* Collapsed it is the summary line alone; expanded it adds the focus segments
+   and two columns. Two columns become one wherever the pane is too narrow for
+   both (the dashboard's list column usually is). */
+.marktodo-viewbar {
   display: flex;
   flex-direction: column;
   gap: var(--size-4-2);
   padding: var(--size-4-1) var(--size-4-2);
   border-bottom: 1px solid var(--background-modifier-border);
 }
-.marktodo-filterbar-head {
+.marktodo-viewbar-head {
   display: flex;
   align-items: center;
   gap: var(--size-4-2);
 }
-.marktodo-filterbar-body {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--size-4-2) var(--size-4-3);
-  padding-bottom: var(--size-4-1);
-}
-.marktodo-filterbar.is-collapsed .marktodo-filterbar-body {
-  display: none;
-}
-.marktodo-filterbar .marktodo-filter-toggle {
+/* The summary is the control: clicking the line is what opens and closes. */
+.marktodo-viewbar-toggle {
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
   width: auto;
+  height: auto;
   padding: var(--size-2-1) var(--size-4-1);
-  font-size: var(--mt-font-smaller);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
   color: var(--text-muted);
+  font-size: var(--mt-font-smaller);
+  cursor: pointer;
 }
-.marktodo-filter-toggle-icon {
+.marktodo-viewbar-toggle:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.marktodo-viewbar-summary {
+  font-variant-numeric: tabular-nums;
+}
+.marktodo-viewbar-chevron {
   display: inline-flex;
 }
-.marktodo-filter-toggle-icon .svg-icon {
+.marktodo-viewbar-chevron .svg-icon {
   width: var(--icon-xs);
   height: var(--icon-xs);
 }
-.marktodo-filter-count {
-  min-width: 1.4em;
-  padding: 0 var(--size-2-2);
-  border-radius: var(--radius-l);
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  font-size: var(--mt-font-smaller);
-  text-align: center;
+.marktodo-viewbar-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-2);
+  padding-bottom: var(--size-4-1);
 }
-.marktodo-filter-count.is-hidden {
-  display: none;
+.marktodo-viewbar-columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--size-4-2) var(--size-4-4);
+  align-items: start;
+}
+.marktodo-viewbar-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--size-4-1);
+  min-width: 0;
+}
+.marktodo-viewbar-column-head {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  color: var(--text-muted);
+  font-size: var(--mt-font-smaller);
+  font-weight: var(--font-semibold);
+}
+/* Clear sits next to the word "Filters", not at the far edge of its column:
+   pushed right, it lands against the Sort heading and reads as Sort's. */
+.marktodo-viewbar-column-head .marktodo-filter-clear {
+  margin-left: 0;
+}
+.marktodo-filter-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--size-4-2) var(--size-4-3);
+}
+/* Sort: the same quiet pills as the segments, wrapping rather than stretching. */
+.marktodo-sort-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+.marktodo-sort-options button.marktodo-sort-option {
+  width: auto;
+  height: auto;
+  padding: var(--size-2-2) var(--size-4-2);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--mt-font-small);
+  cursor: pointer;
+}
+.marktodo-sort-options button.marktodo-sort-option:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+/* Selected = a fill. Never a ring: an accent border round a small control reads
+   as an error or a focus state, and cheapens both. */
+.marktodo-sort-options button.marktodo-sort-option.is-active {
+  background-color: var(--mt-selection);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
 }
 .marktodo-filter {
   display: flex;
@@ -886,7 +994,7 @@ body {
   font-size: var(--mt-font-smaller);
   color: var(--text-muted);
 }
-.marktodo-filterbar select {
+.marktodo-viewbar select {
   font-size: var(--mt-font-smaller);
 }
 /* Searchable picker (project / tag): an input dressed as a select. */
@@ -897,7 +1005,7 @@ body {
   min-width: 9rem;
   max-width: 14rem;
 }
-.marktodo-filterbar .marktodo-picker-input {
+.marktodo-viewbar .marktodo-picker-input {
   width: 100%;
   height: auto;
   padding: var(--size-4-1) calc(var(--size-4-2) + var(--icon-xs) + var(--size-4-1)) var(--size-4-1) var(--size-4-2);
@@ -909,17 +1017,22 @@ body {
   cursor: pointer;
   text-overflow: ellipsis;
 }
-.marktodo-filterbar .marktodo-picker-input:focus {
+.marktodo-viewbar .marktodo-picker-input:focus {
   cursor: text;
   background: var(--background-primary);
   border-color: var(--interactive-accent);
 }
-.marktodo-filterbar .marktodo-picker-input::placeholder {
+.marktodo-viewbar .marktodo-picker-input::placeholder {
   color: var(--text-normal);
 }
+/* A picker with something chosen: an accent WASH, not an accent border. The
+   border on this field already means focus (just above), so a second, permanent
+   accent ring made a set filter look like a field with an error in it. The
+   focus ring stays — it is a text input, and that ring is not a selection. */
 .marktodo-picker.is-set .marktodo-picker-input {
-  border-color: var(--interactive-accent);
-  color: var(--text-accent);
+  background: hsla(var(--interactive-accent-hsl), 0.18);
+  color: var(--text-normal);
+  font-weight: var(--font-semibold);
 }
 .marktodo-picker-chevron {
   position: absolute;
@@ -937,6 +1050,9 @@ body {
 }
 .marktodo-filter-clear {
   margin-left: auto;
+  width: auto;
+  height: auto;
+  padding: var(--size-2-1) var(--size-4-1);
   display: inline-flex;
   align-items: center;
   gap: var(--size-4-1);
@@ -1004,11 +1120,8 @@ body {
   width: var(--icon-s);
   height: var(--icon-s);
 }
-.marktodo-filterbar-head.has-lead > .marktodo-mode-switch {
+.marktodo-viewbar-head.has-lead > .marktodo-mode-switch {
   margin-right: auto;
-}
-.marktodo-filterbar-head.has-lead > .marktodo-filter-clear {
-  margin-left: 0;
 }
 
 
@@ -1296,28 +1409,9 @@ body {
   background-color: var(--background-modifier-hover);
   color: var(--text-normal);
 }
-.marktodo-pane-button.is-active {
-  background-color: var(--mt-selection);
-  color: var(--text-normal);
-}
 .marktodo-pane-button .svg-icon {
   width: 18px;
   height: 18px;
-}
-.marktodo-pane-badge {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  min-width: 14px;
-  height: 14px;
-  padding: 0 3px;
-  border-radius: 7px;
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-  font-size: 10px;
-  font-weight: var(--font-bold);
-  line-height: 14px;
-  text-align: center;
 }
 .marktodo-pane-title {
   display: flex;
@@ -1499,17 +1593,13 @@ body {
   min-height: 0;
   overflow-y: auto;
 }
-.marktodo-list-filters .marktodo-filterbar {
+.marktodo-list-bar .marktodo-viewbar {
   margin: 0 var(--size-4-3) var(--size-4-2);
-  padding: var(--size-4-2) 0;
+  padding: var(--size-4-1) 0;
   border-top: 1px solid var(--mt-hairline);
   border-bottom: 1px solid var(--mt-hairline);
 }
-/* The header's filter button opens and closes the bar; its own toggle is redundant here. */
-.marktodo-list-filters .marktodo-filter-toggle {
-  display: none;
-}
-.marktodo-list-filters .marktodo-filterbar-head:not(.has-active) {
+.marktodo-list-bar:empty {
   display: none;
 }
 .marktodo-dash-list .marktodo-list-body {

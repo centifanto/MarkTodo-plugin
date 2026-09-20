@@ -1,7 +1,8 @@
 /**
- * Writer — all file mutations go through `Vault.process` (atomic
+ * Writer — every todo-line mutation goes through `Vault.process` (atomic
  * read-modify-write). The pure algorithms live in writeLogic.ts; this is the
- * thin Obsidian glue.
+ * thin Obsidian glue. The one exception is `setPinned`: a note-level
+ * frontmatter flag, written the way Obsidian writes frontmatter.
  *
  * Safety net: every edit diffs the set of managed todo ids before/after and
  * ABORTS (no write) if any todo other than the one being edited would vanish —
@@ -31,7 +32,7 @@ import {
   type HealOp,
 } from "./writeLogic";
 import { isProjectFrontmatter } from "./projects";
-import { deletesOnComplete, readNoteMeta } from "../core/noteMeta";
+import { PINNED_FM_KEY, deletesOnComplete, readNoteMeta } from "../core/noteMeta";
 import { buildCaptureLine } from "./inlineLogic";
 import { statusRefusal } from "./placement";
 import { fnv1a } from "./hash";
@@ -246,6 +247,27 @@ export class Writer {
   }
 
   /**
+   * Pin or unpin a project note. The one frontmatter write here, so it doesn't
+   * go through `vault.process` like the rest of the class: that one edits
+   * LINES, and rewriting a YAML block by hand is how frontmatter gets mangled.
+   * `processFrontMatter` is Obsidian's own parse-edit-reserialize.
+   *
+   * Clearing DELETES the key rather than writing `false`, matching every other
+   * note-level flag — an unpinned note is left with no MarkTodo residue in it.
+   *
+   * No `remember()`: that exists so the heal rule can tell our own todo-line
+   * writes from a person's, and this touches no todo line.
+   */
+  async setPinned(path: string, pinned: boolean): Promise<void> {
+    const file = this.app.vault.getAbstractFileByPath(path);
+    if (!(file instanceof TFile)) return;
+    await this.app.fileManager.processFrontMatter(file, (fm: Record<string, unknown>) => {
+      if (pinned) fm[PINNED_FM_KEY] = true;
+      else delete fm[PINNED_FM_KEY];
+    });
+  }
+
+  /**
    * Capture from the todo editor's create mode: a fresh managed
    * todo in `target` — under its status section when the note is a project,
    * else appended as a loose BACKLOG todo. Priority/due of `undefined` keep
@@ -350,6 +372,27 @@ export class Writer {
 
   setDue(todo: TodoRecord, date: string | null): Promise<boolean> {
     return this.applyEdit(todo, (t) => coreSetDue(t, date), null);
+  }
+
+  /**
+   * Re-date a set of todos to `date` — what the overdue band's "Pull forward"
+   * does. Returns how many were actually written.
+   *
+   * On the Writer rather than in the view so both programs run ONE behaviour:
+   * per-todo it is exactly `setDue`, so every rule that governs a single re-date
+   * governs this too — the same parse, the same safety check, the same write.
+   * There is no bulk file rewrite to get wrong.
+   *
+   * Sequential, not `Promise.all`: two todos in one note would otherwise race
+   * for the same `vault.process`. Re-dating never moves a line between status
+   * sections, so each pass re-finds the rest by id exactly where they were.
+   */
+  async pullForward(todos: readonly TodoRecord[], date: string): Promise<number> {
+    let moved = 0;
+    for (const todo of todos) {
+      if (await this.setDue(todo, date)) moved += 1;
+    }
+    return moved;
   }
 
   adopt(todo: TodoRecord): Promise<boolean> {

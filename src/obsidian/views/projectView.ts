@@ -17,7 +17,7 @@ import { ItemView, TFile, type ViewStateResult, type WorkspaceLeaf } from "obsid
 import { type Status } from "../../core/types";
 import { VIEW_TYPES } from "../../ui/paneLayout";
 import { openCaptureEditor } from "../quickAdd";
-import { buildFocusBar } from "../focusBar";
+import { buildViewBar } from "../viewBar";
 import { type ModalAnchor } from "../modalAnchor";
 import { openBoard, showInDashboard } from "../layout";
 import { PROJECT_ICON } from "../../ui/iconMaps";
@@ -26,6 +26,8 @@ import { THEME_CLASS } from "../themeStyles";
 import type MarkTodoPlugin from "../../../main";
 
 export const PROJECT_VIEW_TYPE = VIEW_TYPES.project;
+/** Shared with the dashboard's project list: one bar state for a project, however it is drawn. */
+const MEMORY_KEY = "project";
 
 export class ProjectView extends ItemView {
   private path: string | null = null;
@@ -84,7 +86,7 @@ export class ProjectView extends ItemView {
       emptyText: () => "No todos in this project yet. Add one with +.",
       onAdd: (status, anchor) => this.addTodo(status, anchor),
       showProject: false,
-      memoryKey: "project",
+      memoryKey: MEMORY_KEY,
     });
     this.renderToolbar();
     this.renderContent();
@@ -144,19 +146,33 @@ export class ProjectView extends ItemView {
     }
   }
 
+  /**
+   * The mode switch, then the view bar. Focus only: a project's own board has
+   * no filters to offer (it is already one project) and no sort (a board's
+   * order is the one you set by dragging).
+   */
   private renderToolbar(): void {
     if (!this.toolbarEl) return;
     this.toolbarEl.empty();
     buildModeSwitch(this.toolbarEl, PROJECT_MODES, "kanban", (mode) => this.setMode(mode));
-    buildFocusBar(this.toolbarEl.createDiv({ cls: "marktodo-focus-bar" }), {
+    const memory = this.plugin.viewMemory(MEMORY_KEY);
+    buildViewBar(this.toolbarEl.createDiv({ cls: "marktodo-toolbar-bar" }), {
+      app: this.app,
       todos: this.path === null ? [] : this.plugin.index.getByFile(this.path),
-      focus: this.plugin.settings.focus,
-      onPick: (focus) => {
-        this.plugin.settings.focus = focus;
-        void this.plugin.saveSettings();
+      focus: {
+        current: this.plugin.settings.focus,
+        onPick: (focus) => {
+          this.plugin.settings.focus = focus;
+          void this.plugin.saveSettings();
+          this.renderToolbar();
+          this.surface?.invalidate();
+          this.renderContent();
+        },
+      },
+      collapsed: memory.focusCollapsed,
+      onToggleCollapsed: (collapsed) => {
+        this.plugin.rememberView(MEMORY_KEY, { focusCollapsed: collapsed });
         this.renderToolbar();
-        this.surface?.invalidate();
-        this.renderContent();
       },
     });
   }

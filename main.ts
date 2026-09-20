@@ -18,6 +18,8 @@ import { registerProjectNoteActions } from "./src/obsidian/projectNoteActions";
 import { ThemeStyles } from "./src/obsidian/themeStyles";
 import { parseAppearance, parseFontScale } from "./src/ui/theme";
 import { parseFocus } from "./src/ui/focus";
+import { DEFAULT_LIST_SORT, parseSort } from "./src/ui/sorts";
+import { migrateArrangements } from "./src/obsidian/arrangementMigration";
 import { parseDashboardLocation } from "./src/ui/paneLayout";
 import { parseSelection } from "./src/ui/dashboardNav";
 import { getProjectFiles, isProjectFrontmatter } from "./src/obsidian/projects";
@@ -39,9 +41,10 @@ import {
   registerManagedCheckboxMasks,
   managedCheckboxClick,
 } from "./src/obsidian/editorExtensions";
-import { STATUS_ICONS } from "./src/ui/iconMaps";
+import { PRIORITY_ICONS, STATUS_ICONS } from "./src/ui/iconMaps";
 import { glyphIconContent } from "./src/ui/statusGlyphs";
-import { STATUS_ORDER } from "./src/core/types";
+import { priorityIconContent } from "./src/ui/priorityGlyphs";
+import { PRIORITY_ORDER, STATUS_ORDER } from "./src/core/types";
 import {
   derivedFolders,
   normalizeFolderRoot,
@@ -61,6 +64,8 @@ export default class MarkTodoPlugin extends Plugin {
   theme!: ThemeStyles;
   /** No data.json when the plugin loaded: a fresh install in this vault. */
   private firstInstall = false;
+  /** Pins read out of an older data.json, waiting for a vault to write them to. */
+  private legacyPins: string[] = [];
   /**
    * Lightweight mode: the default on phones and tablets, chosen per
    * device. No todo index, no dashboard, no boards — the editor features, the
@@ -78,8 +83,12 @@ export default class MarkTodoPlugin extends Plugin {
     this.theme = new ThemeStyles(this);
     this.theme.register();
 
-    // Status glyphs (rounded squares) before any view, menu or modal paints one.
+    // MarkTodo's own glyphs — status rounded squares, priority bars — before any
+    // view, menu or modal paints one.
     for (const status of STATUS_ORDER) addIcon(STATUS_ICONS[status], glyphIconContent(status));
+    for (const priority of PRIORITY_ORDER) {
+      if (priority !== "NONE") addIcon(PRIORITY_ICONS[priority], priorityIconContent(priority));
+    }
 
     // Writer before index: the index's heal rule calls the
     // writer on incremental re-indexes, so it must already exist.
@@ -102,6 +111,9 @@ export default class MarkTodoPlugin extends Plugin {
     // move), so the desktop reconciles location on load. After layout-ready, so
     // a vault-wide rename never blocks startup.
     this.app.workspace.onLayoutReady(() => {
+      // Before the archive reconcile, which may MOVE notes: a stored pin is a
+      // path, and a moved note's path is stale the moment it lands.
+      void this.migratePins();
       void this.createFolderOnInstall();
       void reconcileArchive(this.app, this.settings).catch(() => 0);
       if (shouldOfferApp(deviceMode, Platform.isMobile)) new AppOfferModal(this, true).open();
@@ -410,6 +422,13 @@ export default class MarkTodoPlugin extends Plugin {
     this.settings.viewMemory = { ...(this.settings.viewMemory ?? {}) };
     // A data.json written before the navigator existed has neither.
     this.settings.nav = { ...DEFAULT_SETTINGS.nav, ...(this.settings.nav ?? {}) };
+    // Pins moved into the notes (`marktodo-pinned`). Stash the stored paths and
+    // drop the setting; the notes themselves are written once the vault is up.
+    const storedPins: unknown = (this.settings.nav as { pinned?: unknown }).pinned;
+    this.legacyPins = Array.isArray(storedPins)
+      ? (storedPins as unknown[]).filter((p): p is string => typeof p === "string")
+      : [];
+    Reflect.deleteProperty(this.settings.nav, "pinned");
     // Lists live in the dashboard; the older tab settings are gone.
     Reflect.deleteProperty(this.settings, "viewModes");
     Reflect.deleteProperty(this.settings, "listLocation");
@@ -430,10 +449,11 @@ export default class MarkTodoPlugin extends Plugin {
     if (!memory.todos && memory.list) memory.todos = memory.list;
     Reflect.deleteProperty(memory, "list");
     Reflect.deleteProperty(memory, "kanban");
-    this.settings.todayArrangement = {
-      ...DEFAULT_SETTINGS.todayArrangement,
-      ...(this.settings.todayArrangement ?? {}),
-    };
+    // The filter bar no longer collapses on its own: focus, filters and sort
+    // share one view bar with one collapse (`focusCollapsed`, open by default),
+    // so the old per-view `collapsed` flag has nothing left to mean.
+    for (const entry of Object.values(memory)) Reflect.deleteProperty(entry, "collapsed");
+    this.settings.todayArrangement = migrateArrangements(this.settings.todayArrangement);
     // The Inbox note is retired: drop its setting, and map the old
     // "Send to Inbox" keyword default to "Create todo here".
     Reflect.deleteProperty(this.settings, "inboxPath");
@@ -452,13 +472,14 @@ export default class MarkTodoPlugin extends Plugin {
     Reflect.deleteProperty(this.settings, "statusColumnOrder");
   }
 
-  /** A view's remembered filters + filter-bar state; defaults to collapsed, unfiltered. */
+  /** A view's remembered filters + view-bar state; defaults to expanded, unfiltered, file order. */
   viewMemory(key: string): ViewMemory {
     const m = this.settings.viewMemory[key];
     return {
       filters: { ...(m?.filters ?? {}) },
-      collapsed: m?.collapsed ?? true,
+      focusCollapsed: m?.focusCollapsed ?? false,
       sections: [...(m?.sections ?? [])],
+      sort: parseSort(m?.sort, "list", DEFAULT_LIST_SORT),
     };
   }
 
@@ -467,8 +488,9 @@ export default class MarkTodoPlugin extends Plugin {
     const next = { ...this.viewMemory(key), ...patch };
     this.settings.viewMemory[key] = {
       filters: { ...next.filters },
-      collapsed: next.collapsed,
+      focusCollapsed: next.focusCollapsed,
       sections: [...next.sections],
+      sort: next.sort,
     };
     void this.saveSettings();
   }
@@ -476,6 +498,23 @@ export default class MarkTodoPlugin extends Plugin {
   async saveSettings(): Promise<void> {
     Object.assign(this.settings, derivedFolders(this.settings.markTodoFolder));
     await this.saveData(this.settings);
+  }
+
+  /**
+   * One-time: write `marktodo-pinned` into the notes an older data.json pinned
+   * by path. Deferred to layout-ready because `loadSettings` runs before there
+   * is a vault to write to. A path that no longer resolves to a note is simply
+   * dropped — which is what a path-keyed pin did on rename anyway. Saving the
+   * pin-less settings at the end is what makes this run exactly once.
+   */
+  private async migratePins(): Promise<void> {
+    const paths = this.legacyPins;
+    this.legacyPins = [];
+    if (paths.length === 0) return;
+    for (const path of paths) {
+      await this.writer.setPinned(path, true).catch(() => {});
+    }
+    await this.saveSettings();
   }
 
   /**

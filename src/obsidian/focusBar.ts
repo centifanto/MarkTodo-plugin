@@ -1,15 +1,16 @@
 /**
- * The focus row — one segmented control above every status-sectioned surface:
- * All · Plan · Active · Doing.
+ * The focus segments — one segmented control: All · Plan · Active · Doing.
  *
  * What each segment MEANS is pure (`ui/focus.ts`); this is only the Obsidian
- * chrome for it. It is deliberately always visible rather than a toggle hidden
- * in a header: a view that is hiding whole statuses has to say so, and "just my
- * current work" should be one click from anywhere.
+ * chrome for it. It is one part of the view bar (`viewBar.ts`), which owns the
+ * collapse and draws the summary line naming the focus when collapsed.
  *
- * "All" draws in the neutral raised style, every other segment in the accent —
- * so the control's color alone tells you whether what you're looking at is the
- * whole board or a slice of it.
+ * The track used to take the accent whenever focus wasn't "All" — a ring plus an
+ * accent fill — on the grounds that a view hiding whole statuses has to say so.
+ * It still has to say so, but the view bar's summary line now NAMES the focus in
+ * words, which says it better than a colored border ever did. So the segments
+ * draw in the neutral raised style at every focus, like the List/Kanban switch:
+ * the selected segment is marked by its fill, and nothing else shouts.
  */
 import { type TodoRecord } from "../core/types";
 import { FOCUS_SEGMENTS, type Focus, focusCounts } from "../ui/focus";
@@ -21,13 +22,13 @@ export interface FocusBarOptions {
   onPick: (focus: Focus) => void;
 }
 
-/** Render the focus row into `parent` (which it empties first). */
+/** Render the focus segments into `parent` (which it empties first). */
 export function buildFocusBar(parent: HTMLElement, opts: FocusBarOptions): void {
   const { todos, focus, onPick } = opts;
   parent.empty();
   const counts = focusCounts(todos);
   const track = parent.createDiv({
-    cls: `marktodo-focus-switch${focus === "all" ? "" : " is-narrowed"}`,
+    cls: "marktodo-focus-switch",
     attr: { role: "group", "aria-label": "Focus" },
   });
   for (const { key, label } of FOCUS_SEGMENTS) {

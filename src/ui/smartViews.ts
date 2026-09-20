@@ -21,7 +21,7 @@ import {
 } from "../core/types";
 import { doneDateOf, notifyAtOf } from "../core/dates";
 import { addDays, friendlyDate } from "./dates";
-import { formatTitle } from "./format";
+import { DEFAULT_TODAY_SORT, parseSort, sortOptions, sortTodos, type SortKey } from "./sorts";
 
 /** One collator, not one per comparison — see the note in `projectNav.ts`. */
 const COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
@@ -40,13 +40,14 @@ export const SMART_WINDOW_DAYS = 7;
 
 export const EMPTY_MESSAGES: Record<SmartViewType, string> = {
   today: "Nothing due today or overdue. Give a todo a due date, or write due @ 2026-09-30 in the note.",
-  upcoming: "Nothing due today or in the next 7 days.",
+  upcoming: "Nothing overdue, due today, or due in the next 7 days.",
   reminders:
     "No reminders set. Add notify @ 2026-09-30 09:00 to a todo — the MarkTodo app notifies you at that time.",
   recent: "Nothing completed in the last 7 days.",
 };
 
-export type TodaySort = "date" | "priority" | "project" | "title";
+/** Today's sorts come from the one registry (`sorts.ts`), like every other list's. */
+export type TodaySort = SortKey;
 export type TodayGroup = "none" | "date" | "project" | "priority" | "status";
 
 export interface TodayArrangement {
@@ -54,14 +55,43 @@ export interface TodayArrangement {
   group: TodayGroup;
 }
 
-export const DEFAULT_TODAY_ARRANGEMENT: TodayArrangement = { sort: "date", group: "none" };
+export const DEFAULT_TODAY_ARRANGEMENT: TodayArrangement = {
+  sort: DEFAULT_TODAY_SORT,
+  group: "none",
+};
 
-export const TODAY_SORTS: ReadonlyArray<{ key: TodaySort; label: string }> = [
-  { key: "date", label: "Date" },
-  { key: "priority", label: "Priority" },
-  { key: "project", label: "Project" },
-  { key: "title", label: "Title" },
-];
+/**
+ * Each segment's OWN default arrangement, because they are four different
+ * questions.
+ *
+ * Today leads with status dividers: it is the "what am I doing" screen, and a
+ * flat run of rows makes you read every glyph to find the two you are actually
+ * working on. The other three default to no grouping — Upcoming and Reminders
+ * are about dates, and Recent is every DONE todo, which grouped by status is
+ * one section called Done.
+ *
+ * A default, not a rule: the header's sort-and-group menu overrides it per
+ * segment and remembers what you chose.
+ */
+export const DEFAULT_ARRANGEMENTS: Record<SmartViewType, TodayArrangement> = {
+  today: { sort: DEFAULT_TODAY_SORT, group: "status" },
+  upcoming: { ...DEFAULT_TODAY_ARRANGEMENT },
+  reminders: { ...DEFAULT_TODAY_ARRANGEMENT },
+  recent: { ...DEFAULT_TODAY_ARRANGEMENT },
+};
+
+/** A fresh per-segment arrangement map (the settings default, and the migration's base). */
+export function defaultArrangements(): Record<SmartViewType, TodayArrangement> {
+  return {
+    today: { ...DEFAULT_ARRANGEMENTS.today },
+    upcoming: { ...DEFAULT_ARRANGEMENTS.upcoming },
+    reminders: { ...DEFAULT_ARRANGEMENTS.reminders },
+    recent: { ...DEFAULT_ARRANGEMENTS.recent },
+  };
+}
+
+// Today always spans projects, so the Project sort is always on offer here.
+export const TODAY_SORTS = sortOptions("today", true);
 
 export const TODAY_GROUPS: ReadonlyArray<{ key: TodayGroup; label: string }> = [
   { key: "none", label: "None" },
@@ -71,8 +101,9 @@ export const TODAY_GROUPS: ReadonlyArray<{ key: TodayGroup; label: string }> = [
   { key: "status", label: "Status" },
 ];
 
-export function isTodaySort(value: unknown): value is TodaySort {
-  return TODAY_SORTS.some((s) => s.key === value);
+/** A stored Today sort, with anything Today can't offer replaced by the default. */
+export function parseTodaySort(value: unknown): TodaySort {
+  return parseSort(value, "today", DEFAULT_TODAY_SORT);
 }
 
 export function isTodayGroup(value: unknown): value is TodayGroup {
@@ -83,6 +114,8 @@ export interface TodaySection {
   key: string;
   title: string;
   todos: TodoRecord[];
+  /** Set when the section IS a status (group by status) — the list folds those. */
+  status?: Status;
 }
 
 export interface ArrangeContext {
@@ -121,11 +154,13 @@ export function smartViewTodos(
     case "today":
       return live.filter((t) => statusOf(t) !== "DONE" && t.due !== null && t.due <= today);
     case "upcoming": {
-      // Today's todos too, as in the app: Upcoming is today through a week out.
+      // Today's todos too, as in the app: Upcoming is today through a week out —
+      // and everything already OVERDUE, which the band at the top separates out.
+      // There is no lower bound on purpose: a todo you have already missed is the
+      // most upcoming thing you have, and hiding it here made it invisible on the
+      // one screen you check when planning the week.
       const horizon = addDays(today, SMART_WINDOW_DAYS);
-      return live.filter(
-        (t) => statusOf(t) !== "DONE" && t.due !== null && t.due >= today && t.due <= horizon,
-      );
+      return live.filter((t) => statusOf(t) !== "DONE" && t.due !== null && t.due <= horizon);
     }
     case "reminders":
       return live.filter((t) => statusOf(t) !== "DONE" && notifyAtOf(t) !== null);
@@ -137,6 +172,35 @@ export function smartViewTodos(
       });
     }
   }
+}
+
+/**
+ * The overdue band's section key. Stable and shared, so both renderers can style
+ * it as a small divider rather than dress it up as an ordinary group header —
+ * and so neither has to match on the word "Overdue".
+ */
+export const OVERDUE_KEY = "overdue";
+
+/**
+ * Split a due-dated set into what is already late and everything else, each
+ * keeping the order it arrived in.
+ *
+ * Strictly `due < today`: a todo due TODAY is not overdue, it is today's. That
+ * is the same line `projectNav.projectCounts` draws for its red badge, and the
+ * two must agree or the navigator and the list would disagree about the same
+ * todo.
+ */
+export function splitOverdue(
+  todos: readonly TodoRecord[],
+  today: string,
+): { overdue: TodoRecord[]; rest: TodoRecord[] } {
+  const overdue: TodoRecord[] = [];
+  const rest: TodoRecord[] = [];
+  for (const todo of todos) {
+    if (todo.due !== null && todo.due < today) overdue.push(todo);
+    else rest.push(todo);
+  }
+  return { overdue, rest };
 }
 
 /** Sort and (optionally) group a segment's todos into rendered sections. */
@@ -153,35 +217,23 @@ export function arrangeSmartTodos(
   const statusRank = (s: Status) => rank(STATUS_ORDER, s);
   // Recent reads newest first; every other segment soonest first. Undated last.
   const newestFirst = view === "recent";
-  const byDate = (a: TodoRecord, b: TodoRecord) => {
-    const da = smartDateOf(a, view);
-    const db = smartDateOf(b, view);
-    if (da === db) return 0;
-    if (da === null) return 1;
-    if (db === null) return -1;
-    return newestFirst ? db.localeCompare(da) : da.localeCompare(db);
-  };
-  const byPriority = (a: TodoRecord, b: TodoRecord) =>
-    rank(PRIORITY_ORDER, a.priority) - rank(PRIORITY_ORDER, b.priority);
-  const byProject = (a: TodoRecord, b: TodoRecord) =>
-    (a.project ?? "").localeCompare(b.project ?? "");
-  const byTitle = (a: TodoRecord, b: TodoRecord) =>
-    COLLATOR.compare(formatTitle(a.displayText), formatTitle(b.displayText));
-  const primary = { date: byDate, priority: byPriority, project: byProject, title: byTitle }[sort];
-  // The tie-break chain ends in file order, so the list never reshuffles itself
-  // between renders (the app breaks on `sort_order`, its stored equivalent).
-  const sorted = [...todos].sort(
-    (a, b) =>
-      primary(a, b) ||
-      byDate(a, b) ||
-      byPriority(a, b) ||
-      byProject(a, b) ||
-      a.file.localeCompare(b.file) ||
-      a.line - b.line,
-  );
+  const sortCtx = { dateOf: (t: TodoRecord) => smartDateOf(t, view), newestFirst };
+  const sorted = sortTodos(todos, sort, sortCtx);
+
+  // Overdue comes out FIRST, before any grouping, on the two segments that are
+  // about what is due. It is not a group — it is the thing the screen is for —
+  // so it survives whatever sort or grouping is in effect rather than existing
+  // only under "group by date". Reminders and Recent are untouched: a reminder
+  // that has passed is still just a reminder, and nothing completed is late.
+  const banded = view === "today" || view === "upcoming";
+  const { overdue, rest } = banded
+    ? splitOverdue(sorted, ctx.today)
+    : { overdue: [] as TodoRecord[], rest: sorted };
+  const band: TodaySection[] =
+    overdue.length === 0 ? [] : [{ key: OVERDUE_KEY, title: "Overdue", todos: overdue }];
 
   if (group === "none") {
-    return sorted.length === 0 ? [] : [{ key: "all", title: "", todos: sorted }];
+    return rest.length === 0 ? band : [...band, { key: "all", title: "", todos: rest }];
   }
 
   // Section order: `bucket` first (numeric), then `sub` — a date (ascending, or
@@ -191,6 +243,7 @@ export function arrangeSmartTodos(
     title: string;
     bucket: number;
     sub: string;
+    status?: Status;
   }
   const loose = "No project";
   const groupOf = (todo: TodoRecord): Group => {
@@ -198,8 +251,14 @@ export function arrangeSmartTodos(
       case "date": {
         const d = smartDateOf(todo, view)?.slice(0, 10) ?? null;
         if (d === null) return { key: "none", title: "No date", bucket: 2, sub: "" };
+        // Only Reminders reaches this: a reminder whose time has passed still
+        // groups as overdue. Today and Upcoming had theirs lifted into the band
+        // above before any of this ran, so `rest` holds nothing older than today.
+        // Deliberately NOT `OVERDUE_KEY`: that key means the band, and a passed
+        // reminder is an ordinary bucket — pulling it forward would re-date the
+        // todo, which is not what a missed reminder asks for.
         if (view !== "recent" && d < ctx.today)
-          return { key: "overdue", title: "Overdue", bucket: 0, sub: "" };
+          return { key: "date-overdue", title: "Overdue", bucket: 0, sub: "" };
         return { key: d, title: friendlyDate(d, ctx.today), bucket: 1, sub: d };
       }
       case "project": {
@@ -221,13 +280,14 @@ export function arrangeSmartTodos(
           title: STATUS_LABELS[status],
           bucket: statusRank(status),
           sub: "",
+          status,
         };
       }
     }
   };
 
   const sections = new Map<string, TodaySection & Group>();
-  for (const todo of sorted) {
+  for (const todo of rest) {
     const g = groupOf(todo);
     const section = sections.get(g.key) ?? { ...g, todos: [] };
     section.todos.push(todo);
@@ -239,9 +299,12 @@ export function arrangeSmartTodos(
         ? b.localeCompare(a)
         : a.localeCompare(b)
       : COLLATOR.compare(a, b);
-  return [...sections.values()]
-    .sort((a, b) => a.bucket - b.bucket || compareSub(a.sub, b.sub))
-    .map(({ key, title, todos: data }) => ({ key, title, todos: data }));
+  return [
+    ...band,
+    ...[...sections.values()]
+      .sort((a, b) => a.bucket - b.bucket || compareSub(a.sub, b.sub))
+      .map(({ key, title, todos: data, status }) => ({ key, title, todos: data, status })),
+  ];
 }
 
 /**
@@ -266,7 +329,9 @@ export function smartViewCounts(
     }
     if (todo.due !== null) {
       if (todo.due <= today) counts.today += 1;
-      if (todo.due >= today && todo.due <= horizon) counts.upcoming += 1;
+      // No lower bound, matching `smartViewTodos`: the tab's number has to be
+      // what the tab draws, overdue band included, or it reads as a lie.
+      if (todo.due <= horizon) counts.upcoming += 1;
     }
     if (notifyAtOf(todo) !== null) counts.reminders += 1;
   }

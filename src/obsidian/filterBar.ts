@@ -1,11 +1,15 @@
 /**
- * Compact filter bar for the standalone List & Board views. Quick single-select
- * filters so you can fine-tune what's shown without editing the note.
+ * The filter FIELDS — quick single-select filters so you can fine-tune what's
+ * shown without editing the note.
  *
  * Project and tag are searchable pickers (type to narrow — vaults outgrow a plain
  * dropdown fast); priority and managed are small fixed sets and stay dropdowns.
  * What the options are, per surface, lives in the pure `filterLogic.ts`; the
  * resulting state becomes a `QueryScope` for the pure `filterTodos`.
+ *
+ * The fields only. The collapse, the summary line, the Clear button and the
+ * column beside these holding Sort all belong to `viewBar.ts` — filters stopped
+ * being a bar of their own when they moved in beside focus and sort.
  */
 import { AbstractInputSuggest, type App, DropdownComponent, setIcon } from "obsidian";
 import { type Priority, type TodoRecord } from "../core/types";
@@ -13,7 +17,6 @@ import {
   type FilterOption,
   type FilterState,
   type FilterSurface,
-  activeFilterCount,
   matchOptions,
   projectOptions,
   reconcileFilterState,
@@ -23,6 +26,7 @@ import {
 export {
   type FilterState,
   type FilterSurface,
+  activeFilterCount,
   filterByState,
   filterOptionsSignature,
   isFilterActive,
@@ -37,7 +41,7 @@ const PRIORITY_OPTS: ReadonlyArray<readonly [Priority, string]> = [
 /** The "no filter" row at the top of a picker's suggestions. */
 const ALL: FilterOption = ["", "All"];
 
-export interface FilterBarOptions {
+export interface FilterFieldsOptions {
   app: App;
   /** The todos the options are drawn from. */
   todos: readonly TodoRecord[];
@@ -45,65 +49,23 @@ export interface FilterBarOptions {
   state: FilterState;
   surface: FilterSurface;
   onChange: () => void;
-  /** Start collapsed (only the Filters toggle, badge and Clear show). */
-  collapsed?: boolean;
-  /** Called when the user collapses/expands the bar (views remember it). */
-  onToggleCollapsed?: (collapsed: boolean) => void;
-  /** Placed first in the head row (Todos puts its List/Kanban switch here). */
-  lead?: HTMLElement;
 }
 
-/** Render the filter bar into `containerEl`. */
-export function buildFilterBar(containerEl: HTMLElement, opts: FilterBarOptions): void {
+/**
+ * Render the filter fields into `container`. Returns a `clear` that empties
+ * every field AND the state — the bar's Clear button calls it, since only the
+ * fields know how to reset their own widgets.
+ */
+export function buildFilterFields(
+  container: HTMLElement,
+  opts: FilterFieldsOptions,
+): { clear: () => void } {
   const { app, todos, state, surface, onChange } = opts;
   reconcileFilterState(state, todos, surface);
-
-  // Collapsible: a head row (toggle + active-count badge + Clear) that
-  // stays visible, and a body with the pickers.
-  const bar = containerEl.createDiv({ cls: "marktodo-filterbar" });
-  const head = bar.createDiv({ cls: "marktodo-filterbar-head" });
-  if (opts.lead) {
-    head.addClass("has-lead");
-    head.appendChild(opts.lead);
-  }
-  const toggle = head.createEl("button", {
-    cls: "marktodo-filter-toggle clickable-icon",
-    attr: { "aria-label": "Show or hide filters" },
-  });
-  const chevron = toggle.createSpan({ cls: "marktodo-filter-toggle-icon" });
-  toggle.createSpan({ text: "Filters" });
-  const badge = toggle.createSpan({ cls: "marktodo-filter-count" });
-  const body = bar.createDiv({ cls: "marktodo-filterbar-body" });
   const resets: Array<() => void> = [];
 
-  let collapsed = opts.collapsed ?? false;
-  const paintCollapsed = (): void => {
-    bar.toggleClass("is-collapsed", collapsed);
-    setIcon(chevron, collapsed ? "chevron-right" : "chevron-down");
-    toggle.setAttr("aria-expanded", String(!collapsed));
-  };
-  paintCollapsed();
-  toggle.onclick = (): void => {
-    collapsed = !collapsed;
-    paintCollapsed();
-    opts.onToggleCollapsed?.(collapsed);
-  };
-
-  const clear = createClearButton();
-  const paintActive = (): void => {
-    const n = activeFilterCount(state);
-    clear.toggleClass("is-hidden", n === 0);
-    head.toggleClass("has-active", n > 0);
-    badge.setText(n > 0 ? String(n) : "");
-    badge.toggleClass("is-hidden", n === 0);
-  };
-  const changed = (): void => {
-    paintActive();
-    onChange();
-  };
-
   const cell = (label: string): HTMLElement => {
-    const c = body.createDiv({ cls: "marktodo-filter" });
+    const c = container.createDiv({ cls: "marktodo-filter" });
     c.createSpan({ cls: "marktodo-filter-label", text: label });
     return c;
   };
@@ -140,7 +102,7 @@ export function buildFilterBar(containerEl: HTMLElement, opts: FilterBarOptions)
         apply(selected);
         show();
         input.blur();
-        changed();
+        onChange();
       },
     );
     // Focus selects the text so typing replaces it; the suggestions show every
@@ -176,7 +138,7 @@ export function buildFilterBar(containerEl: HTMLElement, opts: FilterBarOptions)
     d.setValue(current);
     d.onChange((v) => {
       apply(v);
-      changed();
+      onChange();
     });
     resets.push(() => {
       d.setValue("");
@@ -207,26 +169,16 @@ export function buildFilterBar(containerEl: HTMLElement, opts: FilterBarOptions)
     },
   );
 
-  head.appendChild(clear);
-  paintActive();
-  clear.onclick = (): void => {
-    state.project = undefined;
-    state.tag = undefined;
-    state.priority = undefined;
-    state.managed = undefined;
-    for (const reset of resets) reset();
-    changed();
+  return {
+    clear: (): void => {
+      state.project = undefined;
+      state.tag = undefined;
+      state.priority = undefined;
+      state.managed = undefined;
+      for (const reset of resets) reset();
+      onChange();
+    },
   };
-}
-
-function createClearButton(): HTMLButtonElement {
-  const clear = createEl("button", {
-    cls: "marktodo-filter-clear",
-    attr: { "aria-label": "Clear filters" },
-  });
-  setIcon(clear, "x");
-  clear.createSpan({ text: "Clear" });
-  return clear;
 }
 
 /** Type-to-narrow suggestions for one picker, with an "All" row on top. */

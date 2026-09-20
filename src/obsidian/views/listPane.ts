@@ -14,7 +14,7 @@
  * Boards and notes still open as tabs in the main area (the header's board and
  * note buttons); a todo still opens the todo editor.
  */
-import { Menu, setIcon } from "obsidian";
+import { Menu, Notice, setIcon } from "obsidian";
 import { mount, unmount, type ComponentProps } from "svelte";
 import TodoList from "../../ui/TodoList.svelte";
 import { type Status, type TodoRecord } from "../../core/types";
@@ -23,7 +23,6 @@ import { type Selection, sameSelection, searchTodos } from "../../ui/dashboardNa
 import { PRIORITY_LABEL, PROJECT_ICON } from "../../ui/iconMaps";
 import { groupsSignature } from "../../ui/viewSignature";
 import {
-  DEFAULT_TODAY_ARRANGEMENT,
   EMPTY_MESSAGES,
   SMART_VIEWS,
   TODAY_GROUPS,
@@ -35,12 +34,13 @@ import {
   type TodayArrangement,
 } from "../../ui/smartViews";
 import { buildInboxSections } from "../inboxLogic";
-import { buildFocusBar } from "../focusBar";
 import { type ModalAnchor } from "../modalAnchor";
-import { FOCUS_SEGMENTS, type Focus } from "../../ui/focus";
+import { focusCounts, focusLabel, type Focus } from "../../ui/focus";
+import { type SortKey } from "../../ui/sorts";
+import { TODAY_COLLAPSED_STATUSES } from "../../ui/statusSections";
 import { buildListGroups } from "../viewData";
+import { buildViewBar } from "../viewBar";
 import {
-  buildFilterBar,
   filterByState,
   filterOptionsSignature,
   isFilterActive,
@@ -65,15 +65,12 @@ interface HeaderAction {
   icon: string;
   label: string;
   onClick: (evt: MouseEvent) => void;
-  active?: boolean;
-  badge?: number;
 }
 
 export class ListPane {
   private selection: Selection;
   private headerEl: HTMLElement;
   private barEl: HTMLElement;
-  private focusEl: HTMLElement;
   private segmentsEl: HTMLElement;
   private bodyEl: HTMLElement;
   private components: Array<ReturnType<typeof mount>> = [];
@@ -96,8 +93,7 @@ export class ListPane {
     this.headerEl = el.createDiv({ cls: "marktodo-pane-header" });
     const scroller = el.createDiv({ cls: "marktodo-list-scroll" });
     this.segmentsEl = scroller.createDiv({ cls: "marktodo-segments" });
-    this.focusEl = scroller.createDiv({ cls: "marktodo-focus-bar" });
-    this.barEl = scroller.createDiv({ cls: "marktodo-list-filters" });
+    this.barEl = scroller.createDiv({ cls: "marktodo-list-bar" });
     this.bodyEl = scroller.createDiv({ cls: "marktodo-list-body marktodo-view" });
     this.show(selection, true);
   }
@@ -117,7 +113,8 @@ export class ListPane {
     this.selection = selection;
     this.segment = "today";
     this.teardownBody();
-    this.filterState = this.memoryKey() ? this.plugin.viewMemory(this.memoryKey()!).filters : {};
+    const key = this.memoryKey();
+    this.filterState = key !== null && this.hasFilters() ? this.plugin.viewMemory(key).filters : {};
     this.barSig = null;
     this.renderHeader();
     this.refresh();
@@ -154,8 +151,7 @@ export class ListPane {
       this.surface?.invalidate();
     }
     if (this.searching()) return this.renderSearch();
-    this.renderFilterBar();
-    this.renderFocusBar();
+    this.renderViewBar();
     switch (this.selection.kind) {
       case "inbox":
         return this.renderInbox();
@@ -189,11 +185,10 @@ export class ListPane {
     const actions = h.createDiv({ cls: "marktodo-pane-actions" });
     for (const action of this.actions()) {
       const b = actions.createDiv({
-        cls: `marktodo-pane-button${action.active ? " is-active" : ""}`,
+        cls: "marktodo-pane-button",
         attr: { role: "button", "aria-label": action.label },
       });
       setIcon(b, action.icon);
-      if (action.badge) b.createSpan({ cls: "marktodo-pane-badge", text: String(action.badge) });
       b.addEventListener("click", (evt) => action.onClick(evt));
     }
   }
@@ -218,12 +213,8 @@ export class ListPane {
     const sel = this.selection;
     const out: HeaderAction[] = [];
     if (this.searching()) return out;
-    const key = this.memoryKey();
-    if (key) {
-      const open = !this.plugin.viewMemory(key).collapsed;
-      const n = isFilterActive(this.filterState) ? Object.values(this.filterState).filter((v) => v !== undefined).length : 0;
-      out.push({ icon: "list-filter", label: "Filters", active: open, badge: n, onClick: () => this.toggleFilters() });
-    }
+    // No Filters button: the view bar below carries its own summary line and
+    // chevron, and says how many filters are set even while collapsed.
     if (sel.kind === "today") {
       out.push({ icon: "arrow-up-down", label: "Sort and group", onClick: (evt) => this.arrangeMenu(evt) });
     }
@@ -243,79 +234,132 @@ export class ListPane {
     return out;
   }
 
-  // ── filters (Inbox and Todos) ────────────────────────────────────────────────
+  // ── the view bar (focus · filters · sort) ────────────────────────────────
 
+  /**
+   * Which `ViewMemory` entry this selection's bar state lives under. Today has
+   * none: it arranges itself through `settings.todayArrangement` and the header's
+   * sort-and-group menu, which is a different control with a different shape.
+   */
   private memoryKey(): string | null {
-    return this.selection.kind === "inbox" ? "inbox" : this.selection.kind === "todos" ? "todos" : null;
+    switch (this.selection.kind) {
+      case "inbox":
+        return "inbox";
+      case "todos":
+        return "todos";
+      case "project":
+        return "project";
+      case "today":
+        // Not for filters or sort — Today has neither — but its status sections
+        // fold, and which are folded has to survive a restart like any other.
+        return `today:${this.segment}`;
+    }
+  }
+
+  /**
+   * Filters are for the surfaces that span notes. A project's own list is
+   * already one project's todos, so every picker on it would be a no-op.
+   */
+  private hasFilters(): boolean {
+    return this.selection.kind === "inbox" || this.selection.kind === "todos";
+  }
+
+  /**
+   * Focus and sort go together: both belong to the status-sectioned lists. The
+   * Inbox has neither — a loose todo can only be Backlog or Done, so Plan /
+   * Active / Doing would be three controls two of which can never match, and its
+   * sections are notes rather than statuses.
+   */
+  private hasStatusSections(): boolean {
+    return this.selection.kind === "todos" || this.selection.kind === "project";
   }
 
   private surfaceOf(): FilterSurface {
     return this.selection.kind === "inbox" ? "loose" : "projects";
   }
 
-  private toggleFilters(): void {
-    const key = this.memoryKey();
-    if (!key) return;
-    this.plugin.rememberView(key, { collapsed: !this.plugin.viewMemory(key).collapsed });
-    this.barSig = null;
-    this.renderHeader();
-    this.renderFilterBar();
+  /** The todos this surface works on, filtered — what the focus counts count. */
+  private surfaceTodos(): readonly TodoRecord[] {
+    return this.selection.kind === "project"
+      ? this.plugin.index.getByFile(this.selection.path)
+      : filterByState(this.plugin.index.getAll(), this.filterState, this.surfaceOf());
   }
 
-  /** The filter bar, rebuilt only when its options change (so an open picker survives an index update). */
-  private renderFilterBar(): void {
+  /**
+   * The view bar, rebuilt only when what it DRAWS changes — its options, its
+   * counts, the focus, the sort or its own collapse — so an unrelated index
+   * update never tears down a picker you have open mid-type.
+   */
+  private renderViewBar(): void {
     const key = this.memoryKey();
-    if (!key || this.plugin.viewMemory(key).collapsed) {
+    // Today has no focus, no filters and no sort — its arranging is the header's
+    // own menu — so there is no bar to draw, only a summary of nothing.
+    if (key === null || (!this.hasStatusSections() && !this.hasFilters())) {
       this.barEl.empty();
       this.barSig = null;
       return;
     }
-    const surface = this.surfaceOf();
+    const memory = this.plugin.viewMemory(key);
+    const focus = this.plugin.settings.focus;
     const all = this.plugin.index.getAll();
-    const todos = surface === "loose" ? all.filter((t) => t.project === null) : all;
-    const sig = JSON.stringify([key, filterOptionsSignature(todos)]);
+    const options = this.surfaceOf() === "loose" ? all.filter((t) => t.project === null) : all;
+    const todos = this.surfaceTodos();
+    const sig = JSON.stringify([
+      key,
+      memory.focusCollapsed,
+      memory.sort,
+      focus,
+      this.hasStatusSections() ? focusCounts(todos) : null,
+      this.hasFilters() ? [filterOptionsSignature(options), this.filterState] : null,
+    ]);
     if (sig === this.barSig) return;
     this.barSig = sig;
-    this.barEl.empty();
-    buildFilterBar(this.barEl, {
+
+    buildViewBar(this.barEl, {
       app: this.plugin.app,
       todos,
-      state: this.filterState,
-      surface,
-      collapsed: false,
-      onChange: () => {
-        this.plugin.rememberView(key, { filters: this.filterState });
-        this.renderHeader();
-        this.refresh();
+      focus: this.hasStatusSections()
+        ? { current: focus, onPick: (next) => this.setFocus(next) }
+        : undefined,
+      filters: this.hasFilters()
+        ? {
+            state: this.filterState,
+            surface: this.surfaceOf(),
+            onChange: () => {
+              this.plugin.rememberView(key, { filters: this.filterState });
+              this.barSig = null;
+              this.refresh();
+            },
+          }
+        : undefined,
+      sort: this.hasStatusSections()
+        ? {
+            current: memory.sort,
+            surface: "list",
+            // Only Todos spans projects; a project's own list orders nothing by it.
+            spansProjects: this.selection.kind === "todos",
+            onPick: (sort) => this.setSort(key, sort),
+          }
+        : undefined,
+      collapsed: memory.focusCollapsed,
+      onToggleCollapsed: (collapsed) => {
+        this.plugin.rememberView(key, { focusCollapsed: collapsed });
+        this.barSig = null;
+        this.renderViewBar();
       },
-    });
-  }
-
-  /**
-   * The focus row, on the surfaces that draw status sections. Inbox is left out
-   * on purpose: a loose todo can only be Backlog or Done, so Plan / Active /
-   * Doing there would be three controls, two of which can never match anything.
-   */
-  private renderFocusBar(): void {
-    const kind = this.selection.kind;
-    if (kind !== "todos" && kind !== "project") {
-      this.focusEl.empty();
-      return;
-    }
-    const todos =
-      kind === "project"
-        ? this.plugin.index.getByFile(this.selection.path)
-        : filterByState(this.plugin.index.getAll(), this.filterState, "projects");
-    buildFocusBar(this.focusEl, {
-      todos,
-      focus: this.plugin.settings.focus,
-      onPick: (focus) => this.setFocus(focus),
     });
   }
 
   private setFocus(focus: Focus): void {
     this.plugin.settings.focus = focus;
     void this.plugin.saveSettings();
+    this.barSig = null;
+    this.refresh(true);
+  }
+
+  private setSort(key: string, sort: SortKey): void {
+    this.plugin.rememberView(key, { sort });
+    this.barSig = null;
     this.refresh(true);
   }
 
@@ -329,7 +373,6 @@ export class ListPane {
     this.signature = null;
     this.bodyEl.empty();
     this.segmentsEl.empty();
-    this.focusEl.empty();
     this.barEl.empty();
   }
 
@@ -346,8 +389,7 @@ export class ListPane {
           // "nothing here" reads as wrong when three whole sections are hidden.
           const focus = this.plugin.settings.focus;
           if (focus !== "all") {
-            const label = FOCUS_SEGMENTS.find((f) => f.key === focus)?.label ?? focus;
-            return `Nothing in ${label}. Switch to All above to see the rest.`;
+            return `Nothing in ${focusLabel(focus)}. Switch to All above to see the rest.`;
           }
           if (isFilterActive(this.filterState)) return "No todos match the current filters.";
           return project
@@ -459,24 +501,67 @@ export class ListPane {
       "today",
       this.segment,
       arrangement,
-      sections.map((s) => [s.title, s.todos.map((t) => [t.id ?? `${t.file}:${t.line}`, t.glyph, t.displayText, t.project, t.note])]),
+      sections.map((s) => [s.key, s.title, s.todos.map((t) => [t.id ?? `${t.file}:${t.line}`, t.glyph, t.displayText, t.project, t.note])]),
     ]);
+    // Pull forward only where the band is a band: on Reminders a passed
+    // reminder groups under "Overdue" too, and re-dating one would move a due
+    // date nobody asked about.
+    const banded = this.segment === "today" || this.segment === "upcoming";
+    // Folds are per segment and persisted: Today opens on Doing alone, and any
+    // section you open or close stays that way across restarts.
+    const memoryKey = this.memoryKey() ?? "today";
+    const folds = this.plugin.viewMemory(memoryKey).sections;
     this.remount(signature, () => {
       this.components.push(
         mount(TodoList, {
           target: this.bodyEl,
           props: {
             ...this.listProps(),
-            groups: sections.map((s) => ({ label: s.title, todos: s.todos })),
+            groups: sections.map((s) => ({
+              key: s.key,
+              label: s.title,
+              todos: s.todos,
+              status: s.status,
+            })),
             total: todos.length,
             emptyText: EMPTY_MESSAGES[this.segment],
             showProject: true,
+            collapsed: folds,
+            collapsedDefaults: TODAY_COLLAPSED_STATUSES,
+            onToggleSection: (sections: string[]) =>
+              this.plugin.rememberView(memoryKey, { sections }),
             // Dates and priorities are not places — no drag here.
             dragDisabled: true,
+            onPullForward: banded
+              ? (overdue: TodoRecord[]) => void this.pullForward(overdue)
+              : undefined,
           },
         }),
       );
     });
+  }
+
+  /**
+   * "Pull forward": the overdue todos ON SCREEN become due today.
+   *
+   * Scoped to the rows the band is drawing — what filter and focus have already
+   * narrowed to — never every overdue todo in the vault. A button that quietly
+   * reaches past what you can see is one you can't trust; this one can only
+   * touch what it is sitting on top of.
+   *
+   * No confirmation: it is one ordinary re-date per row, each visible in its own
+   * note and each undoable by editing the todo, which is a smaller step than the
+   * dialog asking about it would be.
+   */
+  private async pullForward(todos: readonly TodoRecord[]): Promise<void> {
+    const today = localIsoDate(new Date());
+    const moved = await this.plugin.writer.pullForward(todos, today);
+    new Notice(
+      moved === 0
+        ? "MarkTodo: nothing to pull forward."
+        : `MarkTodo: pulled ${moved} todo${moved === 1 ? "" : "s"} forward to today.`,
+    );
+    this.refresh(true);
   }
 
   private renderSegments(counts: Record<SmartViewType, number>): void {
@@ -494,16 +579,21 @@ export class ListPane {
     }
   }
 
+  /** This segment's own sort + group. Each of the four is remembered separately. */
   private get arrangement(): TodayArrangement {
-    return { ...DEFAULT_TODAY_ARRANGEMENT, ...this.plugin.settings.todayArrangement };
+    return this.plugin.settings.todayArrangement[this.segment];
   }
 
   /** Sort and group, as one menu — Notebook Navigator's sort button. */
   private arrangeMenu(evt: MouseEvent): void {
     const menu = new Menu();
     const { sort, group } = this.arrangement;
+    const segment = this.segment;
     const set = (patch: Partial<TodayArrangement>): void => {
-      this.plugin.settings.todayArrangement = { ...this.arrangement, ...patch };
+      this.plugin.settings.todayArrangement = {
+        ...this.plugin.settings.todayArrangement,
+        [segment]: { ...this.arrangement, ...patch },
+      };
       void this.plugin.saveSettings();
       this.refresh();
     };

@@ -44,11 +44,13 @@ export interface ProjectCounts {
 export interface NavProject extends ProjectCounts {
   /** Display name — the file basename. */
   name: string;
-  /** Vault path. The PIN KEY: a rename drops the pin, which beats pinning a name. */
+  /** Vault path — what a row opens, and what a frontmatter write addresses. */
   path: string;
   /** `marktodo-group`, or null when ungrouped. */
   group: string | null;
   archived: boolean;
+  /** `marktodo-pinned` — read off the note, so a rename carries the pin along. */
+  pinned: boolean;
   /** `TFile.stat.mtime` — the "recent" sort. */
   mtime: number;
 }
@@ -66,17 +68,22 @@ export function sortProjects<P extends Sortable>(projects: readonly P[], sort: P
   return [...projects].sort((a, b) => primary[sort](a, b) || byName(a, b));
 }
 
-/** Split into the pinned section and the rest, both in `sort` order. */
-export function arrangeProjects<P extends Sortable>(
+type Pinnable = Sortable & Pick<NavProject, "pinned">;
+
+/**
+ * Split into the pinned section and the rest, both in `sort` order. The pin is
+ * the note's OWN flag, not a list of paths kept beside the vault: renaming a
+ * pinned note keeps its pin, and both programs see the same pins because they
+ * read them from the same Markdown.
+ */
+export function arrangeProjects<P extends Pinnable>(
   projects: readonly P[],
   sort: ProjectSort,
-  pinnedPaths: readonly string[],
 ): { pinned: P[]; rest: P[] } {
-  const pins = new Set(pinnedPaths);
   const sorted = sortProjects(projects, sort);
   return {
-    pinned: sorted.filter((p) => pins.has(p.path)),
-    rest: sorted.filter((p) => !pins.has(p.path)),
+    pinned: sorted.filter((p) => p.pinned),
+    rest: sorted.filter((p) => !p.pinned),
   };
 }
 
@@ -229,11 +236,6 @@ export function groupEdits(
 export function renameSectionKey(collapsed: readonly string[], from: string, to: string | null): string[] {
   const rest = collapsed.filter((k) => k !== from);
   return collapsed.includes(from) && to !== null && !rest.includes(to) ? [...rest, to] : rest;
-}
-
-/** Pin or unpin a project by its vault path. */
-export function togglePin(pinnedPaths: readonly string[], path: string): string[] {
-  return pinnedPaths.includes(path) ? pinnedPaths.filter((p) => p !== path) : [...pinnedPaths, path];
 }
 
 /**

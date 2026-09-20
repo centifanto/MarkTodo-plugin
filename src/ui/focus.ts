@@ -60,3 +60,42 @@ export function focusCounts(todos: readonly TodoRecord[]): Record<Focus, number>
 export function parseFocus(raw: unknown): Focus {
   return FOCUS_SEGMENTS.some((s) => s.key === raw) ? (raw as Focus) : DEFAULT_FOCUS;
 }
+
+/** The focus row's label for a focus — the same word the segment shows. */
+export function focusLabel(focus: Focus): string {
+  return FOCUS_SEGMENTS.find((s) => s.key === focus)?.label ?? focus;
+}
+
+/** What the view bar's summary line says, and which parts it has to say it with. */
+export interface FocusSummary {
+  /** The focus in effect; null on a surface that has no focus (the Inbox). */
+  focus: Focus | null;
+  /** How many filters are set; null on a surface that offers none. */
+  filters: number | null;
+  /** The current sort's label; null on a surface that doesn't sort. */
+  sort: string | null;
+}
+
+/** The separator between the summary's parts. */
+const SUMMARY_SEP = " | ";
+
+/**
+ * The one-line reading of a collapsed focus row: `All | 0 filters | Manual`.
+ *
+ * Composed HERE, once, rather than assembled on each side — which parts there
+ * are, their order, the separator and what each reads when empty are the same
+ * sentence in both programs, and a collapsed control that describes itself
+ * differently on two screens is worse than no control at all.
+ *
+ * A part that a surface does not offer is dropped, not written as "none": an
+ * Inbox that has no sort should not have to say so. Zero filters DOES read as
+ * "0 filters", because the count is the whole reason that part is there — the
+ * row has to say the list is unfiltered, not leave you to infer it.
+ */
+export function focusSummary({ focus, filters, sort }: FocusSummary): string {
+  const parts: string[] = [];
+  if (focus !== null) parts.push(focusLabel(focus));
+  if (filters !== null) parts.push(filters === 1 ? "1 filter" : `${filters} filters`);
+  if (sort !== null) parts.push(sort);
+  return parts.join(SUMMARY_SEP);
+}

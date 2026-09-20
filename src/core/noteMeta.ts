@@ -1,8 +1,8 @@
 /**
- * Note-level frontmatter. A note carries up to four
+ * Note-level frontmatter. A note carries up to five
  * MarkTodo facts in its YAML frontmatter: whether it is a project, which group it
- * belongs to, whether completed todos in it are deleted, and whether it is
- * archived.
+ * belongs to, whether completed todos in it are deleted, whether it is archived,
+ * and whether it is pinned to the top of the navigator.
  *
  * PURE — takes the already-parsed frontmatter record (Obsidian's MetadataCache
  * supplies it in the plugin; the companion app parses its own) and
@@ -22,6 +22,13 @@ export const GROUP_FM_KEY = "marktodo-group";
 export const CLEANUP_FM_KEY = "marktodo-cleanup";
 /** Archived notes stay indexed but drop out of pickers, boards and lists. */
 export const ARCHIVED_FM_KEY = "marktodo-archived";
+/**
+ * Pinned notes head the navigator, above every group. The flag lives in the
+ * NOTE, not in plugin settings, because the two programs share notes and not
+ * settings files: a pin set on one device arrives on the other with the
+ * Markdown, and it survives a rename the way a path-keyed pin never could.
+ */
+export const PINNED_FM_KEY = "marktodo-pinned";
 
 export type CleanupPolicy = "keep" | "delete";
 
@@ -32,12 +39,15 @@ export interface NoteMeta {
   cleanup: CleanupPolicy;
   /** `marktodo-archived`, present and not false/null. */
   archived: boolean;
+  /** `marktodo-pinned`, present and not false/null. */
+  pinned: boolean;
 }
 
 export const DEFAULT_NOTE_META: NoteMeta = {
   group: null,
   cleanup: "keep",
   archived: false,
+  pinned: false,
 };
 
 /**
@@ -99,6 +109,7 @@ export function readNoteMeta(fm: Record<string, unknown> | undefined): NoteMeta 
     group: groupOf(fm),
     cleanup: cleanupOf(fm),
     archived: flagOf(fm, ARCHIVED_FM_KEY),
+    pinned: flagOf(fm, PINNED_FM_KEY),
   };
 }
 

@@ -1,21 +1,34 @@
 /**
  * Folding status sections in a list. PURE.
  *
- * The app folds Done when a project screen opens; the plugin's Todos and
- * project lists do the same.
+ * Which sections START folded depends on what the list is FOR, so the default
+ * set is passed in rather than fixed here:
+ *
+ *  - a project or Todos list is a board you work across, so only finished work
+ *    is out of the way (the app folds Done on a project screen too);
+ *  - Today is "what am I on right now", so it opens on Doing alone and keeps
+ *    the rest one click away.
+ *
+ * Either way `toggled` holds the statuses flipped AWAY from that default, so a
+ * section you opened stays open and nothing else moves behind your back.
  */
-import { type Status } from "../core/types";
+import { STATUS_ORDER, type Status } from "../core/types";
 
-/** Folded when a list opens (the app's `DEFAULT_COLLAPSED`): finished work stays out of the way. */
+/** Folded when a project / Todos list opens: finished work stays out of the way. */
 export const DEFAULT_COLLAPSED_STATUSES: readonly Status[] = ["DONE"];
 
-/**
- * Whether a status section is folded. `toggled` holds the statuses flipped AWAY
- * from their default — the navigator's collapse memory works the same way — so
- * opening Done once keeps it open, and nothing else changes behind your back.
- */
-export function isStatusCollapsed(status: Status, toggled: readonly string[]): boolean {
-  return DEFAULT_COLLAPSED_STATUSES.includes(status) !== toggled.includes(status);
+/** Folded when Today opens: everything except the work actually underway. */
+export const TODAY_COLLAPSED_STATUSES: readonly Status[] = STATUS_ORDER.filter(
+  (s) => s !== "PROGRESS",
+);
+
+/** Whether a status section is folded, given the surface's default fold set. */
+export function isStatusCollapsed(
+  status: Status,
+  toggled: readonly string[],
+  defaults: readonly Status[] = DEFAULT_COLLAPSED_STATUSES,
+): boolean {
+  return defaults.includes(status) !== toggled.includes(status);
 }
 
 /** Flip one section. */
