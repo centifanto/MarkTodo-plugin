@@ -67,12 +67,16 @@ export function focusLabel(focus: Focus): string {
 }
 
 /** What the view bar's summary line says, and which parts it has to say it with. */
-/** What the view bar's summary line says, and which parts it has to say it with. */
 export interface FocusSummary {
   /**
-   * The layout in effect ("List" / "Board"); omitted on a surface with one
+   * The layout in effect ("List" / "Kanban"); omitted on a surface with one
    * layout. FIRST in the line, because it is the most structural of the parts —
    * the others describe what is in the view, this one describes its shape.
+   *
+   * Both programs pass it: the phone from the view bar's own switch, the plugin
+   * from its Todos and project boards ("Kanban") and its status-sectioned lists
+   * ("List"). Optional because a surface with only one layout has nothing to
+   * say here, not because either side is missing the setting.
    */
   layout?: string | null;
   /** The focus in effect; null on a surface that has no focus (the Inbox). */

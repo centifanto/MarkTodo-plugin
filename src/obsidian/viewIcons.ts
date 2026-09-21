@@ -53,7 +53,7 @@ export const SORT_ICONS: Record<SortKey, string> = {
   date: "calendar-days",
   priority: "arrow-down-wide-narrow",
   title: "arrow-down-az",
-  // The navigator's project icon, not the app's folder — see `iconMaps.ts`.
+  // The navigator's project icon, the same glyph the app draws — see `iconMaps.ts`.
   project: PROJECT_ICON,
 };
 
