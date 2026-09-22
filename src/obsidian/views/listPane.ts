@@ -629,7 +629,16 @@ export class ListPane {
       el.setAttribute("role", "tab");
       el.setAttribute("aria-selected", String(key === this.segment));
       setIcon(el.createSpan({ cls: "marktodo-segment-icon" }), SMART_VIEW_ICONS[key]);
-      el.createSpan({ text: label });
+      // Three words, three glyphs and three counts want ~390px, and the list
+      // column is 300 in a default sidebar. Reminders is the one that yields:
+      // it is the segment you consult rather than work from, and its bell is
+      // the least ambiguous of the three glyphs standing alone. Its word is
+      // written all the same and the stylesheet gives it back the moment the
+      // column is wide enough — `aria-label` covers the narrow case, for a
+      // hover and for a screen reader. Agenda and Upcoming always keep theirs.
+      const optional = key === "reminders";
+      if (optional) el.setAttribute("aria-label", label);
+      el.createSpan({ cls: `marktodo-segment-label${optional ? " is-optional" : ""}`, text: label });
       if (counts[key] > 0) el.createSpan({ cls: "marktodo-segment-count", text: String(counts[key]) });
       el.addEventListener("click", () => {
         // Another segment is another list: back to the cap.

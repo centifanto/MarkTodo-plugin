@@ -1440,6 +1440,11 @@ body {
   flex-direction: column;
   min-width: 0;
   height: 100%;
+  /* A query container, for Agenda's segments: whether the third one can afford
+     its word depends on this COLUMN's width — the sidebar's in the drawer
+     layout, about half of it beside the navigator — never the window's. */
+  container-type: inline-size;
+  container-name: marktodo-list;
 }
 .marktodo-dash-nav {
   flex: 0 0 auto;
@@ -1825,11 +1830,18 @@ body {
 }
 
 /* ── Agenda's segments (in the dashboard's list column) ────────────── */
+/* 8px of pill padding, not 12: Agenda and Upcoming keep icon, word and count
+   at every width, and at 12 the pair plus the bell measured 285px against the
+   264 a default 300px sidebar has to give (300, less the 12px `scrollbar-gutter`
+   the list below reserves and this row's own padding). 8 buys ~19px of slack
+   and costs four pixels of pill. Narrower still, the row wraps — a second row
+   is the pane saying it is too narrow, which is the only honest thing it can
+   say once the words are non-negotiable. */
 .marktodo-segments {
   display: flex;
   flex-wrap: wrap;
   gap: var(--size-4-1);
-  padding: 0 var(--size-4-3) var(--size-4-2);
+  padding: 0 var(--size-4-2) var(--size-4-2);
 }
 .marktodo-segments:empty {
   display: none;
@@ -1838,7 +1850,7 @@ body {
   display: flex;
   align-items: center;
   gap: var(--size-4-1);
-  padding: var(--size-2-2) var(--size-4-3);
+  padding: var(--size-2-2) var(--size-4-2);
   border-radius: 999px;
   color: var(--text-muted);
   font-size: var(--mt-font-small);
@@ -1852,6 +1864,19 @@ body {
   background-color: var(--mt-selection);
   color: var(--text-normal);
   font-weight: var(--font-semibold);
+}
+/* Reminders' word, which it keeps only when the column has room for it — see
+   `renderSegments`. Below that the bell and its count stand alone, and the two
+   segments you work from keep their names. If even THAT does not fit, the row
+   wraps as it always has: a second row is the pane telling you it is too
+   narrow. */
+.marktodo-segment-label.is-optional {
+  display: none;
+}
+@container marktodo-list (min-width: 365px) {
+  .marktodo-segment-label.is-optional {
+    display: revert;
+  }
 }
 .marktodo-segment-count {
   color: var(--text-faint);

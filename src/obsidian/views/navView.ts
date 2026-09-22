@@ -25,7 +25,7 @@
 import { ItemView, Menu, Notice, Platform, TFile, debounce, setIcon, type WorkspaceLeaf } from "obsidian";
 import { type TodoRecord } from "../../core/types";
 import { LOGO_ICON } from "../../ui/logo";
-import { PROJECT_ICON } from "../../ui/iconMaps";
+import { PROJECT_ICON, PROJECTS_ICON } from "../../ui/iconMaps";
 import { localIsoDate } from "../../core/dates";
 import { smartViewCounts } from "../../ui/smartViews";
 import {
@@ -411,7 +411,7 @@ export class NavView extends ItemView implements DashboardHandle {
     const projectsChildren = this.node(body, {
       key: PROJECTS_KEY,
       label: "Projects",
-      icon: PROJECT_ICON,
+      icon: PROJECTS_ICON,
       count: projects.filter((p) => !p.archived).length,
     });
     if (projectsChildren) {

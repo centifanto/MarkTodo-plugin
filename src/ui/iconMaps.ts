@@ -34,6 +34,20 @@ export const PRIORITY_ICONS: Record<Exclude<Priority, "NONE">, string> = {
  */
 export const PROJECT_ICON = "folder-kanban";
 
+/**
+ * The Projects HEADING in the navigator — the collection, not a project.
+ *
+ * Stacked folders, because outline is the only channel that survives 14px in
+ * `--text-muted`: `folder-closed` and `folder-kanban` share one silhouette and
+ * differ only by their interior marks, which is precisely the confusion a
+ * heading over a list of projects has to avoid. `folders` reads as more than
+ * one at a glance and stays in the folder family, so the heading and the rows
+ * under it still look related. `library` and `boxes` say collection too, but
+ * they leave the family — and a group of projects already has its own glyph
+ * (`folder-tree`, in `navView`), so this one only has to say "all of them".
+ */
+export const PROJECTS_ICON = "folders";
+
 /** Display names for the priorities — the todo modal's chips, Agenda's headers. */
 export const PRIORITY_LABEL: Record<Priority, string> = {
   URGENT: "Urgent",
