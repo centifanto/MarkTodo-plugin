@@ -10,7 +10,7 @@
  * the starting choice. Priority and due follow the title's tokens (`@ph`,
  * `due @ …`) until the user touches those controls.
  */
-import { ButtonComponent, type Editor, Modal, Notice, TFile, setIcon } from "obsidian";
+import { ButtonComponent, type Editor, Modal, Notice, Platform, TFile, setIcon } from "obsidian";
 import {
   PHASE_LABELS,
   PHASE_ORDER,
@@ -101,9 +101,18 @@ class CaptureModal extends Modal {
     contentEl.addClass("marktodo-todo-modal");
     contentEl.createEl("h3", { cls: "marktodo-modal-title", text: "New todo" });
 
+    // The token hint rides in the placeholder on a keyboard, where there's room
+    // for it; a phone truncates it mid-word, so the narrow screen gets the
+    // question alone. `@high` over the `@ph` alias: it's the token MarkTodo
+    // writes back, so the hint teaches the syntax you'll see in the file.
     const input = contentEl.createEl("input", {
       cls: "marktodo-quickadd-input",
-      attr: { type: "text", placeholder: "What needs doing?  (@ph, due @ 2026-10-01 work too)" },
+      attr: {
+        type: "text",
+        placeholder: Platform.isPhone
+          ? "What needs doing?"
+          : "What needs doing?  (@high, due @ 2026-10-01 work too)",
+      },
     });
     input.value = this.title;
 
@@ -164,19 +173,25 @@ class CaptureModal extends Modal {
 
     const dueControl = this.field(fields, "Due");
     const dueInput = dueControl.createEl("input", { type: "date", value: this.due ?? "" });
-    dueInput.onchange = (): void => {
-      this.due = dueInput.value || null;
-      this.dueTouched = true;
-    };
     const clearDue = dueControl.createEl("button", {
       cls: "marktodo-field-clear clickable-icon",
       attr: { "aria-label": "Clear due date", title: "Clear due date" },
     });
     setIcon(clearDue, "x");
+    // An empty date field has nothing to clear, and capture usually opens with
+    // one — a live "✕" beside it is a control that does nothing.
+    const syncClearDue = (): void => clearDue.toggle(dueInput.value !== "");
+    syncClearDue();
+    dueInput.onchange = (): void => {
+      this.due = dueInput.value || null;
+      this.dueTouched = true;
+      syncClearDue();
+    };
     clearDue.onclick = (): void => {
       dueInput.value = "";
       this.due = null;
       this.dueTouched = true;
+      syncClearDue();
     };
 
     // The title leads until a control is touched: typing `@pu` or a due token
@@ -191,6 +206,7 @@ class CaptureModal extends Modal {
       if (!this.dueTouched) {
         this.due = parsed?.due ?? null;
         dueInput.value = this.due ?? "";
+        syncClearDue();
       }
     });
     input.addEventListener("keydown", (e) => {
@@ -258,17 +274,22 @@ class CaptureModal extends Modal {
     return catchAll ? CATCH_ALL : "";
   }
 
-  /** A row of single-select chips; returns a setter that moves the highlight. */
+  /**
+   * Fill a chip row with single-select chips; returns a setter that moves the
+   * highlight. The chips go straight into the caller's row — a second
+   * `.marktodo-chip-row` nested inside it would put every chip in the first
+   * cell of the outer one, because on phones that row is a GRID, not a flex
+   * line: the chips end up a twelfth of the width each and spill sideways.
+   */
   private chipRow<T extends string>(
-    parent: HTMLElement,
+    row: HTMLElement,
     values: readonly T[],
     current: T,
     onPick: (value: T) => void,
     label: (value: T) => [icon: string | null, text: string],
   ): (value: T) => void {
-    const wrap = parent.createDiv({ cls: "marktodo-chip-row" });
     const chips = values.map((v) => {
-      const chip = wrap.createEl("button", { cls: "marktodo-chip" });
+      const chip = row.createEl("button", { cls: "marktodo-chip" });
       const [icon, text] = label(v);
       if (icon) setIcon(chip.createSpan({ cls: "marktodo-chip-icon" }), icon);
       chip.createSpan({ text });

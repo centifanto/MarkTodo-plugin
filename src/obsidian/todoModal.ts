@@ -349,17 +349,22 @@ class TodoModal extends Modal {
   private buildDueField(parent: HTMLElement): void {
     const control = this.field(parent, "Due");
     const input = control.createEl("input", { type: "date", value: this.todo.due ?? "" });
-    input.onchange = (): void => {
-      void this.plugin.writer.setDue(this.todo, input.value || null);
-    };
     const clear = control.createEl("button", {
       cls: "marktodo-field-clear clickable-icon",
       attr: { "aria-label": "Clear due date", title: "Clear due date" },
     });
     setIcon(clear, "x");
+    // Nothing to clear when the todo has no due date — see `quickAdd`.
+    const syncClear = (): void => clear.toggle(input.value !== "");
+    syncClear();
+    input.onchange = (): void => {
+      void this.plugin.writer.setDue(this.todo, input.value || null);
+      syncClear();
+    };
     clear.onclick = (): void => {
       input.value = "";
       void this.plugin.writer.setDue(this.todo, null);
+      syncClear();
     };
   }
 

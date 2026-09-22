@@ -727,7 +727,12 @@ body {
 .marktodo-editable-empty {
   color: var(--text-faint);
 }
+/* The create dialog's title is a real <h3>, the editor's is an editable div.
+   Obsidian gives every heading `margin-block-start: var(--p-spacing)`, which
+   opened a band of air above "New todo" that the editor doesn't have — the two
+   dialogs start at the same place. */
 .marktodo-modal-title {
+  margin-top: 0;
   margin-bottom: var(--size-2-2);
   font-size: var(--mt-font-large);
   font-weight: var(--font-semibold);
@@ -792,8 +797,17 @@ body {
   min-width: 0;
   max-width: 100%;
 }
+/* The date field draws its own border. Obsidian gives inputs a fill and leans
+   on `--input-border-width` for the edges — which touch devices set to 0 — so an
+   EMPTY due date (every new todo) is a control with nothing to see: the Due row
+   reads as a gap beside the Destination dropdown that does have a surface. The
+   border is the chips', so it lands the same way under any theme. Height off
+   `--input-height` puts it at the dropdown's height on both phone and desktop. */
 .marktodo-field-control input[type="date"] {
   flex: 0 1 auto;
+  min-width: 0;
+  height: var(--input-height);
+  border: 1px solid var(--background-modifier-border);
 }
 .marktodo-field-hint {
   flex: 1 1 100%;
@@ -908,8 +922,11 @@ body {
   gap: var(--size-4-1);
   flex: 1 1 100%;
 }
+/* Four priority chips where status takes three, so the columns are asked for
+   by width rather than by count: the four fit a normal phone, and a narrower
+   one drops to three and wraps instead of shaving the labels down to "Urge". */
 .is-phone .modal .marktodo-todo-modal .marktodo-chip-row.mod-priority {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
 }
 .is-phone .modal .marktodo-todo-modal .marktodo-chip-row button.marktodo-chip {
   width: auto;
@@ -920,7 +937,6 @@ body {
 }
 .is-phone .modal .marktodo-todo-modal .marktodo-field-control input[type="date"] {
   flex: 1 1 auto;
-  height: 36px;
 }
 .is-phone .modal .marktodo-todo-modal .marktodo-modal-actions button {
   flex: 1 1 0;
