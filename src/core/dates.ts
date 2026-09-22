@@ -16,9 +16,13 @@ export const DATE_SRC = "\\d{4}-\\d{1,2}-\\d{1,2}(?!\\d)";
 export const TIME_SRC = "\\d{1,2}:\\d{2}(?!\\d)";
 
 const DUE_RE = new RegExp(`due\\s*@\\s*${DATE_SRC}`);
-/** `done @ YYYY-MM-DD` as a whole word (so e.g. `undone @` never matches). */
-const DONE_RE = new RegExp(`(^|\\s+)done\\s*@\\s*${DATE_SRC}`);
-const DONE_DATE_RE = new RegExp(`(?:^|\\s)done\\s*@\\s*(${DATE_SRC})`);
+/**
+ * `done @ YYYY-MM-DD HH:MM` as a whole word (so e.g. `undone @` never matches).
+ * The time is OPTIONAL on read: every stamp written before it existed is a bare
+ * date, and those notes are not rewritten just to gain a minute nobody recorded.
+ */
+const DONE_RE = new RegExp(`(^|\\s+)done\\s*@\\s*${DATE_SRC}(?:\\s+${TIME_SRC})?`);
+const DONE_AT_RE = new RegExp(`(?:^|\\s)done\\s*@\\s*(${DATE_SRC})(?:\\s+(${TIME_SRC}))?`);
 const NOTIFY_AT_RE = new RegExp(`(?:^|\\s)notify\\s*@\\s*(${DATE_SRC})\\s+(${TIME_SRC})`);
 /** The date-bearing tokens: `due @`, `done @`, and the app's `notify @ … H:MM`. */
 const DATE_TOKEN_RE = new RegExp(`(done|due|notify)(\\s*@\\s*)(${DATE_SRC})(?:(\\s+)(${TIME_SRC}))?`, "g");
@@ -48,10 +52,19 @@ export function canonicalDateTokens(text: string): string {
     (m, kind: string, at: string, date: string, gap: string | undefined, time: string | undefined, offset: number) => {
       if (kind === "done" && offset > 0 && !/\s/.test(text[offset - 1])) return m;
       if (kind === "notify" && time === undefined) return m;
-      const tail = time === undefined ? "" : kind === "notify" ? `${gap}${canonicalTime(time)}` : `${gap}${time}`;
+      // `done` and `notify` own their time; a time after `due` is someone's own
+      // text and is left exactly as typed.
+      const tail = time === undefined ? "" : kind === "due" ? `${gap}${time}` : `${gap}${canonicalTime(time)}`;
       return `${kind}${at}${canonicalDate(date)}${tail}`;
     },
   );
+}
+
+/** A Date's LOCAL day and minute as `YYYY-MM-DD HH:MM` — what a `done @` records. */
+export function localIsoStamp(now: Date): string {
+  const h = String(now.getHours()).padStart(2, "0");
+  const min = String(now.getMinutes()).padStart(2, "0");
+  return `${localIsoDate(now)} ${h}:${min}`;
 }
 
 /** A Date's LOCAL calendar day as `YYYY-MM-DD` (not UTC — 11pm today is still today). */
@@ -62,14 +75,21 @@ export function localIsoDate(now: Date): string {
   return `${y}-${m}-${d}`;
 }
 
-/** The `done @` date in a todo's text, or null. */
-export function doneDateOf(todo: Todo): string | null {
+/**
+ * The `done @` stamp in a todo's text — `YYYY-MM-DD HH:MM`, or `YYYY-MM-DD`
+ * when it was written before stamps carried a time — or null.
+ *
+ * Canonical and zero-padded, so a plain string compare orders two stamps
+ * correctly, and an untimed one sorts as that day's 00:00.
+ */
+export function doneAtOf(todo: Todo): string | null {
   // The regex needs the literal word, so a substring miss is a definite null —
   // and `indexOf` is a great deal cheaper than a regex over every todo in the
-  // vault, which the Today view and the counts do on each pass.
+  // vault, which the lists do on each pass.
   if (todo.displayText.indexOf("done") === -1) return null;
-  const m = DONE_DATE_RE.exec(todo.displayText);
-  return m ? canonicalDate(m[1]) : null;
+  const m = DONE_AT_RE.exec(todo.displayText);
+  if (!m) return null;
+  return m[2] === undefined ? canonicalDate(m[1]) : `${canonicalDate(m[1])} ${canonicalTime(m[2])}`;
 }
 
 /**
@@ -78,8 +98,8 @@ export function doneDateOf(todo: Todo): string | null {
  *
  * The APP acts on this — it is the only one that can raise a notification — but
  * the token is part of the shared format, so the accessor belongs beside
- * `doneDateOf` rather than being re-derived per program. The plugin reads it for
- * the Today view's Reminders segment: on the desktop it is a review surface,
+ * `doneAtOf` rather than being re-derived per program. The plugin reads it for
+ * the Agenda view's Reminders segment: on the desktop it is a review surface,
  * "what did I ask my phone to nag me about".
  */
 export function notifyAtOf(todo: Todo): string | null {
@@ -89,17 +109,22 @@ export function notifyAtOf(todo: Todo): string | null {
 }
 
 /**
- * Keep the `done @ YYYY-MM-DD` token in step with the glyph: a DONE todo
- * carries one (an existing date is kept, so re-saving never re-dates it); any
+ * Keep the `done @ YYYY-MM-DD HH:MM` token in step with the glyph: a DONE todo
+ * carries one (an existing stamp is kept, so re-saving never re-dates it); any
  * other status carries none. Writers call this after every status change.
  * Idempotent; returns the same object when nothing changes.
+ *
+ * `stamp` is what a fresh completion records — `localIsoStamp(new Date())`. The
+ * minute is there so "most recently completed" can order a day's work; a stamp
+ * already in the text is never upgraded, because the minute it would gain is
+ * the minute you re-saved, not the minute you finished.
  */
-export function syncDoneDate(todo: Todo, today: string): Todo {
-  const has = doneDateOf(todo) !== null;
+export function syncDoneAt(todo: Todo, stamp: string): Todo {
+  const has = doneAtOf(todo) !== null;
   if (statusOf(todo) === "DONE") {
     if (has) return todo;
     const text = todo.displayText.trimEnd();
-    return { ...todo, displayText: text.length > 0 ? `${text} done @ ${today}` : `done @ ${today}` };
+    return { ...todo, displayText: text.length > 0 ? `${text} done @ ${stamp}` : `done @ ${stamp}` };
   }
   if (!has) return todo;
   const text = todo.displayText.replace(DONE_RE, "").replace(/\s{2,}/g, " ").trim();

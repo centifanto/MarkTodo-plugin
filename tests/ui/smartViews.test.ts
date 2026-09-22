@@ -45,7 +45,7 @@ function todo(text: string, over: Partial<TodoRecord> = {}): TodoRecord {
 
 const titles = (todos: readonly TodoRecord[]) => todos.map((t) => t.displayText);
 
-describe("smartViewTodos — Today", () => {
+describe("smartViewTodos — Agenda", () => {
   it("takes everything due today or earlier that isn't done", () => {
     const todos = [
       todo("overdue", { due: "2026-09-01" }),
@@ -54,17 +54,17 @@ describe("smartViewTodos — Today", () => {
       todo("undated"),
       todo("done today", { due: TODAY, glyph: "x" }),
     ];
-    expect(titles(smartViewTodos(todos, "today", TODAY))).toEqual(["overdue", "today"]);
+    expect(titles(smartViewTodos(todos, "agenda", TODAY))).toEqual(["overdue", "today"]);
   });
 
   it("includes loose todos — a todo in a daily note is still due today", () => {
     const todos = [todo("loose", { due: TODAY, project: null })];
-    expect(smartViewTodos(todos, "today", TODAY)).toHaveLength(1);
+    expect(smartViewTodos(todos, "agenda", TODAY)).toHaveLength(1);
   });
 
   it("excludes archived notes", () => {
     const todos = [todo("filed away", { due: TODAY, archived: true })];
-    expect(smartViewTodos(todos, "today", TODAY)).toEqual([]);
+    expect(smartViewTodos(todos, "agenda", TODAY)).toEqual([]);
   });
 });
 
@@ -104,22 +104,6 @@ describe("smartViewTodos — Reminders", () => {
   });
 });
 
-describe("smartViewTodos — Recent", () => {
-  it("takes todos completed within the last week", () => {
-    const todos = [
-      todo("just done done @ 2026-09-14", { glyph: "x" }),
-      todo("edge done @ 2026-09-08", { glyph: "x" }),
-      todo("too old done @ 2026-09-07", { glyph: "x" }),
-      todo("done but undated", { glyph: "x" }),
-      todo("open done @ 2026-09-14"),
-    ];
-    expect(titles(smartViewTodos(todos, "recent", TODAY))).toEqual([
-      "just done done @ 2026-09-14",
-      "edge done @ 2026-09-08",
-    ]);
-  });
-});
-
 describe("arrangeSmartTodos — sorting", () => {
   // Dates ahead of TODAY, so the overdue band doesn't claim them and this stays
   // a test of the ordering rather than of the split.
@@ -133,18 +117,9 @@ describe("arrangeSmartTodos — sorting", () => {
     expect(titles(section.todos)).toEqual(["a", "b", "c"]);
   });
 
-  it("sorts Recent newest first — the one segment that reads backwards", () => {
-    const todos = [
-      todo("older done @ 2026-09-10", { glyph: "x" }),
-      todo("newer done @ 2026-09-14", { glyph: "x" }),
-    ];
-    const [section] = arrangeSmartTodos(todos, "recent", { sort: "date", group: "none" }, ctx);
-    expect(titles(section.todos)).toEqual(["newer done @ 2026-09-14", "older done @ 2026-09-10"]);
-  });
-
   it("sorts by priority in URGENT → NONE order", () => {
     const todos = [todo("low", { priority: "LOW" }), todo("urgent", { priority: "URGENT" })];
-    const [section] = arrangeSmartTodos(todos, "today", { sort: "priority", group: "none" }, ctx);
+    const [section] = arrangeSmartTodos(todos, "agenda", { sort: "priority", group: "none" }, ctx);
     expect(titles(section.todos)).toEqual(["urgent", "low"]);
   });
 
@@ -153,19 +128,19 @@ describe("arrangeSmartTodos — sorting", () => {
       todo("due @ 2026-09-20 apple", { due: "2026-09-20" }),
       todo("@urgent banana", { priority: "URGENT" }),
     ];
-    const [section] = arrangeSmartTodos(todos, "today", { sort: "title", group: "none" }, ctx);
+    const [section] = arrangeSmartTodos(todos, "agenda", { sort: "title", group: "none" }, ctx);
     // Sorted on "apple"/"banana" — a leading token must not decide the order.
     expect(titles(section.todos)[0]).toContain("apple");
   });
 
   it("falls back to file order so the list never reshuffles between renders", () => {
     const todos = [todo("second", { line: 9 }), todo("first", { line: 2 })];
-    const [section] = arrangeSmartTodos(todos, "today", { sort: "date", group: "none" }, ctx);
+    const [section] = arrangeSmartTodos(todos, "agenda", { sort: "date", group: "none" }, ctx);
     expect(titles(section.todos)).toEqual(["first", "second"]);
   });
 
   it("returns no section at all when there is nothing to show", () => {
-    expect(arrangeSmartTodos([], "today", { sort: "date", group: "none" }, ctx)).toEqual([]);
+    expect(arrangeSmartTodos([], "agenda", { sort: "date", group: "none" }, ctx)).toEqual([]);
   });
 });
 
@@ -177,23 +152,8 @@ describe("arrangeSmartTodos — grouping", () => {
       todo("late", { due: "2026-09-01" }),
       todo("today", { due: TODAY }),
     ];
-    const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "date" }, ctx);
+    const sections = arrangeSmartTodos(todos, "agenda", { sort: "date", group: "date" }, ctx);
     expect(sections.map((s) => s.title)).toEqual(["Overdue", "Today", "Tomorrow", "No date"]);
-  });
-
-  it("never calls a Recent date overdue — completion is in the past by definition", () => {
-    const todos = [todo("done last week done @ 2026-09-10", { glyph: "x" })];
-    const sections = arrangeSmartTodos(todos, "recent", { sort: "date", group: "date" }, ctx);
-    expect(sections.map((s) => s.title)).toEqual(["Thu, Sep 10"]);
-  });
-
-  it("orders Recent's date sections newest first", () => {
-    const todos = [
-      todo("a done @ 2026-09-10", { glyph: "x" }),
-      todo("b done @ 2026-09-14", { glyph: "x" }),
-    ];
-    const sections = arrangeSmartTodos(todos, "recent", { sort: "date", group: "date" }, ctx);
-    expect(sections.map((s) => s.key)).toEqual(["2026-09-14", "2026-09-10"]);
   });
 
   it("groups by project with loose todos last", () => {
@@ -202,19 +162,19 @@ describe("arrangeSmartTodos — grouping", () => {
       todo("zed", { project: "Zed" }),
       todo("acme", { project: "Acme" }),
     ];
-    const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "project" }, ctx);
+    const sections = arrangeSmartTodos(todos, "agenda", { sort: "date", group: "project" }, ctx);
     expect(sections.map((s) => s.title)).toEqual(["Acme", "Zed", "No project"]);
   });
 
   it("groups by status in column order", () => {
     const todos = [todo("done", { glyph: "x" }), todo("backlog")];
-    const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "status" }, ctx);
+    const sections = arrangeSmartTodos(todos, "agenda", { sort: "date", group: "status" }, ctx);
     expect(sections.map((s) => s.title)).toEqual(["Backlog", "Done"]);
   });
 
   it("groups by priority in rank order", () => {
     const todos = [todo("none"), todo("urgent", { priority: "URGENT" })];
-    const sections = arrangeSmartTodos(todos, "today", { sort: "date", group: "priority" }, ctx);
+    const sections = arrangeSmartTodos(todos, "agenda", { sort: "date", group: "priority" }, ctx);
     expect(sections.map((s) => s.title)).toEqual(["Urgent", "None"]);
   });
 });
@@ -239,8 +199,8 @@ describe("arrangeSmartTodos — the overdue band", () => {
 
   // The band is the point of the screen, so it cannot depend on the user
   // happening to have picked one sort or one grouping.
-  it("leads Today and Upcoming whatever the sort or group", () => {
-    for (const view of ["today", "upcoming"] as const) {
+  it("leads Agenda and Upcoming whatever the sort or group", () => {
+    for (const view of ["agenda", "upcoming"] as const) {
       for (const sort of ["date", "priority", "title"] as const) {
         for (const group of ["none", "date", "project", "priority", "status"] as const) {
           const sections = arrangeSmartTodos([now, late], view, { sort, group }, ctx);
@@ -252,24 +212,20 @@ describe("arrangeSmartTodos — the overdue band", () => {
   });
 
   it("is left out entirely when nothing is late", () => {
-    const sections = arrangeSmartTodos([now], "today", { sort: "date", group: "none" }, ctx);
+    const sections = arrangeSmartTodos([now], "agenda", { sort: "date", group: "none" }, ctx);
     expect(sections.map((s) => s.key)).toEqual(["all"]);
   });
 
   it("is the only section when everything is late", () => {
-    const sections = arrangeSmartTodos([late], "today", { sort: "date", group: "none" }, ctx);
+    const sections = arrangeSmartTodos([late], "agenda", { sort: "date", group: "none" }, ctx);
     expect(sections.map((s) => s.key)).toEqual([OVERDUE_KEY]);
   });
 
-  it("never bands Reminders or Recent", () => {
+  it("never bands Reminders — a passed reminder is still just a reminder", () => {
     const stale = todo("missed notify @ 2026-09-01 09:00");
     expect(arrangeSmartTodos([stale], "reminders", { sort: "date", group: "none" }, ctx)[0].key).toBe(
       "all",
     );
-    const finished = todo("done done @ 2026-09-10", { glyph: "x", due: "2026-09-01" });
-    expect(
-      arrangeSmartTodos([finished], "recent", { sort: "date", group: "none" }, ctx)[0].key,
-    ).toBe("all");
   });
 });
 
@@ -300,6 +256,6 @@ describe("smartViewCounts", () => {
   });
 
   it("agrees on an empty vault too", () => {
-    expect(smartViewCounts([], TODAY)).toEqual({ today: 0, upcoming: 0, reminders: 0, recent: 0 });
+    expect(smartViewCounts([], TODAY)).toEqual({ agenda: 0, upcoming: 0, reminders: 0 });
   });
 });

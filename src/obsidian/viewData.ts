@@ -1,6 +1,6 @@
 /**
  * PURE view-data builders shared by every todo surface (List, Kanban, Inbox,
- * Today). Turns a filtered `TodoRecord[]` into List groups or Board columns.
+ * Agenda). Turns a filtered `TodoRecord[]` into List groups or Board columns.
  * No Obsidian/IO.
  */
 import {
@@ -13,6 +13,7 @@ import {
   statusOf,
 } from "../core/types";
 import { groupTodos } from "../core/query";
+import { doneAtOf } from "../core/dates";
 import { type Card, type Column } from "../ui/boardTypes";
 import { DEFAULT_FOCUS, type Focus, inFocus } from "../ui/focus";
 import { DEFAULT_LIST_SORT, sortTodos, type SortKey } from "../ui/sorts";
@@ -81,7 +82,24 @@ export function buildListGroups(todos: TodoRecord[], groupBy: ListGroupBy): Labe
  * section would be a regrouping wearing a sort's name. The default leaves every
  * todo in the order it arrived — file order from the index — which is the only
  * ordering that dragging a row can write back to the note.
+ *
+ * DONE is the exception, and takes no sort at all: finished work is read newest
+ * first or it is not read. A todo carrying no `done @` stamp (hand-typed `[x]`
+ * the writer hasn't synced yet) sorts to the bottom, where an undated todo goes
+ * on every other surface.
  */
+/**
+ * Finished work, most recently completed first, by the `done @` stamp the
+ * writer keeps in step with the glyph (`core/dates.ts`). Not a sort the user
+ * picks: every other order over Done answers a question nobody asks.
+ *
+ * The stamp carries a minute, so a day's completions order within the day; one
+ * written before stamps had a time reads as that day's 00:00.
+ */
+export function newestDoneFirst(todos: readonly TodoRecord[]): TodoRecord[] {
+  return sortTodos(todos, "date", { dateOf: doneAtOf, newestFirst: true });
+}
+
 export function buildStatusSections(
   todos: readonly TodoRecord[],
   focus: Focus = DEFAULT_FOCUS,
@@ -94,7 +112,7 @@ export function buildStatusSections(
     label: STATUS_LABELS[st],
     status: st,
     phase: STATUS_PHASE[st],
-    todos: sortTodos(byStatus.get(st) ?? [], sort, ctx),
+    todos: st === "DONE" ? newestDoneFirst(byStatus.get(st) ?? []) : sortTodos(byStatus.get(st) ?? [], sort, ctx),
   }));
 }
 
@@ -118,6 +136,14 @@ export function buildColumns(todos: TodoRecord[], focus: Focus = DEFAULT_FOCUS):
     status: st,
     label: STATUS_LABELS[st],
     phase: STATUS_PHASE[st],
-    cards: byStatus.get(st) ?? [],
+    // The Done column reads newest first, like the Done section in a list; the
+    // rest keep file order, which is what a drag can write back.
+    cards: st === "DONE" ? doneCardsNewestFirst(byStatus.get(st) ?? []) : (byStatus.get(st) ?? []),
   }));
+}
+
+/** `newestDoneFirst` over cards, so the board's Done column matches a list's. */
+function doneCardsNewestFirst(cards: readonly Card[]): Card[] {
+  const order = new Map(newestDoneFirst(cards.map((c) => c.todo)).map((t, i) => [t, i]));
+  return [...cards].sort((a, b) => (order.get(a.todo) ?? 0) - (order.get(b.todo) ?? 0));
 }

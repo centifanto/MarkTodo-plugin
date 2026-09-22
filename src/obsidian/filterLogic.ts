@@ -22,7 +22,7 @@ export interface FilterState {
  * Which todos a view works on:
  *  - "projects": List and Kanban — project todos only; the project picker lists projects.
  *  - "loose":    the Inbox view — non-project todos; no project picker.
- *  - "any":      Today — project AND loose todos; the project picker lists projects.
+ *  - "any":      Agenda — project AND loose todos; the project picker lists projects.
  */
 export type FilterSurface = "projects" | "loose" | "any";
 

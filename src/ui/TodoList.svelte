@@ -33,6 +33,8 @@
     collapsed = [],
     collapsedDefaults = DEFAULT_COLLAPSED_STATUSES,
     onToggleSection,
+    shown = {},
+    onShowMore,
     onStatusClick,
     onOpenTodo,
     onReveal,
@@ -47,7 +49,7 @@
     groups: Group[];
     total: number;
     emptyText?: string;
-    /** Name each todo's project under its title (Todos, Today — not a project's own list). */
+    /** Name each todo's project under its title (Todos, Agenda — not a project's own list). */
     showProject?: boolean;
     /**
      * Status sections flipped away from their default fold (Done starts
@@ -56,10 +58,13 @@
     collapsed?: string[];
     /**
      * Which statuses start folded on THIS surface — `collapsed` holds the flips
-     * away from it. A project list folds Done; Today folds all but Doing.
+     * away from it. A project list folds Done; Agenda folds all but Doing.
      */
     collapsedDefaults?: readonly Status[];
     onToggleSection?: (toggled: string[]) => void;
+    /** Sections already opened past the cap, by section key (remembered). */
+    shown?: Record<string, number>;
+    onShowMore?: (shown: Record<string, number>) => void;
     onStatusClick?: (todo: TodoRecord, event: MouseEvent) => void;
     /** `anchor` is the clicked row / card, so the editor can open over it. */
     onOpenTodo?: (todo: TodoRecord, anchor?: Element) => void;
@@ -90,10 +95,46 @@
   const flipDurationMs = 160;
   const today = localIsoDate(new Date());
 
+  /**
+   * How many rows a section draws before it stops. Every section is capped, not
+   * just Done: the index holds the whole vault either way, so the cost this
+   * avoids is DOM nodes and components, and a 500-row Backlog mounts just as
+   * many as a 500-row Done. The heading still counts the whole section, so the
+   * cap reads as paging rather than as todos gone missing.
+   */
+  const SECTION_CAP = 20;
+  /**
+   * Sections the reader has opened past the cap, by section key. Seeded from
+   * the remembered map and written back through `onShowMore`, so a re-mount —
+   * which happens on every index change — doesn't take the rows away again.
+   */
+  // svelte-ignore state_referenced_locally
+  let expanded = $state<Record<string, number>>({ ...shown });
+
+  const sectionKey = (group: Group, gi: number): string =>
+    group.key ?? group.status ?? (group.label === "" ? String(gi) : group.label);
+  const limitOf = (group: Group, gi: number): number => expanded[sectionKey(group, gi)] ?? SECTION_CAP;
+  const visible = (group: Group, gi: number): TodoRecord[] =>
+    group.todos.length <= limitOf(group, gi) ? group.todos : group.todos.slice(0, limitOf(group, gi));
+  const hiddenIn = (group: Group, gi: number): number =>
+    Math.max(0, group.todos.length - limitOf(group, gi));
+
+  function showMore(group: Group, gi: number): void {
+    expanded[sectionKey(group, gi)] = limitOf(group, gi) + SECTION_CAP;
+    // The drop zone holds exactly what is on screen, so it grows with it.
+    zones[gi] = visible(group, gi).map((t) => ({ id: keyOf(t), todo: t }));
+    onShowMore?.(expanded);
+  }
+
   // Drop-zone items per group. The view re-mounts this component on every index
   // change, so seeding once is enough (and a mid-drag update can't yank a card).
+  // A zone holds the VISIBLE rows only — svelte-dnd-action pairs items to DOM
+  // children one for one, so anything capped out has to be out of both.
   // svelte-ignore state_referenced_locally
-  let zones = $state<Card[][]>(groups.map((g) => g.todos.map((t) => ({ id: keyOf(t), todo: t }))));
+  let zones = $state<Card[][]>(
+    // svelte-ignore state_referenced_locally
+    groups.map((g, gi) => visible(g, gi).map((t) => ({ id: keyOf(t), todo: t }))),
+  );
   // svelte-ignore state_referenced_locally
   let toggled = $state<string[]>([...collapsed]);
 
@@ -222,7 +263,10 @@
           use:dndzone={{
             items: zones[gi],
             flipDurationMs,
-            dragDisabled,
+            // Done reads newest-completed first, so a row's place in the file
+            // says nothing about where it sits here: dragging OUT of Done is
+            // off, dropping INTO it (which only changes status) is not.
+            dragDisabled: dragDisabled || group.status === "DONE",
             type: "marktodo-list",
             dropTargetStyle: {},
           }}
@@ -236,9 +280,15 @@
           {/each}
         </div>
       {:else}
-        {#each group.todos as todo (keyOf(todo))}
+        {#each visible(group, gi) as todo (keyOf(todo))}
           <TodoRow {todo} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
         {/each}
+      {/if}
+      {#if !folded && hiddenIn(group, gi) > 0}
+        <button class="marktodo-show-more" onclick={() => showMore(group, gi)}>
+          Show {Math.min(SECTION_CAP, hiddenIn(group, gi))} more
+          <span class="marktodo-show-more-rest">{hiddenIn(group, gi)} left</span>
+        </button>
       {/if}
     </div>
   {/each}

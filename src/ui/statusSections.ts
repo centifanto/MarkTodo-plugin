@@ -6,7 +6,7 @@
  *
  *  - a project or Todos list is a board you work across, so only finished work
  *    is out of the way (the app folds Done on a project screen too);
- *  - Today is "what am I on right now", so it opens on Doing alone and keeps
+ *  - Agenda is "what am I on right now", so it opens on Doing alone and keeps
  *    the rest one click away.
  *
  * Either way `toggled` holds the statuses flipped AWAY from that default, so a
@@ -17,8 +17,8 @@ import { STATUS_ORDER, type Status } from "../core/types";
 /** Folded when a project / Todos list opens: finished work stays out of the way. */
 export const DEFAULT_COLLAPSED_STATUSES: readonly Status[] = ["DONE"];
 
-/** Folded when Today opens: everything except the work actually underway. */
-export const TODAY_COLLAPSED_STATUSES: readonly Status[] = STATUS_ORDER.filter(
+/** Folded when Agenda opens: everything except the work actually underway. */
+export const AGENDA_COLLAPSED_STATUSES: readonly Status[] = STATUS_ORDER.filter(
   (s) => s !== "PROGRESS",
 );
 

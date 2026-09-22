@@ -23,7 +23,7 @@ import {
 import { parseTodoLine } from "../core/parse";
 import { serializeTodoLine } from "../core/serialize";
 import { setStatus } from "../core/status";
-import { localIsoDate, syncDoneDate } from "../core/dates";
+import { localIsoStamp, syncDoneAt } from "../core/dates";
 import { generateId } from "../core/id";
 import { STATUS_ICONS, PRIORITY_ICONS } from "../ui/iconMaps";
 import { getProjectFiles } from "./projects";
@@ -380,7 +380,7 @@ export async function sendLineToNote(
   const status = captureStatus(placement, todo, wasTodo, plugin.settings.defaultStatus);
   // Keep an existing id; the copy starts at the left margin.
   const line = serializeTodoLine(
-    syncDoneDate(setStatus({ ...todo, id: todo.id ?? generateId(), indent: "" }, status), localIsoDate(new Date())),
+    syncDoneAt(setStatus({ ...todo, id: todo.id ?? generateId(), indent: "" }, status), localIsoStamp(new Date())),
   );
   if (!(await plugin.writer.insertIntoTarget(target, line))) return null;
 

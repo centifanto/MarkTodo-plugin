@@ -15,7 +15,7 @@ import { parseTodoLine } from "../core/parse";
 import { serializeTodoLine } from "../core/serialize";
 import { normalizePriorityTokens } from "../core/priority";
 import { setPriority } from "../core/status";
-import { localIsoDate, setDue, syncDoneDate } from "../core/dates";
+import { localIsoStamp, setDue, syncDoneAt } from "../core/dates";
 import { canSetStatus, type Placement } from "./placement";
 
 /** Where an inline insert/convert landed — enough to open the todo modal on it. */
@@ -154,8 +154,8 @@ export function buildCaptureLine(opts: {
   priority?: Priority;
   due?: string | null;
   id: string;
-  /** Local date for a `done @` stamp when the status is DONE (default: now). */
-  today?: string;
+  /** Local `done @` stamp when the status is DONE (default: now). */
+  doneAt?: string;
 }): string | null {
   const title = opts.title.trim();
   if (title === "") return null;
@@ -163,6 +163,6 @@ export function buildCaptureLine(opts: {
   if (todo === null) return null;
   if (opts.priority !== undefined) todo = setPriority(todo, opts.priority);
   if (opts.due !== undefined) todo = setDue(todo, opts.due);
-  todo = syncDoneDate(todo, opts.today ?? localIsoDate(new Date()));
+  todo = syncDoneAt(todo, opts.doneAt ?? localIsoStamp(new Date()));
   return serializeTodoLine({ ...todo, id: opts.id });
 }

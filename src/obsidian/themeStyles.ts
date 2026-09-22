@@ -12,9 +12,37 @@
  * nothing else in Obsidian is restyled.
  */
 import { fontProperties, themeProperties, parseObsidianAccent } from "../ui/theme";
+import { hexFromCss } from "../ui/color";
 import type MarkTodoPlugin from "../../main";
 
 export const THEME_CLASS = "marktodo-theme";
+
+/**
+ * The surface MarkTodo's chips composite onto, as an opaque `#rrggbb`.
+ *
+ * A custom property reads back AS AUTHORED, never resolved the way a real
+ * property is: Obsidian's own mobile dark palette writes `--background-primary:
+ * #000`, and a theme is free to write `rgb(...)`, `color-mix(...)` or `black`.
+ * Only the browser knows them all, so the value is set on a throwaway element
+ * and read back as `rgb()`. Whatever still doesn't resolve falls back to the
+ * light/dark default — a theme must never be able to take the plugin down.
+ */
+export function themeBackground(body: HTMLElement): string {
+  const raw = getComputedStyle(body).getPropertyValue("--background-primary").trim();
+  return resolveColor(body, raw) ?? (body.hasClass("theme-dark") ? "#111111" : "#FFFFFF");
+}
+
+function resolveColor(body: HTMLElement, value: string): string | null {
+  if (!value) return null;
+  const probe = body.createSpan({ cls: "marktodo-color-probe" });
+  // An invalid value is rejected right here by the CSSOM, leaving the property
+  // empty — which is how a color this browser can't read is told apart from one
+  // that simply resolves to black.
+  probe.style.setProperty("color", value);
+  const resolved = probe.style.color ? hexFromCss(getComputedStyle(probe).color) : null;
+  probe.remove();
+  return resolved;
+}
 
 export class ThemeStyles {
   private docs = new Set<Document>();
@@ -56,6 +84,7 @@ export class ThemeStyles {
   private paint(doc: Document): void {
     const body = doc.body;
     const read = (name: string): string => getComputedStyle(body).getPropertyValue(name);
+    const background = themeBackground(body);
     // Text size rides along but is NOT a color property: it is legibility, and
     // it is set the same way whatever your accent is.
     const props = {
@@ -65,7 +94,7 @@ export class ThemeStyles {
         body.hasClass("theme-dark"),
         // The chips composite onto this and then nudge their text to 4.5:1, so
         // they stay legible on a paper-white theme and a true-black one alike.
-        read("--background-primary").trim() || (body.hasClass("theme-dark") ? "#111111" : "#FFFFFF"),
+        background,
       ),
       ...fontProperties(this.plugin.settings.fontScale),
     };

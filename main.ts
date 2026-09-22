@@ -194,10 +194,10 @@ export default class MarkTodoPlugin extends Plugin {
     });
 
     this.addCommand({
-      id: "open-today",
-      name: "Show today",
+      id: "open-agenda",
+      name: "Show agenda",
       callback: () => {
-        void showInDashboard(this, { kind: "today" });
+        void showInDashboard(this, { kind: "agenda" });
       },
     });
 
@@ -446,6 +446,11 @@ export default class MarkTodoPlugin extends Plugin {
     }
     // List and Kanban were merged into Todos: its filters start from the List's.
     const memory = this.settings.viewMemory;
+    // The Agenda pane's per-segment memory was keyed `today:<segment>` before
+    // the rename. Not carried over — dropped, like every other retired key.
+    for (const key of Object.keys(memory)) {
+      if (key.startsWith("today:")) Reflect.deleteProperty(memory, key);
+    }
     if (!memory.todos && memory.list) memory.todos = memory.list;
     Reflect.deleteProperty(memory, "list");
     Reflect.deleteProperty(memory, "kanban");
@@ -453,7 +458,10 @@ export default class MarkTodoPlugin extends Plugin {
     // share one view bar with one collapse (`focusCollapsed`, open by default),
     // so the old per-view `collapsed` flag has nothing left to mean.
     for (const entry of Object.values(memory)) Reflect.deleteProperty(entry, "collapsed");
-    this.settings.todayArrangement = migrateArrangements(this.settings.todayArrangement);
+    this.settings.agendaArrangement = migrateArrangements(this.settings.agendaArrangement);
+    // The Today pane is the Agenda pane: it leads with what is late, which no
+    // reading of "today" covers. The old key is dropped, not migrated.
+    Reflect.deleteProperty(this.settings, "todayArrangement");
     // The Inbox note is retired: drop its setting, and map the old
     // "Send to Inbox" keyword default to "Create todo here".
     Reflect.deleteProperty(this.settings, "inboxPath");

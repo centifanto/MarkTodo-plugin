@@ -1,12 +1,12 @@
 /**
- * Reading a stored Today arrangement, old shape or new. PURE.
+ * Reading a stored Agenda arrangement, old shape or new. PURE.
  *
- * Until 0.0.8 the four Today segments SHARED one `{ sort, group }`; they now
- * each keep their own, so that Today can lead with status dividers while Recent
- * — every row of which is Done — stays ungrouped.
+ * Until 0.0.8 the segments SHARED one `{ sort, group }`; they now each keep
+ * their own, so that Agenda can lead with status dividers while the date
+ * segments stay ungrouped.
  *
- * The old value is carried onto all four segments, so a grouping you chose on
- * purpose survives. The one exception is Today's group when the stored value is
+ * The old value is carried onto every segment, so a grouping you chose on
+ * purpose survives. The one exception is Agenda's group when the stored value is
  * `"none"`: that was the old DEFAULT, indistinguishable from never having
  * touched the menu, so it yields to the new default rather than pinning every
  * existing vault to the behaviour this change exists to fix. Anyone who wants
@@ -15,20 +15,20 @@
 import {
   DEFAULT_ARRANGEMENTS,
   defaultArrangements,
-  isTodayGroup,
-  parseTodaySort,
+  isAgendaGroup,
+  parseAgendaSort,
   type SmartViewType,
-  type TodayArrangement,
+  type AgendaArrangement,
 } from "../ui/smartViews";
 
-const SEGMENTS: readonly SmartViewType[] = ["today", "upcoming", "reminders", "recent"];
+const SEGMENTS: readonly SmartViewType[] = ["agenda", "upcoming", "reminders"];
 
 /** One stored `{ sort, group }`, with anything unrecognized replaced by `fallback`. */
-function readOne(raw: unknown, fallback: TodayArrangement): TodayArrangement {
+function readOne(raw: unknown, fallback: AgendaArrangement): AgendaArrangement {
   const v = (raw ?? {}) as { sort?: unknown; group?: unknown };
   return {
-    sort: parseTodaySort(v.sort),
-    group: isTodayGroup(v.group) ? v.group : fallback.group,
+    sort: parseAgendaSort(v.sort),
+    group: isAgendaGroup(v.group) ? v.group : fallback.group,
   };
 }
 
@@ -39,7 +39,7 @@ function isLegacyShape(raw: unknown): boolean {
 
 export function migrateArrangements(
   raw: unknown,
-): Record<SmartViewType, TodayArrangement> {
+): Record<SmartViewType, AgendaArrangement> {
   const out = defaultArrangements();
   if (raw == null || typeof raw !== "object") return out;
 
@@ -48,9 +48,9 @@ export function migrateArrangements(
     for (const segment of SEGMENTS) {
       out[segment] = { ...shared };
     }
-    // Today's group: "none" was the old default, so it says nothing about what
+    // Agenda's group: "none" was the old default, so it says nothing about what
     // the user wants. Anything else was a deliberate choice and is kept.
-    if (shared.group === "none") out.today.group = DEFAULT_ARRANGEMENTS.today.group;
+    if (shared.group === "none") out.agenda.group = DEFAULT_ARRANGEMENTS.agenda.group;
     return out;
   }
 

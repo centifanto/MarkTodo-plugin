@@ -22,6 +22,9 @@ describe("formatTitle", () => {
 
   it("hides done @ and the app's notify/delete-after tokens", () => {
     expect(formatTitle("Paid rent done @ 2026-09-13")).toBe("Paid rent");
+    // The stamp carries a minute now; the whole token goes, time included.
+    expect(formatTitle("Paid rent done @ 2026-09-13 14:07")).toBe("Paid rent");
+    expect(formatTitle("Paid rent done @ 2026-9-3 9:05 and filed")).toBe("Paid rent and filed");
     expect(formatTitle("Call notify @ 2026-09-14 09:30 mom delete-after @ 7d")).toBe("Call mom");
     expect(formatTitle("Mark undone @ 2026-09-13")).toBe("Mark undone @ 2026-09-13");
   });
@@ -37,7 +40,7 @@ describe("formatTitle", () => {
 
 describe("formatTitle — typed dates", () => {
   it("hides unpadded due, done and notify tokens", () => {
-    expect(formatTitle("Call Bob due @ 2026-9-4 notify @ 2026-9-3 9:00 done @ 2026-9-4")).toBe("Call Bob");
+    expect(formatTitle("Call Bob due @ 2026-9-4 notify @ 2026-9-3 9:00 done @ 2026-9-4 8:15")).toBe("Call Bob");
   });
 });
 

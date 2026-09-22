@@ -5,6 +5,7 @@ import {
   buildStatusSections,
 } from "../../src/obsidian/viewData";
 import { STATUS_LABELS, STATUS_ORDER, type TodoRecord } from "../../src/core/types";
+import { DEFAULT_FOCUS } from "../../src/ui/focus";
 
 function rec(glyph: string, over: Partial<TodoRecord> = {}): TodoRecord {
   return {
@@ -31,6 +32,51 @@ function rec(glyph: string, over: Partial<TodoRecord> = {}): TodoRecord {
     ...over,
   };
 }
+
+describe("Done is always newest-completed first", () => {
+  const done = (text: string, line: number): TodoRecord =>
+    rec("x", { displayText: text, line, id: `d${line}` });
+
+  it("orders the Done section by its `done @` stamp, ignoring the chosen sort", () => {
+    const todos = [
+      done("oldest done @ 2026-09-01", 0),
+      done("newest done @ 2026-09-20", 1),
+      done("middle done @ 2026-09-10", 2),
+    ];
+    for (const sort of ["manual", "title", "priority"] as const) {
+      const section = buildStatusSections(todos, DEFAULT_FOCUS, sort).find((g) => g.status === "DONE");
+      expect(section?.todos.map((t) => t.displayText.split(" ")[0]), sort).toEqual([
+        "newest",
+        "middle",
+        "oldest",
+      ]);
+    }
+  });
+
+  it("drops an unstamped done todo to the bottom", () => {
+    const todos = [done("unstamped", 0), done("stamped done @ 2026-09-01", 1)];
+    const section = buildStatusSections(todos).find((g) => g.status === "DONE");
+    expect(section?.todos.map((t) => t.displayText.split(" ")[0])).toEqual(["stamped", "unstamped"]);
+  });
+
+  it("orders the board's Done column the same way", () => {
+    const todos = [
+      done("oldest done @ 2026-09-01", 0),
+      done("newest done @ 2026-09-20", 1),
+    ];
+    const column = buildColumns(todos).find((c) => c.status === "DONE");
+    expect(column?.cards.map((c) => c.todo.displayText.split(" ")[0])).toEqual(["newest", "oldest"]);
+  });
+
+  it("leaves every other status on the chosen sort", () => {
+    const todos = [
+      rec("/", { displayText: "b", line: 0, id: "a" }),
+      rec("/", { displayText: "a", line: 1, id: "b" }),
+    ];
+    const doing = buildStatusSections(todos, DEFAULT_FOCUS, "title").find((g) => g.status === "PROGRESS");
+    expect(doing?.todos.map((t) => t.displayText)).toEqual(["a", "b"]);
+  });
+});
 
 describe("buildColumns", () => {
   it("excludes untriaged (project-null) todos from every column", () => {

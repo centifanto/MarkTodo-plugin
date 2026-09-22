@@ -33,13 +33,52 @@ export function toHex({r, g, b, a}: Rgb): string {
   return a >= 1 ? base.toUpperCase() : `${base}${hex2(a * 255)}`.toUpperCase();
 }
 
+/** `#rgb`/`#rgba` shorthand written out in full; anything else unchanged. */
+function expandHex(hex: string): string {
+  const m = /^#([0-9a-f]{3,4})$/i.exec(hex.trim());
+  return m ? `#${[...m[1]].map((c) => c + c).join("")}` : hex.trim();
+}
+
+/**
+ * `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa` → channels. Shorthand counts: a
+ * theme writes what CSS allows, and Obsidian's own mobile dark palette is `#000`.
+ */
 export function parseHex(hex: string): Rgb {
-  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(hex);
+  const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(expandHex(hex));
   if (!m) {
     throw new Error(`Not a #rrggbb[aa] color: ${hex}`);
   }
   const n = parseInt(m[1], 16);
   return {r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255, a: m[2] ? parseInt(m[2], 16) / 255 : 1};
+}
+
+/**
+ * Any color a BROWSER hands back — `rgb(0, 0, 0)`, `rgba(0 0 0 / 50%)`,
+ * `color(srgb 0.5 0 0.5)` (what Chrome computes a `color-mix()` to), or a hex in
+ * any length — as an opaque `#rrggbb`. `null` when it is none of those, so a
+ * caller can fall back instead of throwing. Alpha is dropped: this exists to name
+ * the surface other colors composite ONTO, and a surface is opaque.
+ */
+export function hexFromCss(value: string): string | null {
+  const text = value.trim();
+  if (text.startsWith("#")) {
+    try {
+      return toHex({...parseHex(text), a: 1});
+    } catch {
+      return null;
+    }
+  }
+  // `color(srgb …)` channels run 0–1, `rgb()` runs 0–255; a percentage is a
+  // percentage in both.
+  const m = /^(rgba?|color)\(\s*(srgb\s+)?([^)]+)\)$/i.exec(text);
+  if (!m || (m[1].toLowerCase() === "color" && !m[2])) return null;
+  const full = m[2] ? 1 : 255;
+  const parts = m[3].match(/-?[\d.]+%?/g) ?? [];
+  if (parts.length < 3) return null;
+  const channel = (raw: string): number =>
+    raw.endsWith("%") ? (Number.parseFloat(raw) * 255) / 100 : (Number.parseFloat(raw) * 255) / full;
+  const [r, g, b] = parts.slice(0, 3).map(channel);
+  return [r, g, b].every(Number.isFinite) ? toHex({r, g, b, a: 1}) : null;
 }
 
 /** `#rrggbb` → the same color as `{h, s, l}`, the shape Obsidian's `--accent-*` wants. */

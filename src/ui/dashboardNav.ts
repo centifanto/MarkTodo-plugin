@@ -10,9 +10,9 @@ import { type TodoRecord } from "../core/types";
 import { formatTitle } from "./format";
 
 /** What the list column shows. */
-export type Selection = { kind: "inbox" } | { kind: "today" } | { kind: "todos" } | { kind: "project"; path: string };
+export type Selection = { kind: "inbox" } | { kind: "agenda" } | { kind: "todos" } | { kind: "project"; path: string };
 
-export const DEFAULT_SELECTION: Selection = { kind: "today" };
+export const DEFAULT_SELECTION: Selection = { kind: "agenda" };
 
 /** "dual": navigation and list side by side. "single": one at a time, with a back button. */
 export type PaneMode = "dual" | "single";
@@ -73,7 +73,7 @@ export function selectionToken(selection: Selection): string {
 /** A stored selection, or the default when it is missing or malformed. */
 export function parseSelection(raw: unknown): Selection {
   const r = (raw ?? {}) as { kind?: unknown; path?: unknown };
-  if (r.kind === "inbox" || r.kind === "today" || r.kind === "todos") return { kind: r.kind };
+  if (r.kind === "inbox" || r.kind === "agenda" || r.kind === "todos") return { kind: r.kind };
   if (r.kind === "project" && typeof r.path === "string" && r.path !== "") return { kind: "project", path: r.path };
   return DEFAULT_SELECTION;
 }

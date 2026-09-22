@@ -3,11 +3,12 @@ import {
   canonicalDate,
   canonicalDateTokens,
   canonicalTime,
-  doneDateOf,
+  doneAtOf,
   localIsoDate,
+  localIsoStamp,
   notifyAtOf,
   setDue,
-  syncDoneDate,
+  syncDoneAt,
 } from "../../src/core/dates";
 import { type Todo } from "../../src/core/types";
 
@@ -62,39 +63,52 @@ describe("done @ stamp", () => {
     expect(localIsoDate(new Date(2026, 0, 5, 23, 30))).toBe("2026-01-05");
   });
 
-  it("stamps today when a todo becomes DONE", () => {
-    const t = syncDoneDate(todo({ glyph: "x", displayText: "Email Carol @high" }), "2026-09-13");
-    expect(t.displayText).toBe("Email Carol @high done @ 2026-09-13");
-    expect(doneDateOf(t)).toBe("2026-09-13");
+  it("formats a local stamp down to the minute", () => {
+    expect(localIsoStamp(new Date(2026, 0, 5, 23, 30))).toBe("2026-01-05 23:30");
+    expect(localIsoStamp(new Date(2026, 0, 5, 9, 5))).toBe("2026-01-05 09:05");
   });
 
-  it("keeps an existing done date (re-saving never re-dates)", () => {
-    const done = todo({ glyph: "x", displayText: "Email Carol done @ 2026-01-02" });
-    expect(syncDoneDate(done, "2026-09-13")).toBe(done);
+  it("stamps the minute when a todo becomes DONE", () => {
+    const t = syncDoneAt(todo({ glyph: "x", displayText: "Email Carol @high" }), "2026-09-13 14:07");
+    expect(t.displayText).toBe("Email Carol @high done @ 2026-09-13 14:07");
+    expect(doneAtOf(t)).toBe("2026-09-13 14:07");
   });
 
-  it("removes the stamp when a todo leaves DONE", () => {
-    const t = syncDoneDate(
-      todo({ glyph: "/", displayText: "Email Carol done @ 2026-01-02 due @ 2026-10-01" }),
-      "2026-09-13",
+  // Every stamp written before the token carried a time is a bare date, and
+  // those notes are read, not rewritten.
+  it("reads a stamp that has no time, and never adds one to it", () => {
+    const dated = todo({ glyph: "x", displayText: "Email Carol done @ 2026-01-02" });
+    expect(doneAtOf(dated)).toBe("2026-01-02");
+    expect(syncDoneAt(dated, "2026-09-13 14:07")).toBe(dated);
+  });
+
+  it("canonicalizes a hand-typed stamp", () => {
+    const typed = todo({ glyph: "x", displayText: "Email Carol done @ 2026-1-2 9:05" });
+    expect(doneAtOf(typed)).toBe("2026-01-02 09:05");
+  });
+
+  it("removes a timed stamp when a todo leaves DONE", () => {
+    const t = syncDoneAt(
+      todo({ glyph: "/", displayText: "Email Carol done @ 2026-01-02 08:30 due @ 2026-10-01" }),
+      "2026-09-13 14:07",
     );
     expect(t.displayText).toBe("Email Carol due @ 2026-10-01");
   });
 
   it("is a no-op for an open todo without a stamp", () => {
     const open = todo({ glyph: ">" });
-    expect(syncDoneDate(open, "2026-09-13")).toBe(open);
+    expect(syncDoneAt(open, "2026-09-13 14:07")).toBe(open);
   });
 
   it("ignores words that merely end in done", () => {
     const open = todo({ glyph: " ", displayText: "Mark undone @ 2026-01-02" });
-    expect(doneDateOf(open)).toBeNull();
-    expect(syncDoneDate(open, "2026-09-13")).toBe(open);
+    expect(doneAtOf(open)).toBeNull();
+    expect(syncDoneAt(open, "2026-09-13 14:07")).toBe(open);
   });
 
   it("stamps a bare DONE todo with no text", () => {
-    expect(syncDoneDate(todo({ glyph: "x", displayText: "" }), "2026-09-13").displayText).toBe(
-      "done @ 2026-09-13",
+    expect(syncDoneAt(todo({ glyph: "x", displayText: "" }), "2026-09-13 14:07").displayText).toBe(
+      "done @ 2026-09-13 14:07",
     );
   });
 });
@@ -133,11 +147,11 @@ describe("typed dates without leading zeros", () => {
     expect(setDue(todo({ displayText: "Email Carol due @ 2026-9-4" }), null).displayText).toBe("Email Carol");
   });
 
-  it("doneDateOf reads a typed stamp as canonical, and syncDoneDate keeps it", () => {
+  it("doneAtOf reads a typed stamp as canonical, and syncDoneAt keeps it", () => {
     const done = todo({ glyph: "x", displayText: "Email Carol done @ 2026-9-4" });
-    expect(doneDateOf(done)).toBe("2026-09-04");
-    expect(syncDoneDate(done, "2026-09-13")).toBe(done);
-    expect(syncDoneDate({ ...done, glyph: " " }, "2026-09-13").displayText).toBe("Email Carol");
+    expect(doneAtOf(done)).toBe("2026-09-04");
+    expect(syncDoneAt(done, "2026-09-13 14:07")).toBe(done);
+    expect(syncDoneAt({ ...done, glyph: " " }, "2026-09-13 14:07").displayText).toBe("Email Carol");
   });
 
   it("notifyAtOf reads a reminder, padding a hand-typed date and time", () => {

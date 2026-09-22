@@ -2,9 +2,9 @@
  * The MarkTodo dashboard, laid out like Notebook Navigator.
  *
  *   ┌ navigation ───────┬ list ──────────────────────┐
- *   │ + ⊕ ⇅ ▥          │ ☐ TODAY          ⌕ ⇅ +     │
- *   │ Inbox          2  │ Today 2 · Upcoming · …     │
- *   │ Today          2  │ ☐ Test 10         ⇈        │
+ *   │ + ⊕ ⇅ ▥          │ ☐ AGENDA         ⌕ ⇅ +     │
+ *   │ Inbox          2  │ Agenda 2 · Upcoming · …    │
+ *   │ Agenda         2  │ ☐ Test 10         ⇈        │
  *   │ Todos          8  │   Yesterday · Project 2    │
  *   │ ⌄ Projects        │ ─────────────────────────  │
  *   │   ⌄ Work          │ ☐ Test                     │
@@ -385,7 +385,7 @@ export class NavView extends ItemView implements DashboardHandle {
       sort,
       collapsed,
       inbox,
-      counts.today,
+      counts.agenda,
       // Pinning is a per-project flag now, so it rides along in the per-project
       // row instead of being its own list — leave it out and a pin never paints.
       projects.map((p) => [p.name, p.path, p.group, p.pinned, p.archived, p.open, p.overdue]),
@@ -399,7 +399,7 @@ export class NavView extends ItemView implements DashboardHandle {
     this.activatable = [];
 
     this.row(body, { label: "Inbox", icon: "inbox", count: inbox, selection: { kind: "inbox" } });
-    this.row(body, { label: "Today", icon: "calendar-days", count: counts.today, selection: { kind: "today" } });
+    this.row(body, { label: "Agenda", icon: "calendar-days", count: counts.agenda, selection: { kind: "agenda" } });
     this.row(body, { label: "Todos", icon: "list-todo", count: todosCount, selection: { kind: "todos" } });
 
     const { pinned, rest } = arrangeProjects(projects, sort);

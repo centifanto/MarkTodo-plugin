@@ -14,7 +14,7 @@ import type MarkTodoPlugin from "../../../main";
 /** Old list tab types → what the dashboard shows instead. */
 export const LEGACY_LIST_TYPES: Readonly<Record<string, Selection>> = {
   "marktodo-inbox": { kind: "inbox" },
-  "marktodo-today": { kind: "today" },
+  "marktodo-today": { kind: "agenda" },
   "marktodo-list": { kind: "todos" },
 };
 export const LEGACY_BOARD_TYPE = "marktodo-board";

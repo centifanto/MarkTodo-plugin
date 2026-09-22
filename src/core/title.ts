@@ -1,7 +1,7 @@
 /**
  * Editing a todo's title. The title a person edits is the
  * todo's text WITHOUT the tokens MarkTodo manages through other controls —
- * priority (`@high`, aliases), `due @ …`, `done @ …`, and the companion app's
+ * priority (`@high`, aliases), `due @ …`, `done @ … HH:MM`, and the app's
  * `notify @ … HH:MM` / `delete-after @ Nd` — while `[[links]]` and `#tags` stay
  * part of the title, as typed.
  *
@@ -24,7 +24,7 @@ type Kind = "priority" | "due" | "done" | "notify" | "deleteAfter";
 const TOKEN_SOURCES: ReadonlyArray<readonly [Kind, string]> = [
   ["priority", "(^|\\s)(@(?:urgent|high|low|pu|ph|pl))(?=\\s|$)"],
   ["due", `()(due\\s*@\\s*${DATE_SRC})`],
-  ["done", `(^|\\s)(done\\s*@\\s*${DATE_SRC})`],
+  ["done", `(^|\\s)(done\\s*@\\s*${DATE_SRC}(?:\\s+${TIME_SRC})?)`],
   ["notify", `()(notify\\s*@\\s*${DATE_SRC}\\s+${TIME_SRC})`],
   ["deleteAfter", "()(delete-after\\s*@\\s*\\d+d)"],
 ];

@@ -4,6 +4,13 @@
  * Lucide icons and pills are render-only; never persisted.
  */
 
+/* The throwaway span `themeStyles.ts` uses to ask the browser what a theme's
+   `--background-primary` actually resolves to. It is added and removed inside a
+   single task, so it never paints — this only guarantees it. */
+.marktodo-color-probe {
+  display: none;
+}
+
 /* ── Status colors ──────────────────────────────────────────────────── */
 /* The six status colors, fixed (ui/theme.ts): Backlog neutral, Warming yellow,
    Doing blue, Blocked red, Paused purple, Done green — Flexoki, the same six in
@@ -257,7 +264,38 @@ body {
   color: var(--text-normal);
 }
 
-/* Plain group heading (Today's date/priority groups, the Inbox's notes). */
+/* "Show 20 more" — a section stops at `SECTION_CAP` rows (TodoList.svelte) so a
+   vault with a thousand Done todos doesn't mount a thousand rows. Reads as a
+   continuation of the list, not as a control bar: full width, quiet until
+   hovered, with what is left stated on the right. */
+.marktodo-show-more {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--size-4-2);
+  width: 100%;
+  padding: var(--size-4-2) var(--size-4-3);
+  border: none;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  font-size: var(--mt-font-smaller);
+  text-align: left;
+  cursor: pointer;
+}
+
+.marktodo-show-more:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.marktodo-show-more-rest {
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Plain group heading (Agenda's date/priority groups, the Inbox's notes). */
 .marktodo-group-heading {
   display: flex;
   align-items: baseline;
@@ -631,6 +669,14 @@ body {
 }
 .marktodo-card:active {
   cursor: grabbing;
+}
+
+/* A Done card can't be reordered — its column is ordered by the `done @` stamp
+   — so it must not offer the cursor that says it can. Dropping a card INTO
+   Done still works; this is about the ones already there. */
+.marktodo-card.is-done,
+.marktodo-card.is-done:active {
+  cursor: default;
 }
 .marktodo-card-title {
   flex: 1 1 auto;
@@ -1778,7 +1824,7 @@ body {
   font-size: var(--mt-font-medium);
 }
 
-/* ── Today's segments (in the dashboard's list column) ──────────────── */
+/* ── Agenda's segments (in the dashboard's list column) ────────────── */
 .marktodo-segments {
   display: flex;
   flex-wrap: wrap;

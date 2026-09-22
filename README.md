@@ -86,7 +86,8 @@ that a todo is next, and `Blocked` and `Paused` say who stopped the work.
 Everything else is optional, inline text appended to the todo:
 
 - `due @ 2026-09-20` — a due date
-- `done @ 2026-09-17` — set automatically when a todo is marked done
+- `done @ 2026-09-17 14:30` — set automatically when a todo is marked done,
+  down to the minute, and removed when it leaves Done
 - `notify @ 2026-09-19 09:00` — a reminder
 - `@urgent`, `@high`, `@low` — inline priority, one of three (aliases
   `@pu`, `@ph`, `@pl`)
@@ -119,12 +120,18 @@ hides itself leaves you guessing why a list is short.
   file order and is the only sort a drag can write back, so choosing another
   turns drag-to-reorder off rather than writing an order nothing on screen
   reflects.
-- **Group** Today's segments by date, project, priority or status.
+- **Group** Agenda's segments by date, project, priority or status.
 
-**Today** leads with whatever is overdue, in a band of its own, whatever the
-sort or grouping — with **Pull forward** to move those todos to today. Its four
-segments (Today, Upcoming, Reminders, Recent) each remember their own sort,
-grouping and folds, because they are four different questions.
+**Agenda** leads with whatever is overdue, in a band of its own, whatever the
+sort or grouping — with **Pull forward** to move those todos to today. It is
+what is late plus what is due now, which is why it is not called Today. Its three
+segments (Agenda, Upcoming, Reminders) each remember their own sort, grouping
+and folds, because they are three different questions.
+
+**Done** is always most-recently-completed first, whatever sort is set — every
+other order over finished work answers a question nobody asks — and for the same
+reason a Done row can't be dragged to reorder. Every section stops at 20 rows
+with a **Show 20 more** button; the heading still counts the whole section.
 
 A project is **pinned** with `marktodo-pinned: true` in its note, which lifts it
 to the top of the dashboard. Because the pin lives in the note, it crosses to
@@ -185,7 +192,7 @@ give it any of the six statuses.
   - **Add todo…** opens the todo editor
   - **Send current line to catch-all note**
   - **Create project…** and **Convert note to project**
-  - **Open dashboard**, **Show today**, **Show todos**, **Show inbox**
+  - **Open dashboard**, **Show agenda**, **Show todos**, **Show inbox**
   - **Open todos as a Kanban board**, **Toggle one or two dashboard columns**
   - **Move completed todos to bottom (current note)**
 

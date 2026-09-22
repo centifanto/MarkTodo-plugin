@@ -5,7 +5,7 @@
 import { type Status } from "../core/types";
 import { type FilterState } from "./filterLogic";
 import { DEFAULT_PROJECT_SORT, type ProjectSort } from "../ui/projectNav";
-import { defaultArrangements, type SmartViewType, type TodayArrangement } from "../ui/smartViews";
+import { defaultArrangements, type SmartViewType, type AgendaArrangement } from "../ui/smartViews";
 import { type SortKey } from "../ui/sorts";
 import { type DashboardLocation } from "../ui/paneLayout";
 import {
@@ -116,11 +116,11 @@ export interface MarkTodoSettings {
   /** Navigator pane state — not a user-facing setting. */
   nav: NavMemory;
   /**
-   * Each Today segment's sort + group, remembered across openings. Per segment
-   * because they ask different questions: Today wants status dividers, Recent
-   * wants none (every row in it is Done).
+   * Each Agenda segment's sort + group, remembered across openings. Per segment
+   * because they ask different questions: Agenda wants status dividers, the
+   * date segments want none.
    */
-  todayArrangement: Record<SmartViewType, TodayArrangement>;
+  agendaArrangement: Record<SmartViewType, AgendaArrangement>;
   /** Per-view memory keyed by view ("todos", "inbox", …) — not a user-facing setting. */
   viewMemory: Record<string, ViewMemory>;
   /**
@@ -188,7 +188,7 @@ export const DEFAULT_SETTINGS: MarkTodoSettings = {
     singleView: "nav",
     navWidth: NAV_COLUMN_PX,
   },
-  todayArrangement: defaultArrangements(),
+  agendaArrangement: defaultArrangements(),
   viewMemory: {},
   appearance: { ...DEFAULT_APPEARANCE },
   dashboardLocation: "left",

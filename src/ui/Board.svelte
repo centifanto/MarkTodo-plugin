@@ -12,6 +12,8 @@
   let {
     dragDisabled = false,
     showProject = false,
+    shown = {},
+    onShowMore,
     onMove,
     onReorder,
     onCardMenu,
@@ -22,6 +24,9 @@
     dragDisabled?: boolean;
     /** Name each card's project (Todos — not a project's own board). */
     showProject?: boolean;
+    /** Columns already opened past the cap, by status (remembered). */
+    shown?: Record<string, number>;
+    onShowMore?: (shown: Record<string, number>) => void;
     onMove?: (card: Card, toStatus: Status) => void;
     /** A card dropped at a new position in its own column. */
     onReorder?: (card: Card, anchor: Card, position: "before" | "after") => void;
@@ -44,8 +49,37 @@
 
   const flipDurationMs = 160;
 
+  /**
+   * A column draws at most this many cards before it stops, the same cap the
+   * list uses (TodoList.svelte) and for the same reason: a vault's whole Done
+   * pile is thousands of card components nobody scrolls to.
+   */
+  const SECTION_CAP = 20;
+  // svelte-ignore state_referenced_locally
+  let expanded = $state<Record<string, number>>({ ...shown });
+  /**
+   * The VISIBLE cards per column — what the drop zones hold and what the DOM
+   * draws, which svelte-dnd-action requires to be the same list. `columns` stays
+   * whole, so a head still counts every card in its status.
+   */
+  let zones = $state<Card[][]>([]);
+
+  const limitOf = (column: Column): number => expanded[column.status] ?? SECTION_CAP;
+  const visible = (column: Column): Card[] =>
+    column.cards.length <= limitOf(column) ? column.cards : column.cards.slice(0, limitOf(column));
+  const hiddenIn = (column: Column): number => Math.max(0, column.cards.length - limitOf(column));
+
+  function showMore(ci: number): void {
+    const column = columns[ci];
+    expanded[column.status] = limitOf(column) + SECTION_CAP;
+    zones[ci] = visible(column);
+    onShowMore?.(expanded);
+  }
+
   export function setData(next: Column[]): void {
-    if (!dragging) columns = next;
+    if (dragging) return;
+    columns = next;
+    zones = next.map(visible);
   }
   export function isDragging(): boolean {
     return dragging;
@@ -53,27 +87,29 @@
 
   function handleConsider(ci: number, e: CustomEvent<DndEvent<Card>>): void {
     dragging = true;
-    columns[ci].cards = e.detail.items;
+    zones[ci] = e.detail.items;
   }
 
   function handleFinalize(ci: number, e: CustomEvent<DndEvent<Card>>): void {
-    columns[ci].cards = e.detail.items;
+    zones[ci] = e.detail.items;
     dragging = false;
     // Any card now here whose todo status differs just landed → persist (write-behind).
-    const col = columns[ci];
+    const status = columns[ci].status;
+    const cards = zones[ci];
     let moved = false;
-    for (const card of col.cards) {
-      if (statusOf(card.todo) !== col.status) {
-        onMove?.(card, col.status);
+    for (const card of cards) {
+      if (statusOf(card.todo) !== status) {
+        onMove?.(card, status);
         moved = true;
       }
     }
-    // Same-column drop → persist the new position next to a neighbor.
-    const idx = col.cards.findIndex((c) => c.id === e.detail.info.id);
+    // Same-column drop → persist the new position next to a neighbor. The
+    // neighbours are the ones on screen, which is where the card was dropped.
+    const idx = cards.findIndex((c) => c.id === e.detail.info.id);
     if (!moved && idx !== -1) {
-      const card = col.cards[idx];
-      const prev = col.cards[idx - 1];
-      const next = col.cards[idx + 1];
+      const card = cards[idx];
+      const prev = cards[idx - 1];
+      const next = cards[idx + 1];
       if (prev) onReorder?.(card, prev, "after");
       else if (next) onReorder?.(card, next, "before");
     }
@@ -111,16 +147,18 @@
       <div
         class="marktodo-column-body"
         use:dndzone={{
-          items: column.cards,
+          items: zones[ci] ?? [],
           flipDurationMs,
-          dragDisabled,
+          // Done reads newest-completed first here too, so its cards have no
+          // position to drag them into. Dropping INTO Done still works.
+          dragDisabled: dragDisabled || column.status === "DONE",
           type: "marktodo-board",
           dropTargetStyle: {},
         }}
         onconsider={(e) => handleConsider(ci, e)}
         onfinalize={(e) => handleFinalize(ci, e)}
       >
-        {#each column.cards as card (card.id)}
+        {#each zones[ci] ?? [] as card (card.id)}
           {@const pIcon = priorityIconOf(card.todo)}
           {@const due = dueOf(card.todo, column.status)}
           {@const project = showProject ? card.todo.project : null}
@@ -202,6 +240,12 @@
           </div>
         {/each}
       </div>
+      {#if hiddenIn(column) > 0}
+        <button class="marktodo-show-more" onclick={() => showMore(ci)}>
+          Show {Math.min(SECTION_CAP, hiddenIn(column))} more
+          <span class="marktodo-show-more-rest">{hiddenIn(column)} left</span>
+        </button>
+      {/if}
     </div>
   {/each}
 </div>

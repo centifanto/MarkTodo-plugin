@@ -32,7 +32,7 @@ export function todosSignature(todos: readonly TodoRecord[]): string {
   return JSON.stringify(todos.map(todoFields));
 }
 
-/** A signature for labelled groups of todos (List, Inbox, Today, board columns). */
+/** A signature for labelled groups of todos (List, Inbox, Agenda, board columns). */
 export function groupsSignature(
   groups: ReadonlyArray<{ label: string; todos: readonly TodoRecord[] }>,
 ): string {

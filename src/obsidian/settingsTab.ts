@@ -29,6 +29,7 @@ import { CONTACT_LINKS } from "./links";
 import { reconcileArchive } from "./archiveReconcile";
 import { dailyNotesEnabled } from "./dailyNote";
 import { confirmAction } from "./confirmModal";
+import { themeBackground } from "./themeStyles";
 import { getProjectFiles } from "./projects";
 import {
   DEFAULT_MARKTODO_FOLDER,
@@ -702,7 +703,7 @@ export class MarkTodoSettingTab extends PluginSettingTab {
             const row = setting.controlEl.createDiv({ cls: "marktodo-swatches" });
             const dark = document.body.hasClass("theme-dark");
             const read = (name: string): string => getComputedStyle(document.body).getPropertyValue(name);
-            const background = read("--background-primary").trim() || (dark ? "#111111" : "#FFFFFF");
+            const background = themeBackground(document.body);
             const obsidianAccent = parseObsidianAccent(read("--accent-h"), read("--accent-s"), read("--accent-l"));
             const choices: Array<[AccentKey, string]> = [
               ["obsidian", "Match Obsidian's accent"],

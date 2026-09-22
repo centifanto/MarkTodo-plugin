@@ -12,7 +12,7 @@ import {
 } from "../../src/obsidian/viewIcons";
 import { FOCUS_SEGMENTS } from "../../src/ui/focus";
 import { TODO_SORTS } from "../../src/ui/sorts";
-import { SMART_VIEWS, TODAY_GROUPS } from "../../src/ui/smartViews";
+import { SMART_VIEWS, AGENDA_GROUPS } from "../../src/ui/smartViews";
 import { PROJECT_ICON } from "../../src/ui/iconMaps";
 
 /**
@@ -24,8 +24,8 @@ import { PROJECT_ICON } from "../../src/ui/iconMaps";
 const COVERED: ReadonlyArray<[string, ReadonlyArray<{ key: string }>, Record<string, string>]> = [
   ["focus", FOCUS_SEGMENTS, FOCUS_ICONS],
   ["sort", Object.keys(TODO_SORTS).map((key) => ({ key })), SORT_ICONS],
-  ["group", TODAY_GROUPS, GROUP_ICONS],
-  ["Today segment", SMART_VIEWS, SMART_VIEW_ICONS],
+  ["group", AGENDA_GROUPS, GROUP_ICONS],
+  ["Agenda segment", SMART_VIEWS, SMART_VIEW_ICONS],
 ];
 
 const ALL_MAPS: ReadonlyArray<Record<string, string>> = [
@@ -84,7 +84,7 @@ describe("withIcons", () => {
   });
 
   it("leaves the option's own label alone", () => {
-    const paired = withIcons(TODAY_GROUPS, GROUP_ICONS);
-    expect(paired.map((o) => o.label)).toEqual(TODAY_GROUPS.map((o) => o.label));
+    const paired = withIcons(AGENDA_GROUPS, GROUP_ICONS);
+    expect(paired.map((o) => o.label)).toEqual(AGENDA_GROUPS.map((o) => o.label));
   });
 });

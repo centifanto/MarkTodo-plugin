@@ -60,7 +60,7 @@ export interface ViewBarOptions {
   /**
    * Group-by picker; omit on a surface that groups one way only. Keyed by plain
    * strings rather than one surface's enum, so the bar stays the same component
-   * on every surface and Today's groups don't have to be everyone's.
+   * on every surface and Agenda's groups don't have to be everyone's.
    */
   group?: {
     current: string;

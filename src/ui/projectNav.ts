@@ -243,7 +243,7 @@ export function renameSectionKey(collapsed: readonly string[], from: string, to:
  *
  * "Open" is every todo that isn't DONE — including BLOCKED and PAUSED, which are
  * still yours to deal with. Overdue is a strict `due < today`: a todo due today
- * belongs in Today, not in a red badge. `today` is passed in (an ISO date) rather
+ * belongs in Agenda, not in a red badge. `today` is passed in (an ISO date) rather
  * than read from the clock, so this stays pure and testable.
  */
 export function projectCounts(

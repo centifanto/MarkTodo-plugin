@@ -16,7 +16,7 @@
 import { type App, Notice, TFile, normalizePath } from "obsidian";
 import { type Priority, type Status, type Todo, type TodoRecord, statusOf } from "../core/types";
 import { setStatus as coreSetStatus, setPriority as coreSetPriority } from "../core/status";
-import { setDue as coreSetDue, syncDoneDate, localIsoDate } from "../core/dates";
+import { setDue as coreSetDue, syncDoneAt, localIsoStamp } from "../core/dates";
 import { setTitle as coreSetTitle } from "../core/title";
 import { serializeTodoLine } from "../core/serialize";
 import { parseTodoLine } from "../core/parse";
@@ -103,7 +103,7 @@ export class Writer {
       // A status change keeps the `done @` stamp in step with the glyph.
       const updated =
         move !== null
-          ? syncDoneDate(transform(withId), localIsoDate(new Date()))
+          ? syncDoneAt(transform(withId), localIsoStamp(new Date()))
           : transform(withId);
       const newLine = serializeTodoLine(updated);
 
@@ -181,7 +181,7 @@ export class Writer {
     if (ops.length === 0) return;
     const settings = this.getSettings();
     if (!settings.maintainStatusHeaders) return;
-    const today = localIsoDate(new Date());
+    const stamp = localIsoStamp(new Date());
     await this.app.vault.process(file, (data) => {
       const before = managedIds(data);
       const { eol } = splitEol(data);
@@ -195,12 +195,12 @@ export class Writer {
         const cur = parseTodoLine(lines[idx]);
         if (!cur) continue;
         if (op.action === "section-wins") {
-          lines[idx] = serializeTodoLine(syncDoneDate(coreSetStatus(cur, op.toStatus), today));
+          lines[idx] = serializeTodoLine(syncDoneAt(coreSetStatus(cur, op.toStatus), stamp));
         } else {
           // glyph-wins: the glyph is already what the user typed; move the line
           // under the section matching it — verbatim unless the `done @` stamp
           // must follow the new glyph (e.g. the box was ticked natively).
-          const synced = syncDoneDate(cur, today);
+          const synced = syncDoneAt(cur, stamp);
           const line = synced === cur ? lines[idx] : serializeTodoLine(synced);
           lines = placeTodoInProject(lines, idx, op.subproject, op.toStatus, line);
         }

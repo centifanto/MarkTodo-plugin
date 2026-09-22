@@ -33,7 +33,7 @@
 import { PROJECT_ICON } from "../ui/iconMaps";
 import { type Focus } from "../ui/focus";
 import { type SortKey } from "../ui/sorts";
-import { type SmartViewType, type TodayGroup } from "../ui/smartViews";
+import { type SmartViewType, type AgendaGroup } from "../ui/smartViews";
 // Keyed off the real union, so a new mode fails `tsc` here rather than drawing
 // a blank button.
 import type { BoardMode } from "./views/todoSurface";
@@ -57,8 +57,8 @@ export const SORT_ICONS: Record<SortKey, string> = {
   project: PROJECT_ICON,
 };
 
-/** Today's group-by options. */
-export const GROUP_ICONS: Record<TodayGroup, string> = {
+/** Agenda's group-by options. */
+export const GROUP_ICONS: Record<AgendaGroup, string> = {
   none: "minus",
   date: "calendar-days",
   project: PROJECT_ICON,
@@ -79,12 +79,11 @@ export const LAYOUT_ICONS: Record<BoardMode, string> = {
   source: "code-xml",
 };
 
-/** The Today view's four segments, each on its own date. */
+/** The Agenda view's segments, each on its own date. */
 export const SMART_VIEW_ICONS: Record<SmartViewType, string> = {
-  today: "sun",
+  agenda: "sun",
   upcoming: "calendar-clock",
   reminders: "bell",
-  recent: "history",
 };
 
 /**

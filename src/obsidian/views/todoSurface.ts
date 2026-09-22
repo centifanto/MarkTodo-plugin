@@ -49,6 +49,17 @@ export class TodoSurface {
   private board: BoardInstance | null = null;
   private mode: SurfaceMode | null = null;
   private signature: string | null = null;
+  /**
+   * Sections opened past the row cap, by section key — shared by this surface's
+   * list and its board, because they are two drawings of one pile of todos.
+   *
+   * It lives HERE, not in `viewMemory` and not in the component: the component
+   * re-mounts on every index change, and losing the rows you just asked for
+   * because someone ticked a checkbox is its own kind of broken — while
+   * remembering them on disk would let one click undo the cap for good. The
+   * right lifetime is the visit, and a surface IS a visit.
+   */
+  private caps: Record<string, number> = {};
 
   constructor(private opts: SurfaceOptions) {}
 
@@ -100,6 +111,10 @@ export class TodoSurface {
         // already shows the new fold, so this only writes the memory.
         collapsed: this.opts.plugin.viewMemory(this.opts.memoryKey).sections,
         onToggleSection: (sections: string[]) => this.opts.plugin.rememberView(this.opts.memoryKey, { sections }),
+        shown: this.caps,
+        onShowMore: (shown: Record<string, number>) => {
+          this.caps = shown;
+        },
         onStatusClick: (todo: TodoRecord, event: MouseEvent) => openTodoMenu(this.opts.plugin, todo, event),
         onOpenTodo: (todo: TodoRecord, anchor?: Element) => openTodoModal(this.opts.plugin, todo, anchor),
         onReveal: (todo: TodoRecord) => void revealTodo(this.opts.plugin, todo),
@@ -136,6 +151,12 @@ export class TodoSurface {
       props: {
         dragDisabled: this.dragDisabled(),
         showProject: this.opts.showProject,
+        // The same map the list uses: a status opened past the cap is open in
+        // both, because it is one question about one pile of todos.
+        shown: this.caps,
+        onShowMore: (shown: Record<string, number>) => {
+          this.caps = shown;
+        },
         onMove: (card: Card, toStatus: Status) => void plugin.writer.setStatus(card.todo, toStatus),
         onReorder: (card: Card, anchor: Card, position: "before" | "after") =>
           void plugin.writer.reorderTodo(card.todo, anchor.todo, position),

@@ -34,7 +34,7 @@ export const PRIORITY_ICONS: Record<Exclude<Priority, "NONE">, string> = {
  */
 export const PROJECT_ICON = "folder-kanban";
 
-/** Display names for the priorities — the todo modal's chips, Today's headers. */
+/** Display names for the priorities — the todo modal's chips, Agenda's headers. */
 export const PRIORITY_LABEL: Record<Priority, string> = {
   URGENT: "Urgent",
   HIGH: "High",

@@ -42,6 +42,7 @@ const BODIES = [
   "middle <!-- mt id=zzzzzzzz --> trailing words",
   "Multi  spaces   kept   inside",
   "Closed done @ 2026-9-1",
+  "Closed done @ 2026-9-1 9:05",
   "Not a token: undone @ 2026-9-1",
   "Remind notify @ 2026-9-1 9:05",
   "notify @ 2026-9-1 with no time",

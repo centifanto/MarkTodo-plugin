@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   DEFAULT_COLLAPSED_STATUSES,
-  TODAY_COLLAPSED_STATUSES,
+  AGENDA_COLLAPSED_STATUSES,
   isStatusCollapsed,
   toggleStatusSection,
 } from "../../src/ui/statusSections";
@@ -22,17 +22,17 @@ describe("status section collapse", () => {
   });
 });
 
-describe("Today's fold default", () => {
+describe("Agenda's fold default", () => {
   it("opens on Doing alone", () => {
     for (const status of STATUS_ORDER) {
-      expect(isStatusCollapsed(status, [], TODAY_COLLAPSED_STATUSES), status).toBe(
+      expect(isStatusCollapsed(status, [], AGENDA_COLLAPSED_STATUSES), status).toBe(
         status !== "PROGRESS",
       );
     }
   });
 
   it("covers every status but Doing, so none is left to chance", () => {
-    expect([...TODAY_COLLAPSED_STATUSES].sort()).toEqual(
+    expect([...AGENDA_COLLAPSED_STATUSES].sort()).toEqual(
       STATUS_ORDER.filter((s) => s !== "PROGRESS")
         .slice()
         .sort(),
@@ -43,10 +43,10 @@ describe("Today's fold default", () => {
   // fold survives a restart without the default having to be stored with it.
   it("remembers a flip away from ITS default, not the list default", () => {
     const openedBacklog = toggleStatusSection([], "BACKLOG");
-    expect(isStatusCollapsed("BACKLOG", openedBacklog, TODAY_COLLAPSED_STATUSES)).toBe(false);
+    expect(isStatusCollapsed("BACKLOG", openedBacklog, AGENDA_COLLAPSED_STATUSES)).toBe(false);
     // Doing is open by default here, so a flip closes it.
     const closedDoing = toggleStatusSection(openedBacklog, "PROGRESS");
-    expect(isStatusCollapsed("PROGRESS", closedDoing, TODAY_COLLAPSED_STATUSES)).toBe(true);
+    expect(isStatusCollapsed("PROGRESS", closedDoing, AGENDA_COLLAPSED_STATUSES)).toBe(true);
     // The same stored flips read differently on a project list, as they should:
     // there the default is Done-only, so an opened Backlog reads as closed.
     expect(isStatusCollapsed("BACKLOG", closedDoing, DEFAULT_COLLAPSED_STATUSES)).toBe(true);

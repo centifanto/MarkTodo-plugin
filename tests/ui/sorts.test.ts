@@ -52,7 +52,7 @@ describe("the registry is the single source", () => {
   });
 
   it("offers every row on the surfaces its own `on` names, and no others", () => {
-    for (const surface of ["list", "today"] as SortSurface[]) {
+    for (const surface of ["list", "agenda"] as SortSurface[]) {
       const offered = sortOptions(surface, true).map((o) => o.key);
       const expected = (Object.entries(TODO_SORTS) as Array<[SortKey, { on: readonly string[] }]>)
         .filter(([, def]) => def.on.includes(surface))
@@ -81,8 +81,8 @@ describe("the registry is the single source", () => {
 
   it("falls back for a stored sort the surface can't offer", () => {
     expect(parseSort("due", "list", "manual")).toBe("due");
-    // "manual" is a list sort; Today has no such row.
-    expect(parseSort("manual", "today", "date")).toBe("date");
+    // "manual" is a list sort; Agenda has no such row.
+    expect(parseSort("manual", "agenda", "date")).toBe("date");
     expect(parseSort("nonsense", "list", "manual")).toBe("manual");
     expect(parseSort(undefined, "list", "manual")).toBe("manual");
   });

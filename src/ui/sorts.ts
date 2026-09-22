@@ -23,19 +23,19 @@ const COLLATOR = new Intl.Collator(undefined, { sensitivity: "base" });
  * What a comparator needs that the todos don't carry.
  *
  * `dateOf` exists because "the date" is surface-dependent: a list orders on the
- * due date, while each Today segment has its OWN date (due, the reminder, the
- * completion day), so one date comparator serves both.
+ * due date, while each Agenda segment has its OWN date (due, or the reminder),
+ * so one date comparator serves both.
  */
 export interface SortContext {
   dateOf: (todo: TodoRecord) => string | null;
-  /** Recent reads newest first; every other surface soonest first. */
+  /** Done reads newest first; every other surface soonest first. */
   newestFirst: boolean;
 }
 
 export type TodoCompare = (a: TodoRecord, b: TodoRecord, ctx: SortContext) => number;
 
-/** Which surfaces offer a sort: the status-sectioned lists, the Today segments. */
-export type SortSurface = "list" | "today";
+/** Which surfaces offer a sort: the status-sectioned lists, the Agenda segments. */
+export type SortSurface = "list" | "agenda";
 
 export interface SortDef {
   label: string;
@@ -74,23 +74,23 @@ const byTitle: TodoCompare = (a, b) =>
  * row here — nothing else in either program needs to change.
  *
  * `due` and `date` share a comparator but not a meaning, so they stay two rows:
- * on a list the ordering date is always the due date, while on Today it is
+ * on a list the ordering date is always the due date, while on Agenda it is
  * whichever date that segment is about.
  */
 export const TODO_SORTS = {
   manual: { label: "Manual", compare: null, on: ["list"] },
   due: { label: "Due", compare: byDate, on: ["list"] },
-  date: { label: "Date", compare: byDate, on: ["today"] },
-  priority: { label: "Priority", compare: byPriority, on: ["list", "today"] },
-  title: { label: "Title", compare: byTitle, on: ["list", "today"] },
-  project: { label: "Project", compare: byProject, on: ["list", "today"], crossProject: true },
+  date: { label: "Date", compare: byDate, on: ["agenda"] },
+  priority: { label: "Priority", compare: byPriority, on: ["list", "agenda"] },
+  title: { label: "Title", compare: byTitle, on: ["list", "agenda"] },
+  project: { label: "Project", compare: byProject, on: ["list", "agenda"], crossProject: true },
 } as const satisfies Record<string, SortDef>;
 
 export type SortKey = keyof typeof TODO_SORTS;
 
 /** File order, and the only sort that leaves drag-reorder meaningful. */
 export const DEFAULT_LIST_SORT: SortKey = "manual";
-export const DEFAULT_TODAY_SORT: SortKey = "date";
+export const DEFAULT_AGENDA_SORT: SortKey = "date";
 
 /**
  * The options a surface offers, in table order. `spansProjects` drops the

@@ -1,6 +1,6 @@
 /**
  * The dashboard's list column — Notebook Navigator's list pane, for
- * todos. It draws whatever the navigation column selected: Inbox, Today, Todos,
+ * todos. It draws whatever the navigation column selected: Inbox, Agenda, Todos,
  * or one project.
  *
  * In older versions each of those was its own tab (InboxView, TodayView, and the
@@ -25,18 +25,18 @@ import { groupsSignature } from "../../ui/viewSignature";
 import {
   EMPTY_MESSAGES,
   SMART_VIEWS,
-  TODAY_GROUPS,
+  AGENDA_GROUPS,
   arrangeSmartTodos,
   smartViewCounts,
   smartViewTodos,
   type SmartViewType,
-  type TodayArrangement,
+  type AgendaArrangement,
 } from "../../ui/smartViews";
 import { buildInboxSections } from "../inboxLogic";
 import { type ModalAnchor } from "../modalAnchor";
 import { focusCounts, focusLabel, type Focus } from "../../ui/focus";
 import { type SortKey } from "../../ui/sorts";
-import { TODAY_COLLAPSED_STATUSES } from "../../ui/statusSections";
+import { AGENDA_COLLAPSED_STATUSES } from "../../ui/statusSections";
 import { buildListGroups } from "../viewData";
 import { buildViewBar } from "../viewBar";
 import { GROUP_ICONS, SMART_VIEW_ICONS, withIcons } from "../viewIcons";
@@ -75,11 +75,13 @@ export class ListPane {
   private bodyEl: HTMLElement;
   private components: Array<ReturnType<typeof mount>> = [];
   private surface: TodoSurface | null = null;
+  /** See `capProps` — reset by `teardownBody` and by switching segment. */
+  private caps: Record<string, number> = {};
   private signature: string | null = null;
   private barSig: string | null = null;
   /** The navigation column's search query; while non-empty this column shows results. */
   private query = "";
-  private segment: SmartViewType = "today";
+  private segment: SmartViewType = "agenda";
   private filterState: FilterState = {};
   private backVisible = false;
 
@@ -111,7 +113,7 @@ export class ListPane {
       return;
     }
     this.selection = selection;
-    this.segment = "today";
+    this.segment = "agenda";
     this.teardownBody();
     const key = this.memoryKey();
     this.filterState = key !== null && this.hasFilters() ? this.plugin.viewMemory(key).filters : {};
@@ -155,8 +157,8 @@ export class ListPane {
     switch (this.selection.kind) {
       case "inbox":
         return this.renderInbox();
-      case "today":
-        return this.renderToday();
+      case "agenda":
+        return this.renderAgenda();
       case "todos":
         return this.renderSurface(filterByState(this.plugin.index.getAll(), this.filterState, "projects"), true);
       case "project":
@@ -198,8 +200,8 @@ export class ListPane {
     switch (this.selection.kind) {
       case "inbox":
         return { icon: "inbox", label: "Inbox" };
-      case "today":
-        return { icon: "calendar-days", label: "Today" };
+      case "agenda":
+        return { icon: "calendar-days", label: "Agenda" };
       case "todos":
         return { icon: "list-todo", label: "Todos" };
       case "project": {
@@ -235,8 +237,8 @@ export class ListPane {
   // ── the view bar (focus · filters · sort) ────────────────────────────────
 
   /**
-   * Which `ViewMemory` entry this selection's bar state lives under. Today's is
-   * per segment; its sort and group come from `settings.todayArrangement`
+   * Which `ViewMemory` entry this selection's bar state lives under. Agenda's is
+   * per segment; its sort and group come from `settings.agendaArrangement`
    * instead, because the companion app reads those too.
    */
   private memoryKey(): string | null {
@@ -247,11 +249,11 @@ export class ListPane {
         return "todos";
       case "project":
         return "project";
-      case "today":
+      case "agenda":
         // Per SEGMENT: the four are four different questions, so each remembers
         // its own filters, its folds and its collapse. Its sort and group live
-        // in `settings.todayArrangement`, which the companion app reads too.
-        return `today:${this.segment}`;
+        // in `settings.agendaArrangement`, which the companion app reads too.
+        return `agenda:${this.segment}`;
     }
   }
 
@@ -278,8 +280,8 @@ export class ListPane {
 
   private surfaceOf(): FilterSurface {
     if (this.selection.kind === "inbox") return "loose";
-    // Today is every todo with a date on it, filed or loose, so it filters over both.
-    if (this.selection.kind === "today") return "any";
+    // Agenda is every todo with a date on it, filed or loose, so it filters over both.
+    if (this.selection.kind === "agenda") return "any";
     return "projects";
   }
 
@@ -302,15 +304,15 @@ export class ListPane {
       this.barSig = null;
       return;
     }
-    const today = this.selection.kind === "today";
+    const agenda = this.selection.kind === "agenda";
     const memory = this.plugin.viewMemory(key);
     const focus = this.plugin.settings.focus;
     const all = this.plugin.index.getAll();
     const options = this.surfaceOf() === "loose" ? all.filter((t) => t.project === null) : all;
     const todos = this.surfaceTodos();
-    // Today sorts and groups per segment out of settings; every other surface
+    // Agenda sorts and groups per segment out of settings; every other surface
     // sorts out of its own view memory and doesn't group at all.
-    const arrangement = today ? this.arrangement : null;
+    const arrangement = agenda ? this.arrangement : null;
     const sig = JSON.stringify([
       key,
       memory.focusCollapsed,
@@ -343,7 +345,7 @@ export class ListPane {
       sort: arrangement
         ? {
             current: arrangement.sort,
-            surface: "today",
+            surface: "agenda",
             spansProjects: true,
             onPick: (sort) => this.setArrangement({ sort }),
           }
@@ -359,8 +361,8 @@ export class ListPane {
       group: arrangement
         ? {
             current: arrangement.group,
-            options: withIcons(TODAY_GROUPS, GROUP_ICONS),
-            onPick: (group) => this.setArrangement({ group: group as TodayArrangement["group"] }),
+            options: withIcons(AGENDA_GROUPS, GROUP_ICONS),
+            onPick: (group) => this.setArrangement({ group: group as AgendaArrangement["group"] }),
           }
         : undefined,
       collapsed: memory.focusCollapsed,
@@ -372,10 +374,10 @@ export class ListPane {
     });
   }
 
-  /** Write one of Today's per-segment arrangement fields and redraw. */
-  private setArrangement(patch: Partial<TodayArrangement>): void {
-    this.plugin.settings.todayArrangement = {
-      ...this.plugin.settings.todayArrangement,
+  /** Write one of Agenda's per-segment arrangement fields and redraw. */
+  private setArrangement(patch: Partial<AgendaArrangement>): void {
+    this.plugin.settings.agendaArrangement = {
+      ...this.plugin.settings.agendaArrangement,
       [this.segment]: { ...this.arrangement, ...patch },
     };
     void this.plugin.saveSettings();
@@ -399,6 +401,9 @@ export class ListPane {
   // ── bodies ────────────────────────────────────────────────────────────────
 
   private teardownBody(): void {
+    // The body is being rebuilt for a DIFFERENT thing (a new selection, or
+    // search opening or closing) — which is exactly when the caps reset.
+    this.caps = {};
     for (const c of this.components) void unmount(c);
     this.components = [];
     this.surface?.destroy();
@@ -442,6 +447,21 @@ export class ListPane {
       onStatusClick: (todo: TodoRecord, event: MouseEvent) => openTodoMenu(this.plugin, todo, event),
       onOpenTodo: (todo: TodoRecord, anchor?: Element) => openTodoModal(this.plugin, todo, anchor),
       onReveal: (todo: TodoRecord) => void revealTodo(this.plugin, todo),
+    };
+  }
+
+  /**
+   * Sections opened past the row cap, for the lists this pane mounts itself
+   * (the Agenda segments, the Inbox's). Cleared whenever the body is torn down
+   * for something else, so every arrival starts back at the cap — see the note
+   * on `TodoSurface.caps`, which does the same for the surface's lists.
+   */
+  private capProps(): Pick<ComponentProps<typeof TodoList>, "shown" | "onShowMore"> {
+    return {
+      shown: this.caps,
+      onShowMore: (shown: Record<string, number>) => {
+        this.caps = shown;
+      },
     };
   }
 
@@ -498,7 +518,11 @@ export class ListPane {
         });
         return;
       }
-      const common = { ...this.listProps(), onOpenNote: (path: string) => void openNote(this.plugin, path) };
+      const common = {
+        ...this.listProps(),
+        ...this.capProps(),
+        onOpenNote: (path: string) => void openNote(this.plugin, path),
+      };
       this.section("Loose todos", sections.looseCount, { ...common, groups: sections.loose, total: sections.looseCount });
       if (settings.inboxShowUnmanaged && sections.unmanagedCount > 0) {
         this.section("Unmanaged", sections.unmanagedCount, {
@@ -519,8 +543,8 @@ export class ListPane {
     this.components.push(mount(TodoList, { target: el.createDiv(), props }));
   }
 
-  /** Today: the four segments, then the arranged list. */
-  private renderToday(): void {
+  /** Agenda: the four segments, then the arranged list. */
+  private renderAgenda(): void {
     const today = localIsoDate(new Date());
     const all = this.plugin.index.getAll();
     this.renderSegments(smartViewCounts(all, today));
@@ -531,7 +555,7 @@ export class ListPane {
       priorityLabels: PRIORITY_LABEL,
     });
     const signature = JSON.stringify([
-      "today",
+      "agenda",
       this.segment,
       arrangement,
       sections.map((s) => [s.key, s.title, s.todos.map((t) => [t.id ?? `${t.file}:${t.line}`, t.glyph, t.displayText, t.project, t.note])]),
@@ -539,10 +563,10 @@ export class ListPane {
     // Pull forward only where the band is a band: on Reminders a passed
     // reminder groups under "Overdue" too, and re-dating one would move a due
     // date nobody asked about.
-    const banded = this.segment === "today" || this.segment === "upcoming";
-    // Folds are per segment and persisted: Today opens on Doing alone, and any
+    const banded = this.segment === "agenda" || this.segment === "upcoming";
+    // Folds are per segment and persisted: Agenda opens on Doing alone, and any
     // section you open or close stays that way across restarts.
-    const memoryKey = this.memoryKey() ?? "today";
+    const memoryKey = this.memoryKey() ?? "agenda";
     const folds = this.plugin.viewMemory(memoryKey).sections;
     this.remount(signature, () => {
       this.components.push(
@@ -560,9 +584,10 @@ export class ListPane {
             emptyText: EMPTY_MESSAGES[this.segment],
             showProject: true,
             collapsed: folds,
-            collapsedDefaults: TODAY_COLLAPSED_STATUSES,
+            collapsedDefaults: AGENDA_COLLAPSED_STATUSES,
             onToggleSection: (sections: string[]) =>
               this.plugin.rememberView(memoryKey, { sections }),
+            ...this.capProps(),
             // Dates and priorities are not places — no drag here.
             dragDisabled: true,
             onPullForward: banded
@@ -607,6 +632,8 @@ export class ListPane {
       el.createSpan({ text: label });
       if (counts[key] > 0) el.createSpan({ cls: "marktodo-segment-count", text: String(counts[key]) });
       el.addEventListener("click", () => {
+        // Another segment is another list: back to the cap.
+        this.caps = {};
         this.segment = key;
         this.refresh();
       });
@@ -614,8 +641,8 @@ export class ListPane {
   }
 
   /** This segment's own sort + group. Each of the four is remembered separately. */
-  private get arrangement(): TodayArrangement {
-    return this.plugin.settings.todayArrangement[this.segment];
+  private get arrangement(): AgendaArrangement {
+    return this.plugin.settings.agendaArrangement[this.segment];
   }
 
 

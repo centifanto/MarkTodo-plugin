@@ -133,8 +133,8 @@ describe("buildCaptureLine — the todo editor's create mode", () => {
   });
 
   it("stamps done @ when captured straight into DONE", () => {
-    expect(buildCaptureLine({ title: "Paid rent", status: "DONE", id: "abcd1234", today: "2026-09-13" })).toBe(
-      "- [x] Paid rent done @ 2026-09-13 <!-- mt id=abcd1234 -->",
+    expect(buildCaptureLine({ title: "Paid rent", status: "DONE", id: "abcd1234", doneAt: "2026-09-13 14:07" })).toBe(
+      "- [x] Paid rent done @ 2026-09-13 14:07 <!-- mt id=abcd1234 -->",
     );
   });
 

@@ -17,7 +17,8 @@ import { stripPriorityTokens } from "../core/priority";
 import { DATE_SRC, TIME_SRC } from "../core/dates";
 
 const DUE_RE = new RegExp(`\\s*due\\s*@\\s*${DATE_SRC}`);
-const DONE_RE = new RegExp(`(^|\\s+)done\\s*@\\s*${DATE_SRC}`);
+// The time is optional: stamps written before `done @` carried one are bare dates.
+const DONE_RE = new RegExp(`(^|\\s+)done\\s*@\\s*${DATE_SRC}(?:\\s+${TIME_SRC})?`);
 const NOTIFY_RE = new RegExp(`\\s*notify\\s*@\\s*${DATE_SRC}\\s+${TIME_SRC}`);
 const DELETE_AFTER_RE = /\s*delete-after\s*@\s*\d+d/;
 

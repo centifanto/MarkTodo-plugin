@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
-import { composite, contrast, hsl, parseHex, toHsl, withAlpha } from "../../src/ui/color";
+import { composite, contrast, hexFromCss, hsl, parseHex, toHsl, withAlpha } from "../../src/ui/color";
 import {
   ACCENTS,
   DEFAULT_APPEARANCE,
@@ -39,6 +39,37 @@ describe("color math (the app's, copied)", () => {
     for (const hex of ["#205EA6", "#D0A215", "#9F9D96", "#FFFFFF", "#000000"]) {
       const { h, s, l } = toHsl(hex);
       expect(hsl(h, s, l)).toBe(hex);
+    }
+  });
+  // Obsidian's own mobile dark palette writes `--background-primary: #000`, and
+  // that reads back AS AUTHORED: a parser that only took six digits threw out of
+  // onload, which Obsidian reports as "Failed to load plugin".
+  it("takes CSS shorthand hex, not just six digits", () => {
+    expect(parseHex("#000")).toEqual({ r: 0, g: 0, b: 0, a: 1 });
+    expect(parseHex("#1e1e1e")).toEqual(parseHex("#1E1E1E"));
+    expect(parseHex(" #fff ")).toEqual({ r: 255, g: 255, b: 255, a: 1 });
+    expect(parseHex("#0008").a).toBeCloseTo(0.53, 2);
+    expect(() => parseHex("rebeccapurple")).toThrow();
+  });
+});
+
+describe("a theme color, whatever the theme wrote", () => {
+  it("normalizes hex of any length and the rgb() a browser hands back", () => {
+    expect(hexFromCss("#000")).toBe("#000000");
+    expect(hexFromCss("#1E1E1E")).toBe("#1E1E1E");
+    expect(hexFromCss("rgb(30, 30, 30)")).toBe("#1E1E1E");
+    expect(hexFromCss("rgb(255 255 255)")).toBe("#FFFFFF");
+    expect(hexFromCss("rgba(0, 0, 0, 0.5)")).toBe("#000000"); // a surface is opaque
+    expect(hexFromCss("rgb(100% 0% 0%)")).toBe("#FF0000");
+  });
+  it("takes the color(srgb ...) Chrome computes a color-mix() to", () => {
+    expect(hexFromCss("color(srgb 0.5 0 0.5)")).toBe("#800080");
+    expect(hexFromCss("color(srgb 1 1 1)")).toBe("#FFFFFF");
+    expect(hexFromCss("color(display-p3 1 0 0)")).toBeNull(); // not sRGB: don't guess
+  });
+  it("says null rather than throwing, so a caller can fall back", () => {
+    for (const value of ["", "black", "var(--nope)", "color-mix(in srgb, red, blue)", "rgb(a, b, c)"]) {
+      expect(hexFromCss(value)).toBeNull();
     }
   });
 });
