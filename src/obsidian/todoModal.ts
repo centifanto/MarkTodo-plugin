@@ -128,7 +128,7 @@ class TodoModal extends Modal {
   // re-finds the line by id, so later edits in the same session still land.
   private status: Status;
   private priority: Priority;
-  private checklistVersion = 0;
+  private stepsVersion = 0;
   private refreshSteps: (() => Promise<void>) | null = null;
   private stopAnchoring: (() => void) | null = null;
 
@@ -151,7 +151,7 @@ class TodoModal extends Modal {
   }
 
   onClose(): void {
-    this.checklistVersion++;
+    this.stepsVersion++;
     this.stopAnchoring?.();
     this.stopAnchoring = null;
     this.contentEl.empty();
@@ -284,7 +284,7 @@ class TodoModal extends Modal {
    * The todo's note block — the same bytes the app's editor field edits.
    *
    * `Writer.setNote` no-ops on an unchanged note and REFUSES one whose lines
-   * would become sub-todos or forge a capsule; the refusal is surfaced here
+   * would become steps or forge a capsule; the refusal is surfaced here
    * rather than letting the text vanish on the next re-render.
    */
   private buildNote(parent: HTMLElement): void {
@@ -299,14 +299,14 @@ class TodoModal extends Modal {
         const ok = await this.plugin.writer.setNote(this.todo, next);
         // Clearing a note is always allowed; a refusal only happens on content.
         if (!ok && next !== "") {
-          new Notice("MarkTodo: note not saved — a line there would become a sub-todo.");
+          new Notice("MarkTodo: note not saved — a line there would become a step.");
         }
         return ok || next === "";
       },
     });
   }
 
-  /** Follow adoption and section moves so later checklist edits use the current parent. */
+  /** Follow adoption and section moves so later step edits use the current parent. */
   private async saveField(save: () => Promise<boolean>): Promise<boolean> {
     const file = this.plugin.app.vault.getAbstractFileByPath(this.todo.file);
     if (!(file instanceof TFile)) return false;
@@ -326,22 +326,24 @@ class TodoModal extends Modal {
 
   /** Plain checkbox steps: no scheduling fields and no separate todo editor. */
   private buildSteps(parent: HTMLElement): void {
-    const wrap = parent.createDiv({ cls: "marktodo-checklist" });
-    const version = ++this.checklistVersion;
+    const wrap = parent.createDiv({ cls: "marktodo-steps" });
+    const version = ++this.stepsVersion;
     const refresh = async (): Promise<void> => {
       const file = this.plugin.app.vault.getAbstractFileByPath(this.todo.file);
       if (!(file instanceof TFile)) return;
       const text = await this.plugin.app.vault.read(file);
-      if (version !== this.checklistVersion) return;
+      if (version !== this.stepsVersion) return;
       const idx = findTodoLine(text.split(/\r?\n/), this.todo);
       const current = indexFileTodos(file.path, text, { projectName: this.todo.project }).find((r) => r.line === idx);
       if (!current) return;
       this.todo = current;
       wrap.empty();
-      wrap.createDiv({ cls: "marktodo-checklist-heading", text: current.steps.length
-        ? `Sub-todos · ${current.steps.filter((s) => s.done).length}/${current.steps.length} done` : "Sub-todos" });
+      wrap.createDiv({ cls: "marktodo-steps-heading", text: "Steps" });
+      if (current.steps.length > 0) {
+        wrap.createDiv({ cls: "marktodo-step-progress", text: `${current.steps.filter((s) => s.done).length} of ${current.steps.length} steps done` });
+      }
       for (const step of current.steps) {
-        const row = wrap.createDiv({ cls: "marktodo-checklist-row" });
+        const row = wrap.createDiv({ cls: "marktodo-steps-row" });
         const checkbox = row.createEl("input", { type: "checkbox", attr: { "aria-label": `Complete step: ${step.text}` } });
         checkbox.checked = step.done;
         let saving = false;
@@ -357,7 +359,7 @@ class TodoModal extends Modal {
         const title = row.createEl("input", { type: "text", value: step.text, attr: { "aria-label": "Step text" } });
         title.toggleClass("is-done", step.done);
         title.onchange = (): void => { void save({ text: title.value }); };
-        const remove = row.createEl("button", { cls: "clickable-icon", attr: { "aria-label": `Delete step: ${step.text}`, title: "Delete step" } });
+        const remove = row.createEl("button", { cls: "clickable-icon", attr: { "aria-label": `Remove step: ${step.text}`, title: "Remove step" } });
         setIcon(remove, "x");
         remove.onclick = (): void => { void save({ delete: true }); };
         if (step.line === this.focusStep) {
@@ -366,16 +368,16 @@ class TodoModal extends Modal {
           row.scrollIntoView({ block: "nearest" });
         }
       }
-      const addRow = wrap.createDiv({ cls: "marktodo-checklist-add" });
-      const input = addRow.createEl("input", { type: "text", attr: { placeholder: "Add step…", "aria-label": "New sub-todo" } });
-      const button = addRow.createEl("button", { text: "Add" });
+      const addRow = wrap.createDiv({ cls: "marktodo-steps-add" });
+      const input = addRow.createEl("input", { type: "text", attr: { placeholder: "Add step", "aria-label": "Add step" } });
+      const button = addRow.createEl("button", { text: "Add step" });
       const add = async (): Promise<void> => {
         if (!input.value.trim() || button.disabled) return;
         button.disabled = true;
-        const ok = await this.plugin.writer.addSubTodo(current, input.value);
+        const ok = await this.plugin.writer.addStep(current, input.value);
         if (!ok) { new Notice("MarkTodo: give the step a single-line title."); button.disabled = false; return; }
         await refresh();
-        wrap.querySelector<HTMLInputElement>(".marktodo-checklist-add input")?.focus();
+        wrap.querySelector<HTMLInputElement>(".marktodo-steps-add input")?.focus();
       };
       button.onclick = (): void => { void add(); };
       input.onkeydown = (e): void => { if (e.key === "Enter") { e.preventDefault(); void add(); } };

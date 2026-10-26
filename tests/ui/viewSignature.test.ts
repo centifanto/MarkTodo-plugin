@@ -23,7 +23,7 @@ describe("todosSignature", () => {
     ["position", { line: 4 }],
     ["file", { file: "G.md" }],
     ["note preview", { note: "a note" }],
-    ["checklist progress", { steps: [{ line: 1, text: "Measure", done: true }] }],
+    ["step progress", { steps: [{ line: 1, text: "Measure", done: true }] }],
   ])("changes when the %s changes", (_what, patch) => {
     expect(todosSignature([todo(patch)])).not.toBe(todosSignature([todo()]));
   });

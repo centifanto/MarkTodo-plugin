@@ -48,7 +48,7 @@ describe("noteLinesOf / noteOf — the note block", () => {
     expect(noteLinesOf(L("- [ ] One"), 0)).toEqual([]);
   });
 
-  it("stops at a nested todo — a sub-todo is not the note", () => {
+  it("stops at a nested todo — a step is not the note", () => {
     const lines = L("- [ ] Parent\n    the note\n    - [ ] Child\n    after the child");
     expect(noteOf(lines, 0)).toBe("the note");
   });

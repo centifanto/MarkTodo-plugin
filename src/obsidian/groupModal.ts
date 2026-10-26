@@ -3,7 +3,7 @@
  *
  * A group has no registry — it is the set of notes carrying its name in
  * `marktodo-group` — so this modal edits exactly that: a name and a
- * checklist of projects. `groupEdits` turns the result into the minimal set of
+ * list of selectable projects. `groupEdits` turns the result into the minimal set of
  * frontmatter writes, and deleting a group only ever ungroups its projects.
  */
 import { type App, Modal, Notice, Setting, TFile } from "obsidian";

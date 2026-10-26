@@ -226,14 +226,14 @@ export interface Todo {
   extraTokens: string[];
 }
 
-/** A plain checkbox in a parent todo's checklist. Its line is derived, never stored. */
+/** A plain checkbox among a parent todo's steps. Its line is derived, never stored. */
 export interface TodoStep {
   line: number;
   text: string;
   done: boolean;
 }
 
-/** A todo line plus its derived file, workflow and checklist context. */
+/** A todo line plus its derived file, workflow and step context. */
 export interface TodoRecord extends Todo {
   /** Vault-relative file path. */
   file: string;
@@ -247,7 +247,7 @@ export interface TodoRecord extends Todo {
   depth: number;
   /** Parent’s display text, for context in status-filtered lists and boards. */
   parentText: string | null;
-  /** Checklist steps owned by this todo, in source order. */
+  /** Steps owned by this todo, in source order. */
   steps: TodoStep[];
   /**
    * The status of the nearest ANCESTOR status-section heading the todo sits under

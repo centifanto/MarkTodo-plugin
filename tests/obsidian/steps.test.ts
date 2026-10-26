@@ -21,8 +21,8 @@ const lines = [
 ];
 const records = () => indexFileTodos("House.md", lines.join("\n"), { projectName: "House" });
 
-describe("plain checklist steps", () => {
-  it("derives ancestry through notes, siblings and existing deeper checklists", () => {
+describe("plain steps", () => {
+  it("derives ancestry through notes, siblings and existing deeper step lists", () => {
     expect(records().map((r) => [r.line, r.parentLine, r.depth])).toEqual([
       [1, null, 0], [3, 1, 1], [4, 1, 1], [5, 4, 2], [6, null, 0],
     ]);
@@ -95,12 +95,12 @@ describe("plain checklist steps", () => {
     expect(editStepBlock(lines, 1, step, { text: "<!-- mt id=forged -->" })).toBeNull();
   });
 
-  it("deletes an owned step and its nested content without touching siblings", () => {
+  it("removes an owned step and its nested content without touching siblings", () => {
     const out = editStepBlock(lines, 1, records()[0].steps[1], { delete: true })!;
     expect(out).toEqual([...lines.slice(0, 4), lines[6]]);
   });
 
-  it("status moves carry the checklist but never heal step glyphs from headings", () => {
+  it("status moves carry the steps but never heal step glyphs from headings", () => {
     const prior = records();
     const out = placeTodoInProject(lines, 1, "DONE", "- [x] Install sink <!-- mt id=parent01 -->");
     const after = indexFileTodos("House.md", out.join("\n"), { projectName: "House" });

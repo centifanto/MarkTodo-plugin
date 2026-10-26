@@ -169,7 +169,7 @@ export function reorderTodoLine(
   return out.join("\n") === lines.join("\n") ? null : out;
 }
 
-/** Move a root todo and its entire checklist into its status section. */
+/** Move a root todo and its entire set of steps into its status section. */
 export function placeTodoInProject(
   lines: string[],
   fromIndex: number,

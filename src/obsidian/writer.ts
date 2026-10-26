@@ -352,7 +352,7 @@ export class Writer {
       if (parentLineOf(lines, idx) !== null) return data;
       const next = setNoteBlock(lines, idx, note);
       if (next === null) {
-        // Unchanged, or refused (a line that would become a sub-todo or forge a
+        // Unchanged, or refused (a line that would become a step or forge a
         // capsule). Refusal is silent-safe: nothing is written either way.
         return data;
       }
@@ -373,8 +373,8 @@ export class Writer {
     return ok;
   }
 
-  /** Append a child after the parent’s existing note and children, atomically. */
-  async addSubTodo(todo: TodoRecord, title: string): Promise<boolean> {
+  /** Append a step after the parent’s existing note and steps, atomically. */
+  async addStep(todo: TodoRecord, title: string): Promise<boolean> {
     const file = this.fileFor(todo);
     if (!file || /[\r\n]|<!--/.test(title)) return false;
     const text = title.trim();
@@ -504,7 +504,7 @@ export class Writer {
   }
 
   /**
-   * Delete a parent and its owned note/checklist. IDs outside the explicitly
+   * Delete a parent and its owned note/steps. IDs outside the explicitly
    * deleted span remain protected by the safety check.
    */
   async deleteTodo(todo: TodoRecord): Promise<boolean> {

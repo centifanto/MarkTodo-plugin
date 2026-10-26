@@ -2094,44 +2094,44 @@ body {
   color: var(--text-normal);
 }
 
-/* A parent owns a small checklist, with the same quiet controls as its note. */
-.marktodo-checklist {
+/* A parent owns a small set of steps, with the same quiet controls as its note. */
+.marktodo-steps {
   margin: 12px 0 18px;
 }
-.marktodo-checklist-heading,
+.marktodo-steps-heading,
 .marktodo-step-progress {
   color: var(--text-muted);
   font-size: var(--font-smallest);
 }
-.marktodo-checklist-heading {
+.marktodo-steps-heading {
   margin-bottom: 8px;
 }
-.marktodo-checklist-row {
+.marktodo-steps-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
   margin: 4px 0;
 }
-.marktodo-checklist-row input[type="text"] {
+.marktodo-steps-row input[type="text"] {
   width: 100%;
   background: transparent;
   border-color: transparent;
   box-shadow: none;
 }
-.marktodo-checklist-row input[type="text"]:focus {
+.marktodo-steps-row input[type="text"]:focus {
   border-color: var(--background-modifier-border-focus);
 }
-.marktodo-checklist-row input.is-done {
+.marktodo-steps-row input.is-done {
   color: var(--text-muted);
   text-decoration: line-through;
 }
-.marktodo-checklist-add {
+.marktodo-steps-add {
   display: flex;
   gap: 8px;
   margin-top: 8px;
 }
-.marktodo-checklist-add input {
+.marktodo-steps-add input {
   flex: 1;
   min-width: 0;
 }

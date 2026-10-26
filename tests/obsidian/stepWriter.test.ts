@@ -32,25 +32,25 @@ function fixture(initial = source, cleanup = false, sections = true) {
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('checklist writer integration', () => {
+describe('step writer integration', () => {
   it('adds a plain step after existing steps, reuses their indent and preserves CRLF', async () => {
     const f = fixture();
-    expect(await f.writer.addSubTodo(f.records()[0], 'Third @high due @ 2026-1-1')).toBe(true);
+    expect(await f.writer.addStep(f.records()[0], 'Third @high due @ 2026-1-1')).toBe(true);
     expect(f.bytes.get('P.md')).toContain('  - [x] Second step <!-- mt id=legacy01 -->\r\n  - [ ] Third @high due @ 2026-1-1\r\n- [ ] Sibling');
     expect(f.bytes.get('P.md')!.replace(/\r\n/g, '')).not.toContain('\n');
   });
 
-  it('starts a new checklist after the note with no capsule on the step', async () => {
+  it('starts a new set of steps after the note with no capsule on the step', async () => {
     const f = fixture('- [ ] Parent <!-- mt id=parent01 -->\n    A note\n');
-    await f.writer.addSubTodo(f.records()[0], 'First');
+    await f.writer.addStep(f.records()[0], 'First');
     expect(f.bytes.get('P.md')).toBe('- [ ] Parent <!-- mt id=parent01 -->\n    A note\n    - [ ] First\n');
   });
 
   it('rejects nested creation and forged or multiline titles', async () => {
     const f = fixture();
-    expect(await f.writer.addSubTodo(f.records()[1], 'Nested')).toBe(false);
-    expect(await f.writer.addSubTodo(f.records()[0], 'a\n- [ ] b')).toBe(false);
-    expect(await f.writer.addSubTodo(f.records()[0], '<!-- mt id=forged -->')).toBe(false);
+    expect(await f.writer.addStep(f.records()[1], 'Nested')).toBe(false);
+    expect(await f.writer.addStep(f.records()[0], 'a\n- [ ] b')).toBe(false);
+    expect(await f.writer.addStep(f.records()[0], '<!-- mt id=forged -->')).toBe(false);
     expect(f.bytes.get('P.md')).toBe(source);
   });
 
@@ -139,7 +139,7 @@ describe('checklist writer integration', () => {
     expect(f.bytes.get('P.md')).toContain('sibling1');
   });
 
-  it('moving completed parents to the bottom preserves checklists, and never extracts done steps', async () => {
+  it('moving completed parents to the bottom preserves steps, and never extracts done steps', async () => {
     const f = fixture();
     expect(await f.writer.moveCompletedToBottom(f.file)).toBe(0);
     const completed = fixture(source.replace('[ ] Parent', '[x] Parent'));

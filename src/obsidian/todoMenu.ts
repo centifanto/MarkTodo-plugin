@@ -40,7 +40,7 @@ export async function revealTodo(plugin: MarkTodoPlugin, todo: TodoRecord): Prom
 export function confirmDeleteTodo(plugin: MarkTodoPlugin, todo: TodoRecord, after?: () => void): void {
   confirmAction(plugin.app, {
     title: "Delete todo?",
-    message: `"${formatTitle(todo.displayText) || "(untitled todo)"}" and its steps will be removed from ${todo.file}.`,
+    message: `The todo "${formatTitle(todo.displayText) || "(untitled todo)"}" and all its steps will be removed from ${todo.file}.`,
     confirmText: "Delete",
     onConfirm: () => {
       void plugin.writer.deleteTodo(todo).then((ok) => {

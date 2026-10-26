@@ -55,9 +55,9 @@ describe("setNoteBlock", () => {
     expect(noteOf(out, 0)).toBe("first\nsecond");
   });
 
-  it("refuses a line that would become a sub-todo", () => {
+  it("refuses a line that would become a step", () => {
     const lines = L("- [ ] A <!-- mt id=a -->");
-    expect(setNoteBlock(lines, 0, "- [ ] sneaky sub-todo")).toBeNull();
+    expect(setNoteBlock(lines, 0, "- [ ] sneaky step")).toBeNull();
     expect(setNoteBlock(lines, 0, "fine\n- [x] not fine")).toBeNull();
   });
 

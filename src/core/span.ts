@@ -8,7 +8,7 @@
  *   take its note and any sub-items with it, or they are stranded under whatever
  *   heading the todo used to live in (silently — no parser would complain).
  * - **note block** — the deeper-indented NON-todo lines at the head of the span.
- *   A nested `- [ ]` ends it: sub-todos have their own hierarchy and are never part of
+ *   A nested `- [ ]` ends it: steps have their own hierarchy and are never part of
  *   the note.
  *
  * A blank line ends both. That is the pre-existing reorder rule, and
@@ -86,7 +86,7 @@ const NOTE_INDENT = "    ";
  *
  * REFUSED (returns null, writes nothing):
  *  - a line that would parse as a todo — it would silently end the note block
- *    and become a sub-todo the person never asked for;
+ *    and become a step the person never asked for;
  *  - a line containing `<!--` — it could forge a capsule.
  * Same spirit as `setTitle`, which refuses `<!--` for the same reason.
  */
