@@ -197,8 +197,9 @@ the baseline.
 ## Making todos
 
 A plain checkbox is already a todo. A **managed** todo also carries a hidden
-`<!-- mt id=… -->` comment, the **capsule**, so MarkTodo can track it through
-edits and moves and give it any of the six statuses.
+comment such as `<!-- mt id=aB3xK9Qz -->`, the **capsule**. MarkTodo generates the
+eight-character ID to track the todo through edits and moves and give it any of
+the six statuses.
 
 - **Type `mtodo`** at the end of any line, after a space (`Buy milk mtodo`).
   A pop-up offers **Create todo here** (Enter picks it), **Open todo editor**
