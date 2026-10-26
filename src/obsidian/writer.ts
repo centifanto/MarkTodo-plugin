@@ -276,6 +276,7 @@ export class Writer {
    */
   async captureTodo(opts: {
     title: string;
+    note?: string;
     target: TFile;
     status: Status;
     priority?: Priority;
@@ -292,7 +293,16 @@ export class Writer {
       new Notice("MarkTodo: nothing to capture — give the todo a title.");
       return null;
     }
-    return (await this.insertIntoTarget(opts.target, line)) ? line : null;
+    let subLines: string[] = [];
+    if (opts.note?.trim()) {
+      const block = setNoteBlock([line], 0, opts.note);
+      if (block === null) {
+        new Notice("MarkTodo: note not saved — remove checkbox lines or HTML comments from the note.");
+        return null;
+      }
+      subLines = block.slice(1);
+    }
+    return (await this.insertIntoTarget(opts.target, line, subLines)) ? line : null;
   }
 
   /**

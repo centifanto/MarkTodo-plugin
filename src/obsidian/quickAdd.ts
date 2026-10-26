@@ -1,5 +1,5 @@
 /**
- * The todo editor's CREATE mode — capture is ONE dialog: title, destination,
+ * The todo editor's CREATE mode — capture is ONE dialog: title, note, destination,
  * status (projects only), priority, due. Every capture path that wants a dialog
  * funnels here: "Add todo…", the keyword popup's "Open todo editor…", and the
  * "+ Add" buttons on Kanban columns / List groups.
@@ -71,6 +71,7 @@ function noteName(path: string): string {
 
 class CaptureModal extends Modal {
   private title: string;
+  private note = "";
   private destination = "";
   private status: Status;
   private priority: Priority;
@@ -115,6 +116,15 @@ class CaptureModal extends Modal {
       },
     });
     input.value = this.title;
+
+    const noteInput = contentEl.createEl("textarea", {
+      cls: "marktodo-modal-note",
+      attr: { rows: "3", placeholder: "Add a note…", "aria-label": "Todo note" },
+    });
+    noteInput.value = this.note;
+    noteInput.addEventListener("input", () => {
+      this.note = noteInput.value;
+    });
 
     // Destinations: projects, today's daily note, the catch-all note.
     const projects = [...getProjectFiles(this.app)].sort((a, b) =>
@@ -329,18 +339,25 @@ class CaptureModal extends Modal {
       return;
     }
     this.submitted = true;
-    this.close();
 
     const target = await this.resolveTarget();
-    if (!target) return;
+    if (!target) {
+      this.submitted = false;
+      return;
+    }
     const line = await this.plugin.writer.captureTodo({
       title: this.title,
+      note: this.note,
       target,
       status: this.status,
       priority: this.priorityTouched ? this.priority : undefined,
       due: this.dueTouched ? this.due : undefined,
     });
-    if (line === null) return;
+    if (line === null) {
+      this.submitted = false;
+      return;
+    }
+    this.close();
 
     const isProject = this.plugin.fileKind(target) === "project";
     if (isProject && this.plugin.settings.lastCaptureProject !== target.path) {
@@ -358,7 +375,7 @@ class CaptureModal extends Modal {
         project: isProject ? target.basename : null,
         parentLine: null, depth: 0, parentText: null, steps: [],
         section: null,
-        note: "",
+        note: this.note.split(/\r\n?|\n/).map((part) => part.trim()).filter(Boolean).join("\n"),
         projectGroup: null,
         archived: false,
       });
