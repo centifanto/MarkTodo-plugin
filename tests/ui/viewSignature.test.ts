@@ -6,7 +6,8 @@ function todo(over: Partial<TodoRecord> = {}): TodoRecord {
   return {
     id: "abcd1234", glyph: " ", priority: "NONE", displayText: "todo", indent: "", bullet: "-",
     due: null, tags: [], links: [], extraTokens: [], file: "F.md", line: 0, project: "P",
-    subproject: null, section: null, note: "", projectGroup: null, archived: false, ...over,
+    parentLine: null, depth: 0, parentText: null, steps: [],
+    section: null, note: "", projectGroup: null, archived: false, ...over,
   };
 }
 
@@ -22,12 +23,13 @@ describe("todosSignature", () => {
     ["position", { line: 4 }],
     ["file", { file: "G.md" }],
     ["note preview", { note: "a note" }],
+    ["checklist progress", { steps: [{ line: 1, text: "Measure", done: true }] }],
   ])("changes when the %s changes", (_what, patch) => {
     expect(todosSignature([todo(patch)])).not.toBe(todosSignature([todo()]));
   });
 
   it("ignores what a row does not draw", () => {
-    expect(todosSignature([todo({ subproject: "Kitchen", section: "DONE" })])).toBe(
+    expect(todosSignature([todo({ section: "DONE" })])).toBe(
       todosSignature([todo()]),
     );
   });

@@ -48,6 +48,7 @@ export function inFocus(focus: Focus, status: Status): boolean {
 export function focusCounts(todos: readonly TodoRecord[]): Record<Focus, number> {
   const counts: Record<Focus, number> = { all: 0, plan: 0, active: 0, doing: 0 };
   for (const todo of todos) {
+    if (todo.parentLine != null) continue;
     const status = statusOf(todo);
     for (const focus of Object.keys(counts) as Focus[]) {
       if (inFocus(focus, status)) counts[focus]++;

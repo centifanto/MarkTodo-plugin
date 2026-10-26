@@ -80,6 +80,9 @@
         ></span>
       {/if}
     </div>
+    {#if todo.steps.length > 0}
+      <div class="marktodo-step-progress">{todo.steps.filter((s) => s.done).length}/{todo.steps.length} steps done</div>
+    {/if}
     {#if notePreview}
       <div class="marktodo-note-preview">{notePreview}</div>
     {/if}

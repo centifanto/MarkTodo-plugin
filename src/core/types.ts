@@ -172,7 +172,7 @@ export const TOKEN_TO_PRIORITY: Readonly<Record<string, Priority>> = {
 
 /**
  * A parsed todo line. This is the LINE'S intrinsic data only — location (file,
- * line number) and file-context (project, subproject) are attached by the index
+ * line number) and file-context (project) are attached by the index
  * layer as a `TodoRecord`, never here, to keep core pure.
  *
  * In-place model: the parser extracts ONLY the trailing `mt`
@@ -226,10 +226,14 @@ export interface Todo {
   extraTokens: string[];
 }
 
-/**
- * A `Todo` plus the location/context the index attaches. The views and the
- * query layer operate on these.
- */
+/** A plain checkbox in a parent todo's checklist. Its line is derived, never stored. */
+export interface TodoStep {
+  line: number;
+  text: string;
+  done: boolean;
+}
+
+/** A todo line plus its derived file, workflow and checklist context. */
 export interface TodoRecord extends Todo {
   /** Vault-relative file path. */
   file: string;
@@ -237,8 +241,14 @@ export interface TodoRecord extends Todo {
   line: number;
   /** Project name (e.g. file basename) when the file has the marktodo frontmatter key; else null. */
   project: string | null;
-  /** Nearest non-status ancestor heading (subproject), else null. */
-  subproject: string | null;
+  /** Immediate parent todo’s 0-based line in this file, or null for a root. */
+  parentLine: number | null;
+  /** Number of todo ancestors; indentation alone does not make a child. */
+  depth: number;
+  /** Parent’s display text, for context in status-filtered lists and boards. */
+  parentText: string | null;
+  /** Checklist steps owned by this todo, in source order. */
+  steps: TodoStep[];
   /**
    * The status of the nearest ANCESTOR status-section heading the todo sits under
    * (e.g. `### Progress` → PROGRESS), or null when it isn't under one. This is the
@@ -278,4 +288,9 @@ export function statusOf(todo: Todo): Status {
 /** A todo is "managed" iff it carries an id (i.e. has an `mt` capsule). */
 export function isManaged(todo: Todo): boolean {
   return todo.id !== null;
+}
+
+/** Nested checkboxes are steps, never standalone work items. */
+export function isStep(todo: Pick<TodoRecord, "parentLine">): boolean {
+  return todo.parentLine != null;
 }

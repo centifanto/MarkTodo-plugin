@@ -4,9 +4,7 @@
  * — there is no Obsidian/IO here. The thin `writer.ts` glue calls these inside
  * `Vault.process`.
  *
- * Centerpiece: `placeTodoInProject` — the materialized-view section sync. It
- * moves a todo line under the status section matching its new status, scoped to
- * the todo's subproject block, creating the header (in column order) if missing.
+ * Status placement uses the project’s status headings only.
  */
 import {
   type Status,
@@ -18,7 +16,7 @@ import {
   statusOf,
 } from "../core/types";
 import { parseTodoLine } from "../core/parse";
-import { itemEndOf } from "../core/span";
+import { itemEndOf, parentLineOf } from "../core/span";
 
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 
@@ -60,7 +58,7 @@ export function renameLegacyStatusHeadings(lines: string[]): string[] {
 /** Parse all ATX headings into a structured model. */
 export function parseHeadings(lines: string[]): HeadingInfo[] {
   const out: HeadingInfo[] = [];
-  for (let i = 0; i < lines.length; i++) {
+  for (let i = bodyStart(lines); i < lines.length; i++) {
     const m = HEADING_RE.exec(lines[i]);
     if (!m) continue;
     const text = m[2].trim();
@@ -118,56 +116,6 @@ export function managedIds(text: string): Set<string> {
   return ids;
 }
 
-function blockEndOf(headings: HeadingInfo[], sp: HeadingInfo, len: number): number {
-  for (const h of headings) {
-    if (h.line > sp.line && h.level <= sp.level) return h.line;
-  }
-  return len;
-}
-
-function sectionEndOf(headings: HeadingInfo[], sec: HeadingInfo, blockEnd: number): number {
-  for (const h of headings) {
-    if (h.line > sec.line && h.level <= sec.level && h.line < blockEnd) return h.line;
-  }
-  return blockEnd;
-}
-
-function nearestSubprojectHeading(
-  headings: HeadingInfo[],
-  name: string,
-  near: number,
-): HeadingInfo | undefined {
-  const matches = headings.filter((h) => !h.isStatus && h.text === name);
-  if (matches.length === 0) return undefined;
-  const above = matches.filter((h) => h.line <= near);
-  return above.length ? above[above.length - 1] : matches[0];
-}
-
-/**
- * The nearest non-status ANCESTOR heading (subproject) for the line at `lineIdx`,
- * computed from the file's CURRENT lines. The writer uses this instead of the
- * index snapshot's `subproject` so placement is correct even when the snapshot is
- * stale OR the file was just converted into a project (its cached subproject
- * was computed under non-project semantics, where `### Progress` looked like a
- * subproject). Mirrors indexFileTodos's ancestor walk.
- */
-export function subprojectOf(lines: string[], lineIdx: number): string | null {
-  const stack: { level: number; isStatus: boolean; text: string }[] = [];
-  for (let i = 0; i < lineIdx && i < lines.length; i++) {
-    const m = HEADING_RE.exec(lines[i]);
-    if (!m) continue;
-    const level = m[1].length;
-    const text = m[2].trim();
-    const isStatus = statusOfHeading(text) !== null;
-    while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop();
-    stack.push({ level, isStatus, text });
-  }
-  for (let s = stack.length - 1; s >= 0; s--) {
-    if (!stack[s].isStatus) return stack[s].text;
-  }
-  return null;
-}
-
 /** Line index of the nearest enclosing STATUS heading for `lineIdx`, or -1. */
 function statusSectionLineOf(lines: string[], lineIdx: number): number {
   const stack: { level: number; line: number; isStatus: boolean }[] = [];
@@ -190,7 +138,7 @@ const itemEnd = itemEndOf;
  * Within-column reorder (shared by the plugin board and the app board): move
  * the todo at `fromIdx` (with its indented sub-lines) directly before or after
  * the todo at `anchorIdx` in the same note. A PURE reorder: the two must share
- * status, indent, status section and subproject block, so the move can never
+ * status, indent and status section, so the move can never
  * change what the todo is — anything else returns null (a status change goes
  * through `placeTodoInProject` instead).
  */
@@ -207,7 +155,7 @@ export function reorderTodoLine(
   if (statusOf(moved) !== statusOf(anchor) || moved.indent !== anchor.indent) return null;
   if (
     statusSectionLineOf(lines, fromIdx) !== statusSectionLineOf(lines, anchorIdx) ||
-    subprojectOf(lines, fromIdx) !== subprojectOf(lines, anchorIdx)
+    parentLineOf(lines, fromIdx) !== parentLineOf(lines, anchorIdx)
   ) {
     return null;
   }
@@ -221,98 +169,35 @@ export function reorderTodoLine(
   return out.join("\n") === lines.join("\n") ? null : out;
 }
 
-/**
- * Remove the todo line at `fromIndex` and re-insert `newLine` under the status
- * section for `newStatus`, scoped to the todo's `subproject` block. Creates the
- * section header (correct level + column order) if it doesn't exist.
- */
+/** Move a root todo and its entire checklist into its status section. */
 export function placeTodoInProject(
   lines: string[],
   fromIndex: number,
-  subproject: string | null,
   newStatus: Status,
   newLine: string,
   subLines?: readonly string[],
 ): string[] {
-  // A placement also brings the note's status headings up to date (`Progress` → `Doing`).
+  if (fromIndex >= 0 && parentLineOf(lines, fromIndex) !== null) return lines;
   const work = renameLegacyStatusHeadings(lines).slice();
-  // A todo is its line PLUS what is indented under it — its note and any
-  // sub-items. Move the whole span, or the note is stranded under the old
-  // heading with nothing to report it. When the caller supplies `subLines` (an
-  // insert with no source line, e.g. a cross-note move) they are carried as-is.
   let carried: readonly string[] = subLines ?? [];
   if (fromIndex >= 0 && fromIndex < work.length) {
-    const spanEnd = itemEnd(work, fromIndex);
-    if (subLines === undefined) carried = work.slice(fromIndex + 1, spanEnd);
-    work.splice(fromIndex, spanEnd - fromIndex);
+    const end = itemEnd(work, fromIndex);
+    if (subLines === undefined) carried = work.slice(fromIndex + 1, end);
+    work.splice(fromIndex, end - fromIndex);
   }
-
   const headings = parseHeadings(work);
-
-  let blockStart: number;
-  let blockEnd: number;
-  let subLevel = 1;
-
-  if (subproject) {
-    const sp = nearestSubprojectHeading(headings, subproject, fromIndex);
-    if (sp) {
-      subLevel = sp.level;
-      blockStart = sp.line + 1;
-      blockEnd = blockEndOf(headings, sp, work.length);
-    } else {
-      // subproject heading missing — fall back to body region
-      blockStart = bodyStart(work);
-      blockEnd = work.length;
-    }
-  } else {
-    blockStart = bodyStart(work);
-    const firstSub = headings.find((h) => !h.isStatus);
-    blockEnd = firstSub ? firstSub.line : work.length;
-  }
-
-  const statusHeadsInBlock = headings.filter(
-    (h) => h.isStatus && h.line >= blockStart && h.line < blockEnd,
-  );
-
-  const target = statusHeadsInBlock.find((h) => h.status === newStatus);
+  const sections = headings.filter((h) => h.isStatus);
+  const target = sections.find((h) => h.status === newStatus);
   if (target) {
-    // Insert snug under the section's last non-blank line, not at the raw section
-    // boundary. The boundary is the next heading's line, which can sit AFTER a
-    // blank separator — inserting there detaches the todo from its section (and
-    // drifts further on each subsequent move). Walk back over trailing blanks,
-    // but never above the section header itself.
-    let insertAt = sectionEndOf(headings, target, blockEnd);
-    while (insertAt > target.line + 1 && work[insertAt - 1].trim() === "") insertAt--;
-    work.splice(insertAt, 0, newLine, ...carried);
-    return work;
-  }
-
-  // Create the missing status header, in column order among sibling sections.
-  // Prefer matching the level of existing sibling status sections so the new one
-  // stays nested in the same block; only derive from the subproject when there
-  // are no siblings to match.
-  const headerLevel =
-    statusHeadsInBlock.length > 0
-      ? statusHeadsInBlock[0].level
-      : subproject
-        ? subLevel + 1
-        : 2;
-  const headerLine = `${"#".repeat(headerLevel)} ${STATUS_LABELS[newStatus]}`;
-  const newOrder = STATUS_ORDER.indexOf(newStatus);
-
-  let insertHeaderAt = blockEnd;
-  if (statusHeadsInBlock.length === 0) {
-    insertHeaderAt = blockStart;
+    // Any following heading ends this section; prose headings have no project identity.
+    let at = headings.find((h) => h.line > target.line)?.line ?? work.length;
+    while (at > target.line + 1 && work[at - 1].trim() === "") at--;
+    work.splice(at, 0, newLine, ...carried);
   } else {
-    for (const h of statusHeadsInBlock) {
-      if (h.status && STATUS_ORDER.indexOf(h.status) > newOrder) {
-        insertHeaderAt = h.line;
-        break;
-      }
-    }
+    const next = sections.find((h) => STATUS_ORDER.indexOf(h.status!) > STATUS_ORDER.indexOf(newStatus));
+    const at = next?.line ?? work.length;
+    work.splice(at, 0, `${"#".repeat(sections[0]?.level ?? 2)} ${STATUS_LABELS[newStatus]}`, newLine, ...carried);
   }
-
-  work.splice(insertHeaderAt, 0, headerLine, newLine, ...carried);
   return work;
 }
 
@@ -352,8 +237,6 @@ export interface HealOp {
    * status the user typed into the glyph).
    */
   toStatus: Status;
-  /** Subproject scope, so a glyph-wins move stays inside the todo's own block. */
-  subproject: string | null;
 }
 
 /**
@@ -372,7 +255,7 @@ export function planHeal(
 
   const ops: HealOp[] = [];
   for (const r of next) {
-    if (!r.id) continue;
+    if (!r.id || r.parentLine != null) continue;
     const p = prev.get(r.id);
     if (!p) continue;
     const action = healDecision(p.section, statusOf(p), r.section, statusOf(r));
@@ -381,7 +264,7 @@ export function planHeal(
     // status section; there's nothing to sync the glyph to, so leave it be.
     if (action === "section-wins" && r.section === null) continue;
     const toStatus = action === "section-wins" ? (r.section as Status) : statusOf(r);
-    ops.push({ id: r.id, action, toStatus, subproject: r.subproject });
+    ops.push({ id: r.id, action, toStatus });
   }
   return ops;
 }

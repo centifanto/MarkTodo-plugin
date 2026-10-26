@@ -281,7 +281,16 @@
         </div>
       {:else}
         {#each visible(group, gi) as todo (keyOf(todo))}
-          <TodoRow {todo} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
+          {#if todo.parentLine != null}
+            <button
+              class="marktodo-search-step"
+              class:is-done={todo.glyph === "x"}
+              aria-label={`Sub-todo: ${todo.displayText}, under ${todo.parentText ?? "parent todo"}`}
+              onclick={(e) => onOpenTodo?.(todo, e.currentTarget)}
+            ><span aria-hidden="true">{todo.glyph === "x" ? "☑" : "☐"}</span><span>Sub-todo · {todo.displayText}</span></button>
+          {:else}
+            <TodoRow {todo} {today} {showProject} {onStatusClick} {onOpenTodo} {onReveal} {onConvert} />
+          {/if}
         {/each}
       {/if}
       {#if !folded && hiddenIn(group, gi) > 0}

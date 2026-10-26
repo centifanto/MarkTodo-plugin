@@ -346,7 +346,7 @@ export class TodoIndex {
   }
 
   stats(): IndexStats {
-    const all = this.getAll();
+    const all = this.getAll().filter((t) => t.parentLine == null);
     return {
       files: this.todosByFile.size,
       todos: all.length,

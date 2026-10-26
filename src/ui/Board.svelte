@@ -202,6 +202,9 @@
                   ></span>
                 {/if}
               </div>
+              {#if card.todo.steps.length > 0}
+                <div class="marktodo-step-progress">{card.todo.steps.filter((s) => s.done).length}/{card.todo.steps.length} steps done</div>
+              {/if}
               {#if due || project}
                 <div class="marktodo-todo-meta">
                   {#if due}

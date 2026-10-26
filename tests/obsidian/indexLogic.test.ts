@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { INDEX_FORMAT_KEY, indexFileTodos, patchRecordsForRename } from "../../src/obsidian/indexLogic";
 import { LEGACY_STATUS_LABELS, STATUS_LABELS, STATUS_ORDER, statusOf } from "../../src/core/types";
 
-describe("indexFileTodos — project file with subprojects + status sections", () => {
+describe("indexFileTodos — project file with ordinary headings + status sections", () => {
   const text = [
     "## Kitchen",
     "### Progress",
@@ -25,13 +25,7 @@ describe("indexFileTodos — project file with subprojects + status sections", (
     expect(recs.every((r) => r.file === "Reno.md")).toBe(true);
   });
 
-  it("assigns the nearest non-status heading as subproject", () => {
-    expect(recs.map((r) => [r.id, r.subproject, r.line])).toEqual([
-      ["a2", "Kitchen", 2],
-      ["a5", "Kitchen", 4],
-      ["a7", "Bathroom", 8],
-    ]);
-  });
+
 
   it("derives status from the glyph", () => {
     expect(statusOf(recs[0])).toBe("PROGRESS");
@@ -45,7 +39,7 @@ describe("indexFileTodos — project file with subprojects + status sections", (
   });
 });
 
-describe("indexFileTodos — flat project (status sections, no subprojects)", () => {
+describe("indexFileTodos — flat project (status sections, status sections only)", () => {
   const text = ["## Backlog", "- [ ] A <!-- mt id=b1 -->", "## Done", "- [x] B <!-- mt id=b2 -->"].join(
     "\n",
   );
@@ -53,10 +47,7 @@ describe("indexFileTodos — flat project (status sections, no subprojects)", ()
     projectName: "Flat",
   });
 
-  it("leaves subproject null when only status headings are present", () => {
-    expect(recs.map((r) => r.subproject)).toEqual([null, null]);
-    expect(recs.map((r) => r.project)).toEqual(["Flat", "Flat"]);
-  });
+
 
   it("still attaches section from the top-level status headings", () => {
     expect(recs.map((r) => r.section)).toEqual(["BACKLOG", "DONE"]);
@@ -69,12 +60,7 @@ describe("indexFileTodos — ambient note (empty status set, headings group)", (
     projectName: null,
   });
 
-  it("uses the nearest heading as subproject and leaves project null", () => {
-    expect(recs.map((r) => [r.subproject, r.project])).toEqual([
-      ["Groceries", null],
-      ["Errands", null],
-    ]);
-  });
+
 
   it("leaves section null — ambient notes have no status sections", () => {
     expect(recs.map((r) => r.section)).toEqual([null, null]);
@@ -116,7 +102,6 @@ describe("indexFileTodos — edge cases", () => {
     });
     expect(recs).toHaveLength(1);
     expect(recs[0].id).toBe("cr1");
-    expect(recs[0].subproject).toBeNull();
   });
 });
 

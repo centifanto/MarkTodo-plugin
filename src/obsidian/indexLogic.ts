@@ -1,19 +1,16 @@
 /**
  * Pure indexing logic: turn a file's TEXT + a little config into
- * `TodoRecord[]`, attaching project/subproject context. No Obsidian, no IO — so
+ * `TodoRecord[]`, attaching project/status context. No Obsidian, no IO — so
  * it is unit-tested directly with plain strings. The Obsidian glue (index.ts)
  * supplies the text (via cachedRead) and the config (from MetadataCache +
  * settings).
  *
- * Subproject rule: a todo's subproject is the DEEPEST ancestor heading
- * whose name is NOT a status label. Status labels only mean something in a
- * PROJECT file (so `### Doing` is a status section, not a subproject); in an
- * ambient note every heading is a plain grouping.
+ * Only status headings attach workflow context; other headings are ordinary Markdown.
  */
 
 import { type Status, type TodoRecord, STATUS_BY_LABEL, statusFromLabel } from "../core/types";
 import { parseTodoLine } from "../core/parse";
-import { noteOf } from "../core/span";
+import { noteOf, todoHierarchy } from "../core/span";
 
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 
@@ -22,7 +19,7 @@ export interface IndexFileOptions {
    * Project name when the file is a project (has the frontmatter key); else null.
    * It also decides whether headings CAN be status sections: in a project a
    * heading matching a status label carries that Status, in an ambient note every
-   * heading is a subproject grouping.
+   * heading is ordinary Markdown.
    */
   projectName: string | null;
   /** The note's `marktodo-group` — file-level context, like `projectName`. */
@@ -33,7 +30,6 @@ export interface IndexFileOptions {
 
 interface HeadingFrame {
   level: number;
-  text: string;
   /** The Status this heading denotes when it's a status section, else null. */
   status: Status | null;
 }
@@ -64,7 +60,7 @@ export const INDEX_FORMAT_KEY: string = [...STATUS_BY_LABEL]
   .sort()
   .join("\u0000");
 
-/** Parse a file's text into TodoRecords with project/subproject context. */
+/** Parse a file's text into TodoRecords with project/status context. */
 export function indexFileTodos(
   file: string,
   text: string,
@@ -73,6 +69,7 @@ export function indexFileTodos(
   const isProject = opts.projectName !== null;
   const lines = text.split(/\r?\n/);
   const start = bodyStartLine(lines);
+  const hierarchy = todoHierarchy(lines);
   const stack: HeadingFrame[] = [];
   const records: TodoRecord[] = [];
 
@@ -86,30 +83,27 @@ export function indexFileTodos(
       const status = isProject ? statusFromLabel(headingText) : null;
       // Pop siblings/deeper headings so the stack is this heading's ancestor path.
       while (stack.length > 0 && stack[stack.length - 1].level >= level) stack.pop();
-      stack.push({ level, text: headingText, status });
+      stack.push({ level, status });
       continue;
     }
 
     const todo = parseTodoLine(line);
     if (!todo) continue;
 
-    // Walk ancestors once: nearest non-status heading = subproject; nearest status
-    // heading = section. (A todo can have both, e.g. `## Kitchen` › `### Progress`.)
-    let subproject: string | null = null;
     let section: Status | null = null;
     for (let s = stack.length - 1; s >= 0; s--) {
-      const frame = stack[s];
-      if (section === null && frame.status !== null) section = frame.status;
-      if (subproject === null && frame.status === null) subproject = frame.text;
-      if (section !== null && subproject !== null) break;
+      if (stack[s].status !== null) { section = stack[s].status; break; }
     }
-
+    const ancestry = hierarchy.get(i)!;
     records.push({
       ...todo,
+      ...ancestry,
+      // Step text stays verbatim; tokens carry no scheduling or priority meaning.
+      ...(ancestry.parentLine !== null ? { priority: "NONE" as const, due: null, tags: [], links: [] } : {}),
+      steps: [],
       file,
       line: i,
       project: opts.projectName,
-      subproject,
       section,
       note: noteOf(lines, i),
       projectGroup: opts.projectGroup ?? null,
@@ -117,6 +111,14 @@ export function indexFileTodos(
     });
   }
 
+  const byLine = new Map(records.map((r) => [r.line, r]));
+  for (const record of records) {
+    let parent = record.parentLine === null ? undefined : byLine.get(record.parentLine);
+    while (parent) {
+      parent.steps.push({ line: record.line, text: record.displayText, done: record.glyph === "x" });
+      parent = parent.parentLine === null ? undefined : byLine.get(parent.parentLine);
+    }
+  }
   return records;
 }
 

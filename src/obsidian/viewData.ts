@@ -29,10 +29,10 @@ export interface LabeledGroup {
   phase?: Phase;
 }
 
-export type ListGroupBy = "status" | "subproject" | "note";
+export type ListGroupBy = "status" | "note";
 
 /**
- * List groups: by status (status labels, STATUS_ORDER), by subproject, or by
+ * List groups: by status (status labels, STATUS_ORDER), or by
  * source note (loose todos are "where did I write this?"). Note groups
  * are labeled with the vault path minus `.md` and sorted by it, todos keeping
  * their file order.
@@ -53,13 +53,7 @@ export function buildListGroups(todos: TodoRecord[], groupBy: ListGroupBy): Labe
       }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }
-  if (groupBy === "subproject") {
-    return [...groupTodos(todos, "subproject").entries()].map(([label, items]) => ({
-      label,
-      todos: items,
-    }));
-  }
-  return [...groupTodos(todos, "status").entries()].map(([st, items]) => ({
+  return [...groupTodos(todos).entries()].map(([st, items]) => ({
     label: STATUS_LABELS[st as Status],
     status: st as Status,
     phase: STATUS_PHASE[st as Status],
@@ -106,7 +100,7 @@ export function buildStatusSections(
   sort: SortKey = DEFAULT_LIST_SORT,
 ): LabeledGroup[] {
   const byStatus = new Map<Status, TodoRecord[]>(STATUS_ORDER.map((st) => [st, []]));
-  for (const todo of todos) byStatus.get(statusOf(todo))?.push(todo);
+  for (const todo of todos) if (todo.parentLine == null) byStatus.get(statusOf(todo))?.push(todo);
   const ctx = { dateOf: (t: TodoRecord) => t.due, newestFirst: false };
   return STATUS_ORDER.filter((st) => inFocus(focus, st)).map((st) => ({
     label: STATUS_LABELS[st],
@@ -128,7 +122,7 @@ export function buildColumns(todos: TodoRecord[], focus: Focus = DEFAULT_FOCUS):
   const byStatus = new Map<Status, Card[]>();
   for (const st of STATUS_ORDER) byStatus.set(st, []);
   for (const t of todos) {
-    if (t.project === null) continue;
+    if (t.project === null || t.parentLine != null) continue;
     const card: Card = { id: t.id ?? `${t.file}:${t.line}`, todo: t };
     byStatus.get(statusOf(t))?.push(card);
   }

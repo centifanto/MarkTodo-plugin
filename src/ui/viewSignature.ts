@@ -24,7 +24,7 @@ function todoFields(todo: TodoRecord): unknown[] {
   // file+line: position (reveal target, and reorder within a group).
   // id: managed vs unmanaged, which changes the row's affordances.
   // glyph: status. displayText: title, priority and due tokens. note: preview.
-  return [todo.file, todo.line, todo.id, todo.glyph, todo.displayText, todo.note];
+  return [todo.file, todo.line, todo.id, todo.glyph, todo.displayText, todo.note, todo.parentLine, todo.steps];
 }
 
 /** A signature for a flat list of todos. */

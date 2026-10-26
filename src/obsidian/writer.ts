@@ -14,19 +14,18 @@
  * EOL, so CRLF (Windows) vaults round-trip without being silently converted.
  */
 import { type App, Notice, TFile, normalizePath } from "obsidian";
-import { type Priority, type Status, type Todo, type TodoRecord, statusOf } from "../core/types";
+import { type Priority, type Status, type Todo, type TodoRecord, type TodoStep, statusOf } from "../core/types";
 import { setStatus as coreSetStatus, setPriority as coreSetPriority } from "../core/status";
 import { setDue as coreSetDue, syncDoneAt, localIsoStamp } from "../core/dates";
 import { setTitle as coreSetTitle } from "../core/title";
 import { serializeTodoLine } from "../core/serialize";
 import { parseTodoLine } from "../core/parse";
 import { generateId } from "../core/id";
-import { itemEndOf, setNoteBlock } from "../core/span";
+import { itemEndOf, setNoteBlock, parentLineOf, rootTodoBlock, todoHierarchy, editStepBlock, completeStepsOf } from "../core/span";
 import { type MarkTodoSettings } from "./settings";
 import {
   findTodoLine,
   placeTodoInProject,
-  subprojectOf,
   managedIds,
   reorderTodoLine,
   type HealOp,
@@ -91,12 +90,13 @@ export class Writer {
     let ok = false;
 
     await this.app.vault.process(file, (data) => {
-      const { lines, eol } = splitEol(data);
+      const { lines: originalLines, eol } = splitEol(data);
+      let lines = originalLines;
       const idx = findTodoLine(lines, todo);
       if (idx === -1) return data;
 
       const current = parseTodoLine(lines[idx]);
-      if (!current) return data;
+      if (!current || parentLineOf(lines, idx) !== null) return data;
 
       // Any action adopts the todo (stamps an id) if it doesn't have one.
       const withId: Todo = current.id ? current : { ...current, id: generateId() };
@@ -106,6 +106,8 @@ export class Writer {
           ? syncDoneAt(transform(withId), localIsoStamp(new Date()))
           : transform(withId);
       const newLine = serializeTodoLine(updated);
+      // Completion and the status-section move share one atomic parent-block write.
+      if (move?.toStatus === "DONE") lines = completeStepsOf(lines, idx);
 
       const settings = this.getSettings();
       const useSections =
@@ -121,16 +123,14 @@ export class Writer {
         move.toStatus === "DONE" &&
         deletesOnComplete(readNoteMeta(this.app.metadataCache.getFileCache(file)?.frontmatter));
 
+      const removedIds = cleanupDelete ? managedIds(lines.slice(idx, itemEndOf(lines, idx)).join("\n")) : new Set<string>();
       let result: string;
       if (cleanupDelete) {
         const work = lines.slice();
         work.splice(idx, itemEndOf(work, idx) - idx);
         result = work.join(eol);
       } else if (useSections && move) {
-        // Recompute the subproject from CURRENT lines — the snapshot's value can
-        // be stale (e.g. the note was converted to a project after its last index).
-        const subproject = subprojectOf(lines, idx);
-        result = placeTodoInProject(lines, idx, subproject, move.toStatus, newLine).join(eol);
+        result = placeTodoInProject(lines, idx, move.toStatus, newLine).join(eol);
       } else {
         lines[idx] = newLine;
         result = lines.join(eol);
@@ -141,7 +141,7 @@ export class Writer {
       const after = managedIds(result);
       const editedId = updated.id as string;
       for (const id of before) {
-        if (id !== editedId && !after.has(id)) {
+        if (id !== editedId && !removedIds.has(id) && !after.has(id)) {
           new Notice("MarkTodo: write aborted (safety check). No changes made.");
           return data;
         }
@@ -191,9 +191,10 @@ export class Writer {
         const idx = lines.findIndex(
           (l) => l.includes(`id=${op.id}`) && parseTodoLine(l) !== null,
         );
-        if (idx === -1) continue;
+        if (idx === -1 || parentLineOf(lines, idx) !== null) continue;
         const cur = parseTodoLine(lines[idx]);
         if (!cur) continue;
+        if (op.toStatus === "DONE") lines = completeStepsOf(lines, idx);
         if (op.action === "section-wins") {
           lines[idx] = serializeTodoLine(syncDoneAt(coreSetStatus(cur, op.toStatus), stamp));
         } else {
@@ -202,7 +203,7 @@ export class Writer {
           // must follow the new glyph (e.g. the box was ticked natively).
           const synced = syncDoneAt(cur, stamp);
           const line = synced === cur ? lines[idx] : serializeTodoLine(synced);
-          lines = placeTodoInProject(lines, idx, op.subproject, op.toStatus, line);
+          lines = placeTodoInProject(lines, idx, op.toStatus, line);
         }
       }
 
@@ -312,7 +313,7 @@ export class Writer {
 
       let result: string;
       if (this.isProjectFile(target) && settings.maintainStatusHeaders && todo) {
-        result = placeTodoInProject(lines, -1, null, statusOf(todo), line, subLines).join(eol);
+        result = placeTodoInProject(lines, -1, statusOf(todo), line, subLines).join(eol);
       } else {
         while (lines.length > 0 && lines[lines.length - 1].trim() === "") lines.pop();
         lines.push(line, ...subLines, "");
@@ -338,6 +339,7 @@ export class Writer {
       const { lines, eol } = splitEol(data);
       const idx = findTodoLine(lines, todo);
       if (idx === -1) return data;
+      if (parentLineOf(lines, idx) !== null) return data;
       const next = setNoteBlock(lines, idx, note);
       if (next === null) {
         // Unchanged, or refused (a line that would become a sub-todo or forge a
@@ -354,6 +356,58 @@ export class Writer {
           return data;
         }
       }
+      ok = true;
+      this.remember(file.path, result);
+      return result;
+    });
+    return ok;
+  }
+
+  /** Append a child after the parent’s existing note and children, atomically. */
+  async addSubTodo(todo: TodoRecord, title: string): Promise<boolean> {
+    const file = this.fileFor(todo);
+    if (!file || /[\r\n]|<!--/.test(title)) return false;
+    const text = title.trim();
+    if (!text) return false;
+    const line = `- [ ] ${text}`;
+    let ok = false;
+    await this.app.vault.process(file, (data) => {
+      const { lines, eol } = splitEol(data);
+      const idx = findTodoLine(lines, todo);
+      if (idx === -1) return data;
+      const parent = parseTodoLine(lines[idx]);
+      if (!parent || parentLineOf(lines, idx) !== null) return data;
+      const child = [...todoHierarchy(lines)].find(([, h]) => h.parentLine === idx);
+      const indent = child ? parseTodoLine(lines[child[0]])!.indent : parent.indent + "    ";
+      lines.splice(itemEndOf(lines, idx), 0, indent + line);
+      const result = lines.join(eol);
+      ok = true;
+      this.remember(file.path, result);
+      return result;
+    });
+    return ok;
+  }
+
+  async editStep(
+    parent: TodoRecord,
+    step: TodoStep,
+    edit: { done: boolean } | { text: string } | { delete: true },
+  ): Promise<boolean> {
+    const file = this.fileFor(parent);
+    if (!file) return false;
+    let ok = false;
+    await this.app.vault.process(file, (data) => {
+      const { lines, eol } = splitEol(data);
+      const idx = findTodoLine(lines, parent);
+      if (idx < 0 || parentLineOf(lines, idx) !== null) return data;
+      const out = editStepBlock(lines, idx, step, edit);
+      if (!out) return data;
+      const removed = "delete" in edit
+        ? managedIds(lines.slice(step.line, itemEndOf(lines, step.line)).join("\n"))
+        : new Set<string>();
+      const result = out.join(eol);
+      const after = managedIds(result);
+      if ([...managedIds(data)].some((id) => !removed.has(id) && !after.has(id))) return data;
       ok = true;
       this.remember(file.path, result);
       return result;
@@ -401,7 +455,7 @@ export class Writer {
 
   /**
    * Within-column reorder: move `todo` directly before/after
-   * `anchor` in the same note, keeping status, section and subproject (pure
+   * `anchor` in the same note, keeping status and section (pure
    * `reorderTodoLine`). Cards from different notes can't be ordered relative
    * to each other in any file, so that's a no-op with a notice.
    */
@@ -440,9 +494,8 @@ export class Writer {
   }
 
   /**
-   * Delete a todo's line. Only that line goes — any indented
-   * lines under it stay — and the same safety net applies: the write aborts if
-   * any OTHER managed todo would vanish.
+   * Delete a parent and its owned note/checklist. IDs outside the explicitly
+   * deleted span remain protected by the safety check.
    */
   async deleteTodo(todo: TodoRecord): Promise<boolean> {
     const file = this.fileFor(todo);
@@ -452,16 +505,14 @@ export class Writer {
       const { lines, eol } = splitEol(data);
       const idx = findTodoLine(lines, todo);
       if (idx === -1) return data;
-      const removedId = parseTodoLine(lines[idx])?.id ?? null;
-      // Delete the span, so the todo's note goes with it rather than
-      // dangling under the heading. If the span holds ANOTHER managed todo (a
-      // nested sub-todo), the id-loss guard below refuses the write — deleting a
-      // parent must not silently take managed children with it.
+      if (parentLineOf(lines, idx) !== null) return data;
+      const removedIds = managedIds(lines.slice(idx, itemEndOf(lines, idx)).join("\n"));
+      // The confirmation covers the parent and its steps; only this span may vanish.
       lines.splice(idx, itemEndOf(lines, idx) - idx);
       const result = lines.join(eol);
       const after = managedIds(result);
       for (const id of managedIds(data)) {
-        if (id !== removedId && !after.has(id)) {
+        if (!removedIds.has(id) && !after.has(id)) {
           new Notice("MarkTodo: delete aborted (safety check). No changes made.");
           return data;
         }
@@ -473,14 +524,15 @@ export class Writer {
     return ok;
   }
 
-  /** Stamp ids on every unmanaged todo in a file. Returns how many were adopted. */
+  /** Stamp ids on unmanaged parent todos in a file. Returns how many were adopted. */
   async adoptNote(file: TFile): Promise<number> {
     let count = 0;
     await this.app.vault.process(file, (data) => {
       const { lines, eol } = splitEol(data);
+      const hierarchy = todoHierarchy(lines);
       for (let i = 0; i < lines.length; i++) {
         const t = parseTodoLine(lines[i]);
-        if (t && t.id === null) {
+        if (t && t.id === null && hierarchy.get(i)?.parentLine === null) {
           lines[i] = serializeTodoLine({ ...t, id: generateId() });
           count++;
         }
@@ -509,11 +561,14 @@ export class Writer {
     const srcIdx = findTodoLine(srcLines, todo);
     if (srcIdx === -1) return false;
     const cur = parseTodoLine(srcLines[srcIdx]);
-    if (!cur) return false;
+    if (!cur || parentLineOf(srcLines, srcIdx) !== null) return false;
     const withId: Todo = cur.id ? cur : { ...cur, id: generateId() };
-    const movedLine = serializeTodoLine(withId);
+    const sourceBlock = srcLines.slice(srcIdx, itemEndOf(srcLines, srcIdx));
+    const block = rootTodoBlock([serializeTodoLine(withId), ...sourceBlock.slice(1)]);
+    const movedLine = block[0];
     // The todo's note and sub-items travel with it to the new note.
-    const carried = srcLines.slice(srcIdx + 1, itemEndOf(srcLines, srcIdx));
+    const carried = block.slice(1);
+    const transferredIds = managedIds(block.join("\n"));
 
     // 1. Insert into the TARGET first.
     if (!(await this.insertIntoTarget(target, movedLine, carried))) return false;
@@ -523,12 +578,16 @@ export class Writer {
       const { lines, eol } = splitEol(data);
       const idx = findTodoLine(lines, todo);
       if (idx === -1) return data; // already gone; target has it
+      if (lines.slice(idx, itemEndOf(lines, idx)).join("\n") !== sourceBlock.join("\n")) {
+        new Notice("MarkTodo: move left a duplicate because the source changed. Both copies were kept.");
+        return data;
+      }
       const before = managedIds(data);
       lines.splice(idx, itemEndOf(lines, idx) - idx);
       const result = lines.join(eol);
       const after = managedIds(result);
       for (const id of before) {
-        if (id !== withId.id && !after.has(id)) {
+        if (!transferredIds.has(id) && !after.has(id)) {
           new Notice("MarkTodo: move left a duplicate (source cleanup skipped for safety).");
           return data;
         }
@@ -550,13 +609,16 @@ export class Writer {
       const { lines, eol } = splitEol(data);
       const done: string[] = [];
       const kept: string[] = [];
-      for (const line of lines) {
-        const t = parseTodoLine(line);
-        if (t && statusOf(t) === "DONE") {
-          done.push(line);
+      const hierarchy = todoHierarchy(lines);
+      for (let i = 0; i < lines.length;) {
+        const t = parseTodoLine(lines[i]);
+        if (t && statusOf(t) === "DONE" && hierarchy.get(i)?.parentLine === null) {
+          const end = itemEndOf(lines, i);
+          done.push(...lines.slice(i, end));
           moved++;
+          i = end;
         } else {
-          kept.push(line);
+          kept.push(lines[i++]);
         }
       }
       if (moved === 0) return data;

@@ -2,7 +2,7 @@
  * PURE project-note scaffold. "Create project"
  * writes the full opinionated skeleton — frontmatter + every status heading in
  * column order — so a fresh project mirrors its board from the first open.
- * Status headings at `##` (the convention when there are no subprojects).
+ * One set of status headings at `##` per project note.
  * No Obsidian imports — unit-tested directly.
  */
 import { PROJECT_FM_KEY } from "../core/noteMeta";

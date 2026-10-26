@@ -23,7 +23,7 @@ function makeTodo(overrides: Partial<TodoRecord> = {}): TodoRecord {
     file: "Projects/Alpha.md",
     line: 0,
     project: "Alpha",
-    subproject: null,
+    parentLine: null, depth: 0, parentText: null, steps: [],
     section: null,
     note: "",
     projectGroup: null,
@@ -156,7 +156,7 @@ describe("groupTodos by status", () => {
       withStatus("BACKLOG", { displayText: "b2" }),
       withStatus("DONE", { displayText: "d2" }),
     ];
-    const grouped = groupTodos(todos, "status");
+    const grouped = groupTodos(todos);
 
     // Only populated statuses, in STATUS_ORDER (BACKLOG, PROGRESS, DONE).
     expect([...grouped.keys()]).toEqual(["BACKLOG", "PROGRESS", "DONE"]);
@@ -175,50 +175,12 @@ describe("groupTodos by status", () => {
   it("does not mutate the input array", () => {
     const todos = [withStatus("PROGRESS"), withStatus("BACKLOG")];
     const snapshot = [...todos];
-    groupTodos(todos, "status");
+    groupTodos(todos);
     expect(todos).toEqual(snapshot);
   });
 });
 
-describe("groupTodos by subproject", () => {
-  it("uses first-appearance order, maps null to (none), and puts (none) LAST", () => {
-    const todos = [
-      makeTodo({ subproject: "API", displayText: "a1" }),
-      makeTodo({ subproject: null, displayText: "n1" }),
-      makeTodo({ subproject: "UI", displayText: "u1" }),
-      makeTodo({ subproject: "API", displayText: "a2" }),
-      makeTodo({ subproject: null, displayText: "n2" }),
-    ];
-    const grouped = groupTodos(todos, "subproject");
 
-    // First-appearance for named buckets, "(none)" forced to the end.
-    expect([...grouped.keys()]).toEqual(["API", "UI", "(none)"]);
-    expect(grouped.get("API")!.map((t) => t.displayText)).toEqual(["a1", "a2"]);
-    expect(grouped.get("UI")!.map((t) => t.displayText)).toEqual(["u1"]);
-    expect(grouped.get("(none)")!.map((t) => t.displayText)).toEqual([
-      "n1",
-      "n2",
-    ]);
-  });
-
-  it("keeps (none) in place when it is the only bucket", () => {
-    const todos = [
-      makeTodo({ subproject: null, displayText: "x" }),
-      makeTodo({ subproject: null, displayText: "y" }),
-    ];
-    const grouped = groupTodos(todos, "subproject");
-    expect([...grouped.keys()]).toEqual(["(none)"]);
-    expect(grouped.get("(none)")!.map((t) => t.displayText)).toEqual([
-      "x",
-      "y",
-    ]);
-  });
-
-  it("returns an empty Map for empty input", () => {
-    expect(groupTodos([], "subproject").size).toBe(0);
-    expect(groupTodos([], "status").size).toBe(0);
-  });
-});
 
 // Reference the Priority type so the import is unambiguous in strict mode.
 const _priorityCheck: Priority = "HIGH";

@@ -24,7 +24,7 @@ function rec(glyph: string, over: Partial<TodoRecord> = {}): TodoRecord {
     // Boards only show project todos, so the fixture defaults to one;
     // tests for the untriaged exclusion override this back to null explicitly.
     project: "P",
-    subproject: null,
+    parentLine: null, depth: 0, parentText: null, steps: [],
     section: null,
     note: "",
     projectGroup: null,
@@ -118,14 +118,7 @@ describe("buildListGroups", () => {
     expect(groups.map((g) => g.status)).toEqual(["BACKLOG", "DONE"]);
   });
 
-  it("groups by subproject, mapping null to (none)", () => {
-    const todos = [
-      rec(" ", { id: "a", subproject: "Kitchen" }),
-      rec(" ", { id: "b", subproject: null }),
-    ];
-    const groups = buildListGroups(todos, "subproject");
-    expect(groups.map((g) => g.label)).toEqual(["Kitchen", "(none)"]);
-  });
+
 
   it("groups by note: path label without .md, linked file, sorted, todos in line order", () => {
     const todos = [

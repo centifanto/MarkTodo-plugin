@@ -142,7 +142,7 @@ export function smartViewTodos(
   view: SmartViewType,
   today: string,
 ): TodoRecord[] {
-  const live = todos.filter((t) => !t.archived);
+  const live = todos.filter((t) => !t.archived && t.parentLine == null);
   switch (view) {
     case "agenda":
       return live.filter((t) => statusOf(t) !== "DONE" && t.due !== null && t.due <= today);

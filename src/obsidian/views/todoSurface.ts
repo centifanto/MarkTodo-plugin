@@ -76,6 +76,7 @@ export class TodoSurface {
    * nobody asked for and no drag could restore.
    */
   render(todos: TodoRecord[], mode: SurfaceMode): void {
+    todos = todos.filter((t) => t.parentLine == null);
     this.opts.el.toggleClass("is-kanban", mode === "kanban");
     const focus = this.opts.plugin.settings.focus;
 

@@ -48,6 +48,7 @@ export function filterTodos(
   const hasGroups = scope.groups !== undefined && scope.groups.length > 0;
 
   return todos.filter((todo) => {
+    if (todo.parentLine != null) return false;
     if (hasTags && !todo.tags.some((tag) => scope.tags!.includes(tag))) {
       return false;
     }
@@ -82,40 +83,12 @@ export function filterTodos(
   });
 }
 
-/** Group todos into a Map by status (STATUS_ORDER order) or subproject (first-appearance, "(none)" last). */
-export function groupTodos(
-  todos: TodoRecord[],
-  by: "status" | "subproject",
-): Map<string, TodoRecord[]> {
-  if (by === "status") {
-    const buckets = new Map<string, TodoRecord[]>();
-    for (const todo of todos) {
-      const key = statusOf(todo);
-      const bucket = buckets.get(key);
-      if (bucket) bucket.push(todo);
-      else buckets.set(key, [todo]);
-    }
-    const ordered = new Map<string, TodoRecord[]>();
-    for (const status of STATUS_ORDER) {
-      const bucket = buckets.get(status);
-      if (bucket) ordered.set(status, bucket);
-    }
-    return ordered;
-  }
-
-  // by === "subproject": first-appearance order, with "(none)" forced last.
-  const NONE = "(none)";
+/** Group root todos by status, in workflow order. */
+export function groupTodos(todos: TodoRecord[]): Map<string, TodoRecord[]> {
   const result = new Map<string, TodoRecord[]>();
-  for (const todo of todos) {
-    const key = todo.subproject ?? NONE;
-    const bucket = result.get(key);
-    if (bucket) bucket.push(todo);
-    else result.set(key, [todo]);
-  }
-  const none = result.get(NONE);
-  if (none !== undefined && result.size > 1) {
-    result.delete(NONE);
-    result.set(NONE, none);
+  for (const status of STATUS_ORDER) {
+    const items = todos.filter((t) => t.parentLine == null && statusOf(t) === status);
+    if (items.length) result.set(status, items);
   }
   return result;
 }

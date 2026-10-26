@@ -252,7 +252,7 @@ export function projectCounts(
 ): Map<string, ProjectCounts> {
   const out = new Map<string, ProjectCounts>();
   for (const todo of todos) {
-    if (todo.project === null) continue;
+    if (todo.project === null || todo.parentLine != null) continue;
     if (statusOf(todo) === "DONE") continue;
     const counts = out.get(todo.project) ?? { open: 0, overdue: 0 };
     counts.open += 1;
@@ -266,6 +266,7 @@ export function projectCounts(
 export function looseOpenCount(todos: readonly TodoRecord[], includeUnmanaged: boolean): number {
   return todos.filter(
     (t) =>
+      t.parentLine == null &&
       t.project === null &&
       statusOf(t) !== "DONE" &&
       (includeUnmanaged || isManaged(t)),

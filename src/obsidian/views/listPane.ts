@@ -482,7 +482,7 @@ export class ListPane {
     this.remount(signature, () => {
       this.bodyEl.createDiv({
         cls: "marktodo-list-section-title",
-        text: results.length === 1 ? "1 todo" : `${results.length} todos`,
+        text: `${results.filter((t) => t.parentLine == null).length} todos · ${results.filter((t) => t.parentLine != null).length} sub-todos`,
       });
       this.components.push(
         mount(TodoList, {

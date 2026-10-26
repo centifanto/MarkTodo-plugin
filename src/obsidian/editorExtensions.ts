@@ -32,6 +32,7 @@ import { openStatusMenu } from "./todoMenu";
 import { STATUS_GLYPH, STATUS_ORDER, statusOf } from "../core/types";
 import { glyphSvg } from "../ui/statusGlyphs";
 import { generateId } from "../core/id";
+import { todoHierarchy } from "../core/span";
 import { parseTodoLine } from "../core/parse";
 import { aliasExpansionAt } from "./inlineLogic";
 import type MarkTodoPlugin from "../../main";
@@ -56,12 +57,13 @@ export function managedLineDecorations(plugin: MarkTodoPlugin): Extension {
       build(view: EditorView): DecorationSet {
         const builder = new RangeSetBuilder<Decoration>();
         if (!plugin.settings.styleManagedInEditor) return builder.finish();
+        const hierarchy = todoHierarchy(view.state.doc.toString().split("\n"));
         for (const { from, to } of view.visibleRanges) {
           let pos = from;
           while (pos <= to) {
             const line = view.state.doc.lineAt(pos);
             const todo = parseTodoLine(line.text);
-            if (todo && todo.id !== null) {
+            if (todo && todo.id !== null && hierarchy.get(line.number - 1)?.parentLine == null) {
               builder.add(
                 line.from,
                 line.from,
@@ -140,9 +142,10 @@ export function managedReadingCheckboxes(
       .slice(info.lineStart, info.lineEnd + 1)
       .map((text, offset) => ({ text, line: info.lineStart + offset, todo: parseTodoLine(text) }))
       .filter((l) => l.todo !== null);
+    const hierarchy = todoHierarchy(info.text.split("\n"));
     items.forEach((li, i) => {
       const src = todoLines[i];
-      if (!src?.todo || src.todo.id === null) return;
+      if (!src?.todo || src.todo.id === null || hierarchy.get(src.line)?.parentLine != null) return;
       const checkbox = li.querySelector<HTMLInputElement>(":scope > input.task-list-item-checkbox, :scope > p > input.task-list-item-checkbox");
       if (checkbox) readingCheckboxSource.set(checkbox, { path: ctx.sourcePath, line: src.line, text: src.text });
       if (plugin.settings.styleManagedInEditor) {
@@ -197,7 +200,7 @@ export function managedCheckboxClick(plugin: MarkTodoPlugin): (e: MouseEvent) =>
     }
     if (!file) return;
     const todo = todoRecordForLine(plugin, file, line, text);
-    if (!todo || todo.id === null) return; // unmanaged → native toggle
+    if (!todo || todo.id === null || todo.parentLine != null) return; // steps keep native checkboxes
 
     e.preventDefault();
     e.stopPropagation();
@@ -300,12 +303,13 @@ export function hideCapsuleExtension(plugin: MarkTodoPlugin): Extension {
         const builder = new RangeSetBuilder<Decoration>();
         if (plugin.settings.showCapsuleInEditor) return builder.finish();
         const sel = view.state.selection.main;
+        const hierarchy = todoHierarchy(view.state.doc.toString().split("\n"));
         for (const { from, to } of view.visibleRanges) {
           let pos = from;
           while (pos <= to) {
             const line = view.state.doc.lineAt(pos);
             const todo = parseTodoLine(line.text);
-            if (todo && todo.id !== null) {
+            if (todo && todo.id !== null && hierarchy.get(line.number - 1)?.parentLine == null) {
               const m = CAPSULE_RE.exec(line.text);
               // Reveal the capsule while the cursor/selection is on this line.
               const cursorOnLine = sel.from <= line.to && sel.to >= line.from;
@@ -371,6 +375,7 @@ export function priorityAliasExtension(): Extension {
   return EditorView.inputHandler.of((view, from, to, text) => {
     if (text !== " " || from !== to || view.state.selection.ranges.length !== 1) return false;
     const line = view.state.doc.lineAt(from);
+    if (todoHierarchy(view.state.doc.toString().split("\n")).get(line.number - 1)?.parentLine != null) return false;
     const exp = aliasExpansionAt(line.text, from - line.from);
     if (!exp) return false;
     const start = line.from + exp.from;

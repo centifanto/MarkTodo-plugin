@@ -80,21 +80,12 @@ describe('shared fixture: file-level indexing (indexFileTodos)', () => {
     expect(records.find(r => r.id === 'qq')?.glyph).toBe('?');
   });
 
-  it('attaches subproject and status section from the heading stack', () => {
-    const bySubproject = (name: string) =>
-      records.filter(r => r.subproject === name);
-    expect(bySubproject('Kitchen')).toHaveLength(4);
-    expect(bySubproject('Bathroom')).toHaveLength(5);
-    expect(bySubproject('Loose ends')).toHaveLength(6);
 
-    const demo = records.find(r => r.id === 'a2')!;
-    expect(demo.section).toBe('PROGRESS');
-    expect(demo.project).toBe('Home Renovation');
 
-    // Loose ends has no status heading — section is null there.
-    for (const r of bySubproject('Loose ends')) {
-      expect(r.section).toBeNull();
-    }
+  it('keeps project and status context while ordinary headings remain prose', () => {
+    expect(records.every(r => r.project === 'Home Renovation')).toBe(true);
+    expect(records.find(r => r.id === 'a2')?.section).toBe('PROGRESS');
+    expect(records.find(r => r.id === 'qq')?.section).toBeNull();
   });
 
   it('recognizes due/tags/links in place without touching displayText', () => {

@@ -24,7 +24,7 @@ export function buildInboxSections(
   todos: readonly TodoRecord[],
   opts: { showUnmanaged: boolean },
 ): InboxSections {
-  const open = todos.filter((t) => t.project === null && statusOf(t) !== "DONE");
+  const open = todos.filter((t) => t.parentLine == null && t.project === null && statusOf(t) !== "DONE");
   const loose = open.filter((t) => t.id !== null);
   const unmanaged = opts.showUnmanaged ? open.filter((t) => t.id === null) : [];
   return {

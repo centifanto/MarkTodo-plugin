@@ -17,7 +17,7 @@ function rec(over: Partial<TodoRecord> = {}): TodoRecord {
     file: "F.md",
     line: 0,
     project: null,
-    subproject: null,
+    parentLine: null, depth: 0, parentText: null, steps: [],
     section: null,
     note: "",
     projectGroup: null,

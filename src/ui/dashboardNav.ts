@@ -93,8 +93,19 @@ export function followRename(selection: Selection, oldPath: string, newPath: str
  */
 export function searchTodos(todos: readonly TodoRecord[], query: string): TodoRecord[] {
   if (query.trim() === "") return [];
-  return todos
-    .filter((t) => !t.archived && todoMatchesQuery(t, query))
+  const visible = todos.filter((t) => !t.archived);
+  const byLocation = new Map(visible.map((t) => [`${t.file}:${t.line}`, t]));
+  const included = new Set<TodoRecord>();
+  for (const todo of visible) {
+    if (!todoMatchesQuery(todo, query)) continue;
+    included.add(todo);
+    let parent = todo.parentLine === null ? undefined : byLocation.get(`${todo.file}:${todo.parentLine}`);
+    while (parent) {
+      included.add(parent);
+      parent = parent.parentLine === null ? undefined : byLocation.get(`${parent.file}:${parent.parentLine}`);
+    }
+  }
+  return [...included]
     .sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
 }
 
@@ -106,7 +117,7 @@ export function searchTodos(todos: readonly TodoRecord[], query: string): TodoRe
 export function todoMatchesQuery(todo: TodoRecord, query: string): boolean {
   const words = query.toLowerCase().split(/\s+/).filter((w) => w !== "");
   if (words.length === 0) return true;
-  const haystack = [formatTitle(todo.displayText), todo.note, todo.project ?? "", ...todo.tags]
+  const haystack = [todo.parentLine != null ? todo.displayText : formatTitle(todo.displayText), todo.note, todo.project ?? "", todo.parentText ?? "", ...todo.tags]
     .join("\n")
     .toLowerCase();
   return words.every((w) => haystack.includes(w));

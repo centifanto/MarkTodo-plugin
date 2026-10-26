@@ -36,7 +36,7 @@ function rec(glyph: string, over: Partial<TodoRecord> = {}): TodoRecord {
     file: "P.md",
     line: 0,
     project: "P",
-    subproject: null,
+    parentLine: null, depth: 0, parentText: null, steps: [],
     section: null,
     note: "",
     projectGroup: null,

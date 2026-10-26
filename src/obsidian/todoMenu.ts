@@ -9,6 +9,7 @@ import { Menu } from "obsidian";
 import { openNote } from "./layout";
 import { STATUS_LABELS, STATUS_ORDER, statusOf, type Priority, type TodoRecord } from "../core/types";
 import { STATUS_ICONS } from "../ui/iconMaps";
+import { openTodoModal } from "./todoModal";
 import { DueModal } from "./dueModal";
 import { openMoveToProjectMenu } from "./moveMenu";
 import { getProjectFiles } from "./projects";
@@ -39,7 +40,7 @@ export async function revealTodo(plugin: MarkTodoPlugin, todo: TodoRecord): Prom
 export function confirmDeleteTodo(plugin: MarkTodoPlugin, todo: TodoRecord, after?: () => void): void {
   confirmAction(plugin.app, {
     title: "Delete todo?",
-    message: `"${formatTitle(todo.displayText) || "(untitled todo)"}" will be removed from ${todo.file}.`,
+    message: `"${formatTitle(todo.displayText) || "(untitled todo)"}" and its steps will be removed from ${todo.file}.`,
     confirmText: "Delete",
     onConfirm: () => {
       void plugin.writer.deleteTodo(todo).then((ok) => {
@@ -69,6 +70,7 @@ function addStatusItems(menu: Menu, plugin: MarkTodoPlugin, todo: TodoRecord): v
  * Obsidian's native [ ]↔[x] toggle so a click can reach every status.
  */
 export function openStatusMenu(plugin: MarkTodoPlugin, todo: TodoRecord, event: MouseEvent): void {
+  if (todo.parentLine != null) { openTodoModal(plugin, todo); return; }
   const menu = new Menu();
   addStatusItems(menu, plugin, todo);
   menu.showAtMouseEvent(event);
@@ -79,6 +81,7 @@ export function openTodoMenu(
   todo: TodoRecord,
   event: MouseEvent,
 ): void {
+  if (todo.parentLine != null) { openTodoModal(plugin, todo); return; }
   const { writer, app } = plugin;
   const menu = new Menu();
   const projectFiles = getProjectFiles(app).filter((f) => f.path !== todo.file);

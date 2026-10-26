@@ -21,7 +21,9 @@
  * `Writer` (Vault.process + the abort-on-id-loss guard), so the modal can't
  * bypass the write safety net.
  */
-import { ButtonComponent, Modal, Notice, setIcon, type TFile } from "obsidian";
+import { ButtonComponent, Modal, Notice, setIcon, TFile } from "obsidian";
+import { indexFileTodos } from "./indexLogic";
+import { findTodoLine } from "./writeLogic";
 import { parseTodoLine } from "../core/parse";
 import {
   PHASE_LABELS,
@@ -52,14 +54,30 @@ export type TodoModalAnchor = ModalAnchor;
 
 /** Open the todo detail modal. Mirrors `openTodoMenu`'s shape so views call one helper. */
 export function openTodoModal(plugin: MarkTodoPlugin, todo: TodoRecord, anchor?: TodoModalAnchor): void {
-  new TodoModal(plugin, todo, anchorBox(anchor)).open();
+  const box = anchorBox(anchor);
+  void (async () => {
+    const file = plugin.app.vault.getAbstractFileByPath(todo.file);
+    if (!(file instanceof TFile)) return;
+    const text = await plugin.app.vault.read(file);
+    const records = indexFileTodos(file.path, text, { projectName: plugin.fileKind(file) === "project" ? file.basename : null });
+    const idx = findTodoLine(text.split(/\r?\n/), todo);
+    let current = records.find((r) => r.line === idx);
+    if (!current) return;
+    const focusLine = current.parentLine !== null ? current.line : null;
+    while (current.parentLine !== null) {
+      const parent = records.find((r) => r.line === current!.parentLine);
+      if (!parent) return;
+      current = parent;
+    }
+    new TodoModal(plugin, current, box, focusLine).open();
+  })();
 }
 
 /**
  * Open the todo editor for a line in a note — the command,
  * the editor context menu, the inline edit icon, and the keyword popup all land
  * here. Uses the indexed record when the index already knows the todo (so
- * subproject/section are right), else a thin record built from the line text;
+ * parent/section are right), else a thin record built from the line text;
  * the Writer re-finds the line by id either way. False when it isn't a todo line.
  */
 export function openTodoModalForLine(
@@ -84,14 +102,14 @@ export function todoRecordForLine(
 ): TodoRecord | null {
   const todo = parseTodoLine(text);
   if (!todo) return null;
-  const indexed = todo.id !== null ? plugin.index.getById(todo.id) : undefined;
+  const indexed = todo.id !== null ? plugin.index.getById(todo.id) : plugin.index.getByFile(file.path).find((r) => r.line === line && r.displayText === todo.displayText);
   if (indexed && indexed.file === file.path) return { ...indexed, ...todo, line };
   return {
     ...todo,
     file: file.path,
     line,
     project: plugin.fileKind(file) === "project" ? file.basename : null,
-    subproject: null,
+    parentLine: null, depth: 0, parentText: null, steps: [],
     section: null,
     note: "",
     projectGroup: null,
@@ -110,12 +128,15 @@ class TodoModal extends Modal {
   // re-finds the line by id, so later edits in the same session still land.
   private status: Status;
   private priority: Priority;
+  private checklistVersion = 0;
+  private refreshSteps: (() => Promise<void>) | null = null;
   private stopAnchoring: (() => void) | null = null;
 
   constructor(
     private plugin: MarkTodoPlugin,
     private todo: TodoRecord,
     private anchor: Box | null = null,
+    private focusStep: number | null = null,
   ) {
     super(plugin.app);
     this.modalEl.addClass(THEME_CLASS);
@@ -130,6 +151,7 @@ class TodoModal extends Modal {
   }
 
   onClose(): void {
+    this.checklistVersion++;
     this.stopAnchoring?.();
     this.stopAnchoring = null;
     this.contentEl.empty();
@@ -147,6 +169,7 @@ class TodoModal extends Modal {
 
     this.buildTitle(contentEl);
     this.buildNote(contentEl);
+    this.buildSteps(contentEl);
 
     const fields = contentEl.createDiv({ cls: "marktodo-fields" });
     this.buildStatusField(fields);
@@ -252,7 +275,7 @@ class TodoModal extends Modal {
       singleLine: true,
       commit: async (next) => {
         if (next === "") return false; // an empty title isn't allowed — put it back
-        return this.plugin.writer.setTitle(this.todo, next);
+        return this.saveField(() => this.plugin.writer.setTitle(this.todo, next));
       },
     });
   }
@@ -281,6 +304,84 @@ class TodoModal extends Modal {
         return ok || next === "";
       },
     });
+  }
+
+  /** Follow adoption and section moves so later checklist edits use the current parent. */
+  private async saveField(save: () => Promise<boolean>): Promise<boolean> {
+    const file = this.plugin.app.vault.getAbstractFileByPath(this.todo.file);
+    if (!(file instanceof TFile)) return false;
+    const oldId = this.todo.id;
+    const priorIds = oldId === null
+      ? new Set(indexFileTodos(file.path, await this.plugin.app.vault.read(file), { projectName: this.todo.project }).map((r) => r.id))
+      : null;
+    const ok = await save();
+    if (!ok) return false;
+    const records = indexFileTodos(file.path, await this.plugin.app.vault.read(file), { projectName: this.todo.project });
+    const candidates = records.filter((r) => r.parentLine === null &&
+      (oldId !== null ? r.id === oldId : r.id !== null && !priorIds!.has(r.id)));
+    if (candidates.length === 1) this.todo = candidates[0];
+    await this.refreshSteps?.();
+    return true;
+  }
+
+  /** Plain checkbox steps: no scheduling fields and no separate todo editor. */
+  private buildSteps(parent: HTMLElement): void {
+    const wrap = parent.createDiv({ cls: "marktodo-checklist" });
+    const version = ++this.checklistVersion;
+    const refresh = async (): Promise<void> => {
+      const file = this.plugin.app.vault.getAbstractFileByPath(this.todo.file);
+      if (!(file instanceof TFile)) return;
+      const text = await this.plugin.app.vault.read(file);
+      if (version !== this.checklistVersion) return;
+      const idx = findTodoLine(text.split(/\r?\n/), this.todo);
+      const current = indexFileTodos(file.path, text, { projectName: this.todo.project }).find((r) => r.line === idx);
+      if (!current) return;
+      this.todo = current;
+      wrap.empty();
+      wrap.createDiv({ cls: "marktodo-checklist-heading", text: current.steps.length
+        ? `Sub-todos · ${current.steps.filter((s) => s.done).length}/${current.steps.length} done` : "Sub-todos" });
+      for (const step of current.steps) {
+        const row = wrap.createDiv({ cls: "marktodo-checklist-row" });
+        const checkbox = row.createEl("input", { type: "checkbox", attr: { "aria-label": `Complete step: ${step.text}` } });
+        checkbox.checked = step.done;
+        let saving = false;
+        const save = async (edit: { done: boolean } | { text: string } | { delete: true }): Promise<void> => {
+          if (saving) return;
+          saving = true;
+          checkbox.disabled = true;
+          const ok = await this.plugin.writer.editStep(current, step, edit);
+          if (!ok) new Notice("MarkTodo: the step changed. Please try again.");
+          await refresh();
+        };
+        checkbox.onchange = (): void => { void save({ done: checkbox.checked }); };
+        const title = row.createEl("input", { type: "text", value: step.text, attr: { "aria-label": "Step text" } });
+        title.toggleClass("is-done", step.done);
+        title.onchange = (): void => { void save({ text: title.value }); };
+        const remove = row.createEl("button", { cls: "clickable-icon", attr: { "aria-label": `Delete step: ${step.text}`, title: "Delete step" } });
+        setIcon(remove, "x");
+        remove.onclick = (): void => { void save({ delete: true }); };
+        if (step.line === this.focusStep) {
+          this.focusStep = null;
+          title.focus();
+          row.scrollIntoView({ block: "nearest" });
+        }
+      }
+      const addRow = wrap.createDiv({ cls: "marktodo-checklist-add" });
+      const input = addRow.createEl("input", { type: "text", attr: { placeholder: "Add step…", "aria-label": "New sub-todo" } });
+      const button = addRow.createEl("button", { text: "Add" });
+      const add = async (): Promise<void> => {
+        if (!input.value.trim() || button.disabled) return;
+        button.disabled = true;
+        const ok = await this.plugin.writer.addSubTodo(current, input.value);
+        if (!ok) { new Notice("MarkTodo: give the step a single-line title."); button.disabled = false; return; }
+        await refresh();
+        wrap.querySelector<HTMLInputElement>(".marktodo-checklist-add input")?.focus();
+      };
+      button.onclick = (): void => { void add(); };
+      input.onkeydown = (e): void => { if (e.key === "Enter") { e.preventDefault(); void add(); } };
+    };
+    this.refreshSteps = refresh;
+    void refresh();
   }
 
   /** One label-and-control row of the grid. */
@@ -316,7 +417,7 @@ class TodoModal extends Modal {
         chip.onclick = (): void => {
           this.status = st;
           for (const [value, el] of chips) el.toggleClass("is-active", value === st);
-          void this.plugin.writer.setStatus(this.todo, st);
+          void this.saveField(() => this.plugin.writer.setStatus(this.todo, st));
         };
         chips.push([st, chip]);
       }
@@ -341,7 +442,7 @@ class TodoModal extends Modal {
       chip.onclick = (): void => {
         this.priority = p;
         row.findAll(".marktodo-chip").forEach((c, i) => c.toggleClass("is-active", PRIORITY_CHIPS[i] === p));
-        void this.plugin.writer.setPriority(this.todo, p);
+        void this.saveField(() => this.plugin.writer.setPriority(this.todo, p));
       };
     }
   }
@@ -358,12 +459,12 @@ class TodoModal extends Modal {
     const syncClear = (): void => clear.toggle(input.value !== "");
     syncClear();
     input.onchange = (): void => {
-      void this.plugin.writer.setDue(this.todo, input.value || null);
+      void this.saveField(() => this.plugin.writer.setDue(this.todo, input.value || null));
       syncClear();
     };
     clear.onclick = (): void => {
       input.value = "";
-      void this.plugin.writer.setDue(this.todo, null);
+      void this.saveField(() => this.plugin.writer.setDue(this.todo, null));
       syncClear();
     };
   }
@@ -405,7 +506,7 @@ class TodoModal extends Modal {
           ...this.todo,
           file: target,
           project: noteName(target),
-          subproject: null,
+          parentLine: null, depth: 0, parentText: null, steps: [],
           section: null,
         };
         new Notice(`MarkTodo: moved to "${noteName(target)}".`);
@@ -414,12 +515,11 @@ class TodoModal extends Modal {
     };
   }
 
-  /** Where the todo lives, in words — the note, the subproject, the line. */
+  /** Where the todo lives, in words — the note and line. */
   private buildLocation(parent: HTMLElement): void {
-    const crumbs = this.todo.subproject ? ` · ${this.todo.subproject}` : "";
     const line = parent.createDiv({ cls: "marktodo-modal-location" });
     setIcon(line.createSpan({ cls: "marktodo-meta-icon" }), PROJECT_ICON);
-    line.createSpan({ text: `${this.todo.file}:${this.todo.line + 1}${crumbs}` });
+    line.createSpan({ text: `${this.todo.file}:${this.todo.line + 1}` });
   }
 
   /**

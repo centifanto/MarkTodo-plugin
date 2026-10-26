@@ -8,7 +8,7 @@
  *   take its note and any sub-items with it, or they are stranded under whatever
  *   heading the todo used to live in (silently — no parser would complain).
  * - **note block** — the deeper-indented NON-todo lines at the head of the span.
- *   A nested `- [ ]` ends it: sub-todo hierarchy is a separate future feature, not
+ *   A nested `- [ ]` ends it: sub-todos have their own hierarchy and are never part of
  *   the note.
  *
  * A blank line ends both. That is the pre-existing reorder rule, and
@@ -125,4 +125,77 @@ export function setNoteBlock(
     ...lines.slice(idx + 1 + existing.length),
   ];
   return out.join("\n") === lines.join("\n") ? null : out;
+}
+
+
+export interface TodoAncestry {
+  parentLine: number | null;
+  depth: number;
+  parentText: string | null;
+}
+
+/** Derive hierarchy using the exact blank/dedent boundaries of itemEndOf. */
+export function todoHierarchy(lines: readonly string[]): Map<number, TodoAncestry> {
+  const result = new Map<number, TodoAncestry>();
+  const stack: { line: number; indent: number; text: string }[] = [];
+  for (let line = 0; line < lines.length; line++) {
+    const text = lines[line];
+    const indent = indentOf(text);
+    while (stack.length && (text.trim() === "" || indent <= stack[stack.length - 1].indent)) stack.pop();
+    const todo = parseTodoLine(text);
+    if (!todo) continue;
+    const parent = stack.at(-1);
+    result.set(line, { parentLine: parent?.line ?? null, depth: stack.length, parentText: parent?.text ?? null });
+    stack.push({ line, indent, text: todo.displayText });
+  }
+  return result;
+}
+
+/** Recompute against current bytes, never a stale indexed parent line. */
+export function parentLineOf(lines: readonly string[], idx: number): number | null {
+  return todoHierarchy(lines).get(idx)?.parentLine ?? null;
+}
+
+/** Detach an item for placement at the root, preserving relative child/note indent. */
+export function rootTodoBlock(block: readonly string[]): string[] {
+  const prefix = /^\s*/.exec(block[0] ?? "")![0];
+  return block.map((line) => line.startsWith(prefix) ? line.slice(prefix.length) : line);
+}
+
+/** Edit only an existing step inside the supplied parent’s current item span. */
+export function editStepBlock(
+  lines: readonly string[],
+  parent: number,
+  step: { line: number; text: string; done: boolean },
+  edit: { done: boolean } | { text: string } | { delete: true },
+): string[] | null {
+  const end = itemEndOf(lines, parent);
+  const current = parseTodoLine(lines[step.line] ?? "");
+  if (step.line <= parent || step.line >= end || !current ||
+      current.displayText !== step.text || (current.glyph === "x") !== step.done) return null;
+  const out = [...lines];
+  if ("delete" in edit) {
+    out.splice(step.line, itemEndOf(lines, step.line) - step.line);
+  } else if ("done" in edit) {
+    out[step.line] = lines[step.line].replace(/^(\s*[-*+] \[).(\])/, `$1${edit.done ? "x" : " "}$2`);
+  } else {
+    const text = edit.text.trim();
+    if (!text || /[\r\n]|<!--/.test(text)) return null;
+    const capsule = /\s*<!--\s*mt\s+.*?-->\s*$/.exec(lines[step.line])?.[0] ?? "";
+    out[step.line] = `${current.indent}${current.bullet} [${current.glyph}] ${text}${capsule}`;
+  }
+  return out.join("\n") === lines.join("\n") ? null : out;
+}
+
+/** Check every step owned by a parent, preserving all bytes except checkbox glyphs. */
+export function completeStepsOf(lines: readonly string[], parent: number): string[] {
+  const out = [...lines];
+  if (!parseTodoLine(lines[parent] ?? "")) return out;
+  const end = itemEndOf(lines, parent);
+  for (let i = parent + 1; i < end; i++) {
+    if (parseTodoLine(lines[i])) {
+      out[i] = lines[i].replace(/^(\s*[-*+] \[).(\])/, "$1x$2");
+    }
+  }
+  return out;
 }

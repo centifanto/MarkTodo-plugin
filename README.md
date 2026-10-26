@@ -273,3 +273,28 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 ## License
 
 [GNU General Public License, version 3 or later](LICENSE).
+
+### Checklist steps
+
+Open a todo to add steps in its **Sub-todos** section, or indent plain Markdown
+checkboxes beneath it:
+
+```markdown
+- [ ] Install sink <!-- mt id=parent01 -->
+    - [x] Measure cabinet
+    - [ ] Buy fittings
+```
+
+Steps have text and a checkbox only. They stay inside the parent and do not appear
+on boards, in Agenda, or in project counts. Search shows matching steps beneath
+their parent; selecting one opens the parent's checklist. Parent rows and cards
+show checklist progress. Checking every step does not automatically complete the
+parent. Completing the parent checks all of its steps in the same write that moves
+the entire indented block into Done. Reopening the parent leaves its steps checked.
+
+A parent and its checklist move together. Deleting a parent also deletes its steps.
+Blank lines or dedented text end a checklist block. Other Markdown headings remain
+ordinary headings; projects use one set of status sections.
+
+Companion app support is a separate follow-up; see the
+[app handoff](docs/checklist-app-handoff.md) before using the feature across devices.

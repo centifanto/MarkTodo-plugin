@@ -2093,3 +2093,66 @@ body {
 .setting-item > .marktodo-contact-icon.is-x {
   color: var(--text-normal);
 }
+
+/* A parent owns a small checklist, with the same quiet controls as its note. */
+.marktodo-checklist {
+  margin: 12px 0 18px;
+}
+.marktodo-checklist-heading,
+.marktodo-step-progress {
+  color: var(--text-muted);
+  font-size: var(--font-smallest);
+}
+.marktodo-checklist-heading {
+  margin-bottom: 8px;
+}
+.marktodo-checklist-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  margin: 4px 0;
+}
+.marktodo-checklist-row input[type="text"] {
+  width: 100%;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.marktodo-checklist-row input[type="text"]:focus {
+  border-color: var(--background-modifier-border-focus);
+}
+.marktodo-checklist-row input.is-done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+.marktodo-checklist-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.marktodo-checklist-add input {
+  flex: 1;
+  min-width: 0;
+}
+.marktodo-search-step {
+  display: flex;
+  gap: 8px;
+  width: calc(100% - 28px);
+  height: auto;
+  margin: 0 0 4px 28px;
+  padding: 5px 8px;
+  white-space: normal;
+  text-align: left;
+  color: var(--text-muted);
+  background: transparent;
+  box-shadow: none;
+  border: 0;
+  font-size: var(--font-small);
+}
+.marktodo-search-step.is-done {
+  text-decoration: line-through;
+}
+.marktodo-search-step:hover {
+  background: var(--background-modifier-hover);
+}
