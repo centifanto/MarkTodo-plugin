@@ -249,7 +249,7 @@ instead, as does a pop-up the first time. Settings keeps a link to it too.
 
 ## Status
 
-Early beta (0.0.14), available in
+Early beta (0.0.15), available in
 [Community Plugins](https://community.obsidian.md/plugins/marktodo).
 
 ## Development
@@ -264,7 +264,7 @@ pnpm lint    # Obsidian's community-plugin review rules
 ```
 
 To release, bump the version in `manifest.json`, `package.json` and
-`versions.json`, then push a tag with the bare version (`0.0.14`). The Release
+`versions.json`, then push a tag with the bare version (`0.0.15`). The Release
 workflow builds, attests and publishes `main.js`, `manifest.json` and
 `styles.css`.
 
